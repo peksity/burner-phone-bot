@@ -271,22 +271,94 @@ client.on(Events.MessageCreate, async (message) => {
     const args = message.content.slice(1).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
     
-    // ?dm @user message
+    // ?dm @user message - Creates ticket and DMs user
     if (cmd === 'dm' && isStaff(message.member)) {
       const user = message.mentions.users.first();
       const content = args.slice(1).join(' ');
       if (!user || !content) return message.reply('Usage: `?dm @user message`');
       
       try {
-        const embed = new EmbedBuilder()
+        const guild = message.guild;
+        
+        // Check if user already has open ticket
+        let ticket = await getOpenTicket(user.id);
+        
+        if (!ticket) {
+          // Create ticket for this outreach
+          const ticketNum = await getNextTicketNumber();
+          
+          // Find or create category
+          let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+          if (!category) {
+            category = await guild.channels.create({
+              name: '📨 MODMAIL',
+              type: ChannelType.GuildCategory,
+              permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
+            });
+          }
+          
+          // Create channel
+          const channel = await guild.channels.create({
+            name: `ticket-${ticketNum.toString().padStart(4, '0')}`,
+            type: ChannelType.GuildText,
+            parent: category.id,
+            topic: `User: ${user.tag} (${user.id}) | Staff initiated`
+          });
+          
+          // Save to DB
+          const r = await pool.query(`
+            INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id)
+            VALUES ($1, $2, $3, $4) RETURNING *
+          `, [ticketNum, user.id, guild.id, channel.id]);
+          ticket = r.rows[0];
+          
+          // Ticket embed
+          const embed = new EmbedBuilder()
+            .setTitle(`📨 Ticket #${ticketNum} (Staff Initiated)`)
+            .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}\n**Started by:** ${message.author.tag}`)
+            .setColor(CONFIG.COLORS.primary)
+            .setThumbnail(user.displayAvatarURL())
+            .setTimestamp();
+          
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
+            new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+            new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
+          );
+          
+          await channel.send({ embeds: [embed], components: [row] });
+        }
+        
+        // Save outgoing message
+        await pool.query(`
+          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+          VALUES ($1, $2, $3, $4, true)
+        `, [ticket.id, message.author.id, message.author.tag, content]);
+        
+        // DM the user
+        const dmEmbed = new EmbedBuilder()
           .setTitle('📬 Message from Staff')
           .setDescription(content)
           .setColor(CONFIG.COLORS.primary)
-          .setFooter({ text: 'Reply to create a ticket' });
-        await user.send({ embeds: [embed] });
-        await message.reply(`✅ Sent to ${user.tag}`);
+          .setFooter({ text: 'Reply to this DM to respond' })
+          .setTimestamp();
+        
+        await user.send({ embeds: [dmEmbed] });
+        
+        // Get ticket channel and send confirmation there
+        const ticketChannel = guild.channels.cache.get(ticket.channel_id);
+        if (ticketChannel && ticketChannel.id !== message.channel.id) {
+          const outEmbed = new EmbedBuilder()
+            .setAuthor({ name: `${message.author.tag} (Staff)`, iconURL: message.author.displayAvatarURL() })
+            .setDescription(content)
+            .setColor(CONFIG.COLORS.success)
+            .setTimestamp();
+          await ticketChannel.send({ embeds: [outEmbed] });
+        }
+        
+        await message.reply(`✅ Message sent to ${user.tag} - Ticket: <#${ticket.channel_id}>`);
       } catch (e) {
-        await message.reply('❌ Could not DM user.');
+        await message.reply(`❌ Could not DM ${user.tag} - they may have DMs disabled.`);
       }
     }
     
@@ -361,7 +433,24 @@ client.on(Events.MessageCreate, async (message) => {
         });
       }
       
-      await message.reply(`✅ Modmail ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}`);
+      let staffDm = message.guild.channels.cache.find(c => c.name === 'staff-dm');
+      if (!staffDm) {
+        staffDm = await message.guild.channels.create({
+          name: 'staff-dm',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'Use ?dm @user message to contact members through the bot'
+        });
+        
+        // Send instructions
+        const instructionEmbed = new EmbedBuilder()
+          .setTitle('📬 Staff DM Channel')
+          .setDescription('Use this channel to DM server members through the bot.\n\n**Command:**\n`?dm @user Your message here`\n\n**What happens:**\n• User receives a DM from Burner Phone\n• A ticket is created to track the conversation\n• User can reply and it comes here')
+          .setColor(CONFIG.COLORS.primary);
+        await staffDm.send({ embeds: [instructionEmbed] });
+      }
+      
+      await message.reply(`✅ Modmail ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}`);
     }
     
     // ?modmailguide
