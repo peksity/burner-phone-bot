@@ -493,8 +493,7 @@ client.on(Events.MessageCreate, async (message) => {
         const guideEmbed1 = new EmbedBuilder()
           .setTitle('📱 BURNER PHONE - STAFF GUIDE')
           .setDescription('This is your secure modmail system. All staff-to-member communication goes through this bot so you never have to use your personal DMs.')
-          .setColor(CONFIG.COLORS.primary)
-          .setImage('https://i.imgur.com/8QqZQqN.png');
+          .setColor(CONFIG.COLORS.primary);
         
         const guideEmbed2 = new EmbedBuilder()
           .setTitle('📥 WHEN A USER DMS THE BOT')
