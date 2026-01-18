@@ -51,6 +51,12 @@ const CONFIG = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function initDatabase() {
+  // Drop old tables if they have wrong schema
+  await pool.query(`DROP TABLE IF EXISTS modmail_messages CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_tickets CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_blacklist CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_canned CASCADE`);
+  
   await pool.query(`
     CREATE TABLE IF NOT EXISTS modmail_tickets (
       id SERIAL PRIMARY KEY,
