@@ -121,6 +121,32 @@ function isStaff(member) {
   return member.roles.cache.some(r => ['staff','mod','admin','moderator','mastermind'].some(n => r.name.toLowerCase().includes(n)));
 }
 
+const MODMAIL_LOG_CHANNEL = '1462325739297968279';
+
+async function logToModmail(guild, ticket, closedBy, reason, kicked = false) {
+  try {
+    const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+    if (!logChannel) return;
+    
+    const user = await client.users.fetch(ticket.user_id).catch(() => null);
+    
+    const embed = new EmbedBuilder()
+      .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed${kicked ? ' & Kicked' : ''}`)
+      .addFields(
+        { name: '👤 User', value: user ? `${user.tag} (${user.id})` : ticket.user_id, inline: true },
+        { name: '👮 Closed By', value: closedBy.tag, inline: true },
+        { name: '📅 Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true },
+        { name: '📝 Reason', value: reason || 'No reason provided', inline: false }
+      )
+      .setColor(kicked ? CONFIG.COLORS.error : CONFIG.COLORS.warning)
+      .setTimestamp();
+    
+    await logChannel.send({ embeds: [embed] });
+  } catch (e) {
+    console.log('Log error:', e.message);
+  }
+}
+
 async function getOpenTicket(userId) {
   const r = await pool.query(`SELECT * FROM modmail_tickets WHERE user_id = $1 AND status = 'open' LIMIT 1`, [userId]);
   return r.rows[0];
@@ -271,95 +297,35 @@ client.on(Events.MessageCreate, async (message) => {
     const args = message.content.slice(1).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
     
-    // ?dm @user message - Creates ticket and DMs user
+    // ?dm @user message - Creates ticket and DMs user (with confirmation)
     if (cmd === 'dm' && isStaff(message.member)) {
       const user = message.mentions.users.first();
       const content = args.slice(1).join(' ');
       if (!user || !content) return message.reply('Usage: `?dm @user message`');
       
-      try {
-        const guild = message.guild;
-        
-        // Check if user already has open ticket
-        let ticket = await getOpenTicket(user.id);
-        
-        if (!ticket) {
-          // Create ticket for this outreach
-          const ticketNum = await getNextTicketNumber();
-          
-          // Find or create category
-          let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
-          if (!category) {
-            category = await guild.channels.create({
-              name: '📨 MODMAIL',
-              type: ChannelType.GuildCategory,
-              permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
-            });
-          }
-          
-          // Create channel
-          const channel = await guild.channels.create({
-            name: `ticket-${ticketNum.toString().padStart(4, '0')}`,
-            type: ChannelType.GuildText,
-            parent: category.id,
-            topic: `User: ${user.tag} (${user.id}) | Staff initiated`
-          });
-          
-          // Save to DB
-          const r = await pool.query(`
-            INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id)
-            VALUES ($1, $2, $3, $4) RETURNING *
-          `, [ticketNum, user.id, guild.id, channel.id]);
-          ticket = r.rows[0];
-          
-          // Ticket embed
-          const embed = new EmbedBuilder()
-            .setTitle(`📨 Ticket #${ticketNum} (Staff Initiated)`)
-            .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}\n**Started by:** ${message.author.tag}`)
-            .setColor(CONFIG.COLORS.primary)
-            .setThumbnail(user.displayAvatarURL())
-            .setTimestamp();
-          
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
-            new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-            new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
-          );
-          
-          await channel.send({ embeds: [embed], components: [row] });
-        }
-        
-        // Save outgoing message
-        await pool.query(`
-          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
-          VALUES ($1, $2, $3, $4, true)
-        `, [ticket.id, message.author.id, message.author.tag, content]);
-        
-        // DM the user
-        const dmEmbed = new EmbedBuilder()
-          .setTitle('📬 Message from Staff')
-          .setDescription(content)
-          .setColor(CONFIG.COLORS.primary)
-          .setFooter({ text: 'Reply to this DM to respond' })
-          .setTimestamp();
-        
-        await user.send({ embeds: [dmEmbed] });
-        
-        // Get ticket channel and send confirmation there
-        const ticketChannel = guild.channels.cache.get(ticket.channel_id);
-        if (ticketChannel && ticketChannel.id !== message.channel.id) {
-          const outEmbed = new EmbedBuilder()
-            .setAuthor({ name: `${message.author.tag} (Staff)`, iconURL: message.author.displayAvatarURL() })
-            .setDescription(content)
-            .setColor(CONFIG.COLORS.success)
-            .setTimestamp();
-          await ticketChannel.send({ embeds: [outEmbed] });
-        }
-        
-        await message.reply(`✅ Message sent to ${user.tag} - Ticket: <#${ticket.channel_id}>`);
-      } catch (e) {
-        await message.reply(`❌ Could not DM ${user.tag} - they may have DMs disabled.`);
-      }
+      // Show preview and ask for confirmation
+      const previewEmbed = new EmbedBuilder()
+        .setTitle('📝 Message Preview')
+        .setDescription(`**To:** ${user.tag}\n\n**Message:**\n${content}`)
+        .setColor(CONFIG.COLORS.warning)
+        .setFooter({ text: 'Check for spelling errors before sending!' });
+      
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`confirm_dm_${user.id}`).setLabel('✅ Send').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('cancel_dm').setLabel('❌ Cancel').setStyle(ButtonStyle.Danger)
+      );
+      
+      const preview = await message.reply({ embeds: [previewEmbed], components: [row] });
+      
+      // Store pending message
+      client.pendingDMs = client.pendingDMs || new Map();
+      client.pendingDMs.set(`${message.author.id}_${user.id}`, {
+        user: user,
+        content: content,
+        guild: message.guild,
+        preview: preview,
+        originalMsg: message
+      });
     }
     
     // ?close [reason]
@@ -391,6 +357,53 @@ client.on(Events.MessageCreate, async (message) => {
           console.log('Could not delete DM messages:', e.message);
         }
       } catch (e) {}
+      
+      // Log to modmail-logs
+      await logToModmail(message.guild, ticket, message.author, reason);
+      
+      await message.channel.send('🔒 Closing in 5 seconds... Messages burned 🔥');
+      setTimeout(() => message.channel.delete().catch(() => {}), 5000);
+    }
+    
+    // ?closeandkick @user [reason]
+    if (cmd === 'closeandkick' && isStaff(message.member)) {
+      const ticket = await getTicketByChannel(message.channel.id);
+      if (!ticket) return message.reply('Not a ticket channel.');
+      
+      const reason = args.join(' ') || 'Closed and removed from server';
+      await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1, close_reason = $2 WHERE id = $3`,
+        [message.author.id, reason, ticket.id]);
+      
+      try {
+        const user = await client.users.fetch(ticket.user_id);
+        
+        // Send closing message FIRST (before kick)
+        await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}\n\n*This conversation will be deleted shortly.*`).setColor(CONFIG.COLORS.error)] });
+        
+        // Delete bot's messages from user's DMs (burner style)
+        try {
+          const dmChannel = await user.createDM();
+          const messages = await dmChannel.messages.fetch({ limit: 100 });
+          const botMessages = messages.filter(m => m.author.id === client.user.id);
+          
+          for (const [, msg] of botMessages) {
+            await msg.delete().catch(() => {});
+            await new Promise(r => setTimeout(r, 500));
+          }
+        } catch (e) {}
+        
+        // NOW kick the user
+        const member = await message.guild.members.fetch(ticket.user_id).catch(() => null);
+        if (member) {
+          await member.kick(reason);
+          await message.channel.send(`👢 ${user.tag} has been kicked.`);
+        }
+      } catch (e) {
+        console.log('Close and kick error:', e.message);
+      }
+      
+      // Log to modmail-logs
+      await logToModmail(message.guild, ticket, message.author, reason, true);
       
       await message.channel.send('🔒 Closing in 5 seconds... Messages burned 🔥');
       setTimeout(() => message.channel.delete().catch(() => {}), 5000);
@@ -466,7 +479,97 @@ client.on(Events.MessageCreate, async (message) => {
         await staffDm.send({ embeds: [instructionEmbed] });
       }
       
-      await message.reply(`✅ Modmail ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}`);
+      // Create guide channel
+      let guide = message.guild.channels.cache.find(c => c.name === 'modmail-guide');
+      if (!guide) {
+        guide = await message.guild.channels.create({
+          name: 'modmail-guide',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'How to use the Burner Phone modmail system'
+        });
+        
+        // Send the guide
+        const guideEmbed1 = new EmbedBuilder()
+          .setTitle('📱 BURNER PHONE - STAFF GUIDE')
+          .setDescription('This is your secure modmail system. All staff-to-member communication goes through this bot so you never have to use your personal DMs.')
+          .setColor(CONFIG.COLORS.primary)
+          .setImage('https://i.imgur.com/8QqZQqN.png');
+        
+        const guideEmbed2 = new EmbedBuilder()
+          .setTitle('📥 WHEN A USER DMS THE BOT')
+          .setDescription(`
+**What happens:**
+1. User sends a DM to Burner Phone
+2. A ticket channel is created here (ticket-0001, etc.)
+3. You see their message in the ticket
+4. Just type in the ticket channel to reply
+5. They receive your reply as a DM
+
+**They never see your name - it's all anonymous!**
+          `)
+          .setColor(CONFIG.COLORS.info);
+        
+        const guideEmbed3 = new EmbedBuilder()
+          .setTitle('📤 WHEN YOU NEED TO DM A USER')
+          .setDescription(`
+**Go to #staff-dm and use:**
+\`?dm @user Your message here\`
+
+**What happens:**
+1. User gets a DM from Burner Phone
+2. A ticket is created to track replies
+3. If they respond, it shows up in the ticket
+          `)
+          .setColor(CONFIG.COLORS.info);
+        
+        const guideEmbed4 = new EmbedBuilder()
+          .setTitle('⌨️ COMMANDS')
+          .addFields(
+            { name: '💬 In Ticket Channels', value: `
+\`?close [reason]\` - Close ticket & delete messages
+\`?closeandkick [reason]\` - Close ticket, delete messages, AND kick user
+\`?claim\` - Mark ticket as yours
+            `, inline: false },
+            { name: '📤 In #staff-dm', value: `
+\`?dm @user message\` - DM a user through the bot
+            `, inline: false },
+            { name: '📋 Anywhere', value: `
+\`?tickets\` - View all open tickets
+\`?blacklist @user\` - Block user from modmail
+\`?unblacklist @user\` - Unblock user
+            `, inline: false }
+          )
+          .setColor(CONFIG.COLORS.success);
+        
+        const guideEmbed5 = new EmbedBuilder()
+          .setTitle('🔥 BURNER STYLE')
+          .setDescription(`
+**When you close a ticket:**
+• User gets a "Ticket Closed" message
+• ALL bot messages in their DMs are **deleted**
+• The ticket channel is deleted
+• Only their own messages remain
+
+**This protects both staff and the server!**
+          `)
+          .setColor(CONFIG.COLORS.warning);
+        
+        const guideEmbed6 = new EmbedBuilder()
+          .setTitle('⚠️ IMPORTANT TIPS')
+          .setDescription(`
+• **Close BEFORE kicking** - Use \`?closeandkick\` to do both in the right order
+• **Claim tickets** you're working on so others know
+• **Check #modmail-logs** for ticket history
+• **Never share your personal Discord** - use this system!
+          `)
+          .setColor(CONFIG.COLORS.error)
+          .setFooter({ text: 'Burner Phone • The Unpatched Method' });
+        
+        await guide.send({ embeds: [guideEmbed1, guideEmbed2, guideEmbed3, guideEmbed4, guideEmbed5, guideEmbed6] });
+      }
+      
+      await message.reply(`✅ Modmail ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
     }
     
     // ?modmailguide
@@ -530,6 +633,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         console.log('Could not delete DM messages:', e.message);
       }
     } catch (e) {}
+    
+    // Log to modmail-logs
+    await logToModmail(interaction.guild, ticket, interaction.user, 'Closed via button');
+    
     await interaction.reply('🔒 Closing... Messages burned 🔥');
     setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
   }
@@ -550,6 +657,130 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const p = interaction.customId.replace('p_', '');
     await pool.query(`UPDATE modmail_tickets SET priority = $1 WHERE id = $2`, [p, ticket.id]);
     await interaction.update({ content: `Priority: ${p}`, components: [] });
+  }
+});
+
+// Handle DM confirmation buttons
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isButton()) return;
+  
+  // Cancel DM
+  if (interaction.customId === 'cancel_dm') {
+    // Find and delete the original message and preview
+    for (const [key, pending] of client.pendingDMs || new Map()) {
+      if (key.startsWith(interaction.user.id)) {
+        pending.originalMsg?.delete().catch(() => {});
+        pending.preview?.delete().catch(() => {});
+        client.pendingDMs.delete(key);
+        break;
+      }
+    }
+    return;
+  }
+  
+  // Confirm DM
+  if (interaction.customId.startsWith('confirm_dm_')) {
+    const userId = interaction.customId.replace('confirm_dm_', '');
+    const key = `${interaction.user.id}_${userId}`;
+    const pending = client.pendingDMs?.get(key);
+    
+    if (!pending) {
+      return interaction.update({ content: '❌ Message expired. Please try again.', embeds: [], components: [] });
+    }
+    
+    try {
+      const { user, content, guild, originalMsg, preview } = pending;
+      
+      // Check if user already has open ticket
+      let ticket = await getOpenTicket(user.id);
+      
+      if (!ticket) {
+        // Create ticket for this outreach
+        const ticketNum = await getNextTicketNumber();
+        
+        // Find or create category
+        let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+        if (!category) {
+          category = await guild.channels.create({
+            name: '📨 MODMAIL',
+            type: ChannelType.GuildCategory,
+            permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
+          });
+        }
+        
+        // Create channel
+        const channel = await guild.channels.create({
+          name: `ticket-${ticketNum.toString().padStart(4, '0')}`,
+          type: ChannelType.GuildText,
+          parent: category.id,
+          topic: `User: ${user.tag} (${user.id}) | Staff initiated`
+        });
+        
+        // Save to DB
+        const r = await pool.query(`
+          INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id)
+          VALUES ($1, $2, $3, $4) RETURNING *
+        `, [ticketNum, user.id, guild.id, channel.id]);
+        ticket = r.rows[0];
+        
+        // Ticket embed
+        const embed = new EmbedBuilder()
+          .setTitle(`📨 Ticket #${ticketNum} (Staff Initiated)`)
+          .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}\n**Started by:** ${interaction.user.tag}`)
+          .setColor(CONFIG.COLORS.primary)
+          .setThumbnail(user.displayAvatarURL())
+          .setTimestamp();
+        
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
+          new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+          new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
+        );
+        
+        await channel.send({ embeds: [embed], components: [row] });
+      }
+      
+      // Save outgoing message
+      await pool.query(`
+        INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+        VALUES ($1, $2, $3, $4, true)
+      `, [ticket.id, interaction.user.id, interaction.user.tag, content]);
+      
+      // DM the user
+      const dmEmbed = new EmbedBuilder()
+        .setTitle('📬 Message from The Unpatched Method Team')
+        .setDescription(content)
+        .setColor(CONFIG.COLORS.primary)
+        .setFooter({ text: 'Reply to this DM to respond' })
+        .setTimestamp();
+      
+      await user.send({ embeds: [dmEmbed] });
+      
+      // Get ticket channel and send confirmation there
+      const ticketChannel = guild.channels.cache.get(ticket.channel_id);
+      if (ticketChannel && ticketChannel.id !== interaction.channel.id) {
+        const outEmbed = new EmbedBuilder()
+          .setAuthor({ name: `${interaction.user.tag} (Staff)`, iconURL: interaction.user.displayAvatarURL() })
+          .setDescription(content)
+          .setColor(CONFIG.COLORS.success)
+          .setTimestamp();
+        await ticketChannel.send({ embeds: [outEmbed] });
+      }
+      
+      // Delete original command and preview - keep channel clean
+      originalMsg?.delete().catch(() => {});
+      preview?.delete().catch(() => {});
+      
+      // Send brief confirmation then delete it too
+      const confirm = await interaction.channel.send(`✅ Message sent to ${user.tag} - Ticket: <#${ticket.channel_id}>`);
+      setTimeout(() => confirm.delete().catch(() => {}), 5000);
+      
+      // Clean up
+      client.pendingDMs.delete(key);
+    } catch (e) {
+      await interaction.update({ content: `❌ Could not DM user - they may have DMs disabled.`, embeds: [], components: [] });
+      client.pendingDMs.delete(key);
+    }
   }
 });
 
