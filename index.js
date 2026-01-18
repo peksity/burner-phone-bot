@@ -118,7 +118,7 @@ async function isBlacklisted(userId) {
 function isStaff(member) {
   if (!member) return false;
   if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
-  return member.roles.cache.some(r => ['staff','mod','admin','moderator'].some(n => r.name.toLowerCase().includes(n)));
+  return member.roles.cache.some(r => ['staff','mod','admin','moderator','mastermind'].some(n => r.name.toLowerCase().includes(n)));
 }
 
 async function getOpenTicket(userId) {
