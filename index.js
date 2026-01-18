@@ -373,10 +373,26 @@ client.on(Events.MessageCreate, async (message) => {
       
       try {
         const user = await client.users.fetch(ticket.user_id);
-        await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}`).setColor(CONFIG.COLORS.error)] });
+        
+        // Send closing message
+        await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}\n\n*This conversation will be deleted shortly.*`).setColor(CONFIG.COLORS.error)] });
+        
+        // Delete bot's messages from user's DMs (burner style)
+        try {
+          const dmChannel = await user.createDM();
+          const messages = await dmChannel.messages.fetch({ limit: 100 });
+          const botMessages = messages.filter(m => m.author.id === client.user.id);
+          
+          for (const [, msg] of botMessages) {
+            await msg.delete().catch(() => {});
+            await new Promise(r => setTimeout(r, 500)); // Rate limit protection
+          }
+        } catch (e) {
+          console.log('Could not delete DM messages:', e.message);
+        }
       } catch (e) {}
       
-      await message.channel.send('🔒 Closing in 5 seconds...');
+      await message.channel.send('🔒 Closing in 5 seconds... Messages burned 🔥');
       setTimeout(() => message.channel.delete().catch(() => {}), 5000);
     }
     
@@ -498,9 +514,23 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1 WHERE id = $2`, [interaction.user.id, ticket.id]);
     try {
       const user = await client.users.fetch(ticket.user_id);
-      await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription('Your ticket has been resolved.').setColor(CONFIG.COLORS.error)] });
+      await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*').setColor(CONFIG.COLORS.error)] });
+      
+      // Delete bot's messages from user's DMs (burner style)
+      try {
+        const dmChannel = await user.createDM();
+        const messages = await dmChannel.messages.fetch({ limit: 100 });
+        const botMessages = messages.filter(m => m.author.id === client.user.id);
+        
+        for (const [, msg] of botMessages) {
+          await msg.delete().catch(() => {});
+          await new Promise(r => setTimeout(r, 500)); // Rate limit protection
+        }
+      } catch (e) {
+        console.log('Could not delete DM messages:', e.message);
+      }
     } catch (e) {}
-    await interaction.reply('🔒 Closing...');
+    await interaction.reply('🔒 Closing... Messages burned 🔥');
     setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
   }
   
