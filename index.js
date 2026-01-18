@@ -334,34 +334,76 @@ client.on(Events.MessageCreate, async (message) => {
       if (!ticket) return message.reply('Not a ticket channel.');
       
       const reason = args.join(' ') || 'No reason';
+      
+      await message.channel.send('🔒 Closing ticket...');
+      
+      // Generate transcript first
+      const msgResult = await pool.query(`
+        SELECT * FROM modmail_messages WHERE ticket_id = $1 ORDER BY created_at ASC
+      `, [ticket.id]);
+      
+      let transcript = `╔══════════════════════════════════════════════════════════════╗\n`;
+      transcript += `║           TICKET #${ticket.ticket_number} - TRANSCRIPT                    ║\n`;
+      transcript += `╚══════════════════════════════════════════════════════════════╝\n\n`;
+      transcript += `User ID: ${ticket.user_id}\n`;
+      transcript += `Opened: ${ticket.created_at}\n`;
+      transcript += `Closed: ${new Date().toISOString()}\n`;
+      transcript += `Closed by: ${message.author.tag}\n`;
+      transcript += `Reason: ${reason}\n\n`;
+      transcript += `════════════════════ MESSAGES ════════════════════\n\n`;
+      
+      for (const msg of msgResult.rows) {
+        const prefix = msg.is_staff ? '[STAFF]' : '[USER]';
+        const time = new Date(msg.created_at).toLocaleString();
+        transcript += `${prefix} ${msg.author_name} (${time}):\n${msg.content}\n\n`;
+      }
+      
       await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1, close_reason = $2 WHERE id = $3`,
         [message.author.id, reason, ticket.id]);
       
       try {
         const user = await client.users.fetch(ticket.user_id);
         
-        // Send closing message
         await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}\n\n*This conversation will be deleted shortly.*`).setColor(CONFIG.COLORS.error)] });
+        
+        await message.channel.send('🔥 Burning messages...');
         
         // Delete bot's messages from user's DMs (burner style)
         try {
           const dmChannel = await user.createDM();
-          const messages = await dmChannel.messages.fetch({ limit: 100 });
-          const botMessages = messages.filter(m => m.author.id === client.user.id);
+          const dmMessages = await dmChannel.messages.fetch({ limit: 100 });
+          const botMessages = dmMessages.filter(m => m.author.id === client.user.id);
           
           for (const [, msg] of botMessages) {
             await msg.delete().catch(() => {});
-            await new Promise(r => setTimeout(r, 500)); // Rate limit protection
+            await new Promise(r => setTimeout(r, 500));
           }
         } catch (e) {
           console.log('Could not delete DM messages:', e.message);
         }
       } catch (e) {}
       
-      // Log to modmail-logs
-      await logToModmail(message.guild, ticket, message.author, reason);
+      // Send transcript to log channel
+      const logChannel = message.guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed`)
+          .addFields(
+            { name: '👤 User', value: `<@${ticket.user_id}>`, inline: true },
+            { name: '👮 Closed By', value: message.author.tag, inline: true },
+            { name: '📝 Reason', value: reason, inline: true }
+          )
+          .setColor(CONFIG.COLORS.warning)
+          .setTimestamp();
+        
+        const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+        await logChannel.send({ 
+          embeds: [logEmbed], 
+          files: [{ attachment: transcriptBuffer, name: `ticket-${ticket.ticket_number}-transcript.txt` }] 
+        });
+      }
       
-      await message.channel.send('🔒 Closing in 5 seconds... Messages burned 🔥');
+      await message.channel.send('✅ Transcript saved. Deleting channel in 5 seconds...');
       setTimeout(() => message.channel.delete().catch(() => {}), 5000);
     }
     
@@ -613,8 +655,27 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
   
   if (interaction.customId === 'close') {
-    // Respond immediately to avoid timeout
-    await interaction.reply('🔒 Closing... Messages burning 🔥');
+    await interaction.reply('🔒 Closing ticket...');
+    
+    // Generate transcript first
+    const messages = await pool.query(`
+      SELECT * FROM modmail_messages WHERE ticket_id = $1 ORDER BY created_at ASC
+    `, [ticket.id]);
+    
+    let transcript = `╔══════════════════════════════════════════════════════════════╗\n`;
+    transcript += `║           TICKET #${ticket.ticket_number} - TRANSCRIPT                    ║\n`;
+    transcript += `╚══════════════════════════════════════════════════════════════╝\n\n`;
+    transcript += `User ID: ${ticket.user_id}\n`;
+    transcript += `Opened: ${ticket.created_at}\n`;
+    transcript += `Closed: ${new Date().toISOString()}\n`;
+    transcript += `Closed by: ${interaction.user.tag}\n\n`;
+    transcript += `════════════════════ MESSAGES ════════════════════\n\n`;
+    
+    for (const msg of messages.rows) {
+      const prefix = msg.is_staff ? '[STAFF]' : '[USER]';
+      const time = new Date(msg.created_at).toLocaleString();
+      transcript += `${prefix} ${msg.author_name} (${time}):\n${msg.content}\n\n`;
+    }
     
     await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1 WHERE id = $2`, [interaction.user.id, ticket.id]);
     
@@ -622,25 +683,45 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const user = await client.users.fetch(ticket.user_id);
       await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*').setColor(CONFIG.COLORS.error)] });
       
+      await interaction.channel.send('🔥 Burning messages...');
+      
       // Delete bot's messages from user's DMs (burner style)
       try {
         const dmChannel = await user.createDM();
-        const messages = await dmChannel.messages.fetch({ limit: 100 });
-        const botMessages = messages.filter(m => m.author.id === client.user.id);
+        const dmMessages = await dmChannel.messages.fetch({ limit: 100 });
+        const botMessages = dmMessages.filter(m => m.author.id === client.user.id);
         
         for (const [, msg] of botMessages) {
           await msg.delete().catch(() => {});
-          await new Promise(r => setTimeout(r, 500)); // Rate limit protection
+          await new Promise(r => setTimeout(r, 500));
         }
       } catch (e) {
         console.log('Could not delete DM messages:', e.message);
       }
     } catch (e) {}
     
-    // Log to modmail-logs
-    await logToModmail(interaction.guild, ticket, interaction.user, 'Closed via button');
+    // Send transcript to log channel
+    const logChannel = interaction.guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+    if (logChannel) {
+      const logEmbed = new EmbedBuilder()
+        .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed`)
+        .addFields(
+          { name: '👤 User', value: `<@${ticket.user_id}>`, inline: true },
+          { name: '👮 Closed By', value: interaction.user.tag, inline: true },
+          { name: '📅 Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true }
+        )
+        .setColor(CONFIG.COLORS.warning)
+        .setTimestamp();
+      
+      const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+      await logChannel.send({ 
+        embeds: [logEmbed], 
+        files: [{ attachment: transcriptBuffer, name: `ticket-${ticket.ticket_number}-transcript.txt` }] 
+      });
+    }
     
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
+    await interaction.channel.send('✅ Transcript saved. Deleting channel in 5 seconds...');
+    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
   
   if (interaction.customId === 'priority') {
