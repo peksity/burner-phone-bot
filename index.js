@@ -613,7 +613,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
   
   if (interaction.customId === 'close') {
+    // Respond immediately to avoid timeout
+    await interaction.reply('🔒 Closing... Messages burning 🔥');
+    
     await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1 WHERE id = $2`, [interaction.user.id, ticket.id]);
+    
     try {
       const user = await client.users.fetch(ticket.user_id);
       await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*').setColor(CONFIG.COLORS.error)] });
@@ -636,7 +640,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Log to modmail-logs
     await logToModmail(interaction.guild, ticket, interaction.user, 'Closed via button');
     
-    await interaction.reply('🔒 Closing... Messages burned 🔥');
     setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
   }
   
