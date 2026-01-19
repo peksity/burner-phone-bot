@@ -825,7 +825,6 @@ This is for **legitimate inquiries only**:
 • Server questions
 • Reporting issues
 • Appeals
-• Partnership requests
 
 **DO NOT use this for:**
 ❌ Trolling or spam
@@ -1579,33 +1578,40 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const pending = client.pendingTickets?.get(interaction.user.id);
     
     if (!pending) {
-      return interaction.update({ 
+      return interaction.reply({ 
         content: '❌ Session expired. Please send your message again.', 
-        embeds: [], 
-        components: [] 
+        ephemeral: true 
       });
     }
     
-    const { content, guild, user, translation, mood, reputation, linkResults, scamThreats } = pending;
+    // Defer the reply - this gives us 15 minutes to respond
+    await interaction.deferUpdate();
     
-    // Create the ticket with all the scanned data
-    const ticket = await createTicket(user, guild, content, {
-      translation,
-      mood,
-      reputation,
-      linkResults,
-      scamThreats
-    });
-    
-    const successEmbed = new EmbedBuilder()
-      .setTitle('📨 Ticket Created!')
-      .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
-      .setColor(CONFIG.COLORS.success)
-      .setFooter({ text: 'The Unpatched Method • Support' });
-    
-    await interaction.update({ embeds: [successEmbed], components: [] });
-    
-    client.pendingTickets.delete(interaction.user.id);
+    try {
+      const { content, guild, user, translation, mood, reputation, linkResults, scamThreats } = pending;
+      
+      // Create the ticket with all the scanned data
+      const ticket = await createTicket(user, guild, content, {
+        translation,
+        mood,
+        reputation,
+        linkResults,
+        scamThreats
+      });
+      
+      const successEmbed = new EmbedBuilder()
+        .setTitle('📨 Ticket Created!')
+        .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
+        .setColor(CONFIG.COLORS.success)
+        .setFooter({ text: 'The Unpatched Method • Support' });
+      
+      await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+      
+      client.pendingTickets.delete(interaction.user.id);
+    } catch (e) {
+      console.error('Ticket creation error:', e);
+      await interaction.editReply({ content: '❌ Error creating ticket. Please try again.', embeds: [], components: [] });
+    }
   }
 });
 
