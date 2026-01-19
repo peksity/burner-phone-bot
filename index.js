@@ -707,12 +707,39 @@ client.on(Events.MessageCreate, async (message) => {
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // MESSAGE IS SAFE - SHOW CONFIRMATION
+    // CHECK FOR EXISTING TICKET
     // ═══════════════════════════════════════════════════════════════
     
     let ticket = await getOpenTicket(message.author.id);
     
-    // Show warning and require confirmation for EVERY message
+    if (ticket) {
+      // USER HAS EXISTING TICKET - Just add message and react with checkmark
+      const channel = guild.channels.cache.get(ticket.channel_id);
+      if (channel) {
+        await pool.query(`
+          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+          VALUES ($1, $2, $3, $4, false)
+        `, [ticket.id, message.author.id, message.author.tag, message.content]);
+        
+        // Send message to ticket channel
+        const embed = new EmbedBuilder()
+          .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
+          .setDescription(message.content)
+          .setColor(CONFIG.COLORS.info)
+          .setTimestamp();
+        
+        await channel.send({ embeds: [embed] });
+        
+        // React with checkmark to confirm message sent
+        await message.react('✅');
+      }
+      return;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // NO TICKET - SHOW WARNING (First time only)
+    // ═══════════════════════════════════════════════════════════════
+    
     const warningEmbed = new EmbedBuilder()
       .setTitle('⚠️ CONFIRM YOUR MESSAGE')
       .setDescription(`
@@ -746,13 +773,13 @@ client.on(Events.MessageCreate, async (message) => {
     
     await message.reply({ embeds: [warningEmbed], components: [row] });
     
-    // Store pending message
+    // Store pending message including original message for checkmark
     client.pendingTickets = client.pendingTickets || new Map();
     client.pendingTickets.set(message.author.id, {
       content: message.content,
       guild: guild,
       user: message.author,
-      existingTicket: ticket
+      originalMessage: message
     });
     return;
   }
@@ -779,11 +806,16 @@ client.on(Events.MessageCreate, async (message) => {
     
     try {
       const user = await client.users.fetch(ticket.user_id);
+      
+      // Send as Burner Phone - show bot's name and avatar, not staff
       const embed = new EmbedBuilder()
-        .setTitle('📬 Message from The Unpatched Method Team')
+        .setAuthor({ 
+          name: 'The Unpatched Method Team', 
+          iconURL: client.user.displayAvatarURL() 
+        })
         .setDescription(translatedContent)
         .setColor(CONFIG.COLORS.primary)
-        .setFooter({ text: `Ticket #${ticket.ticket_number}` })
+        .setFooter({ text: 'Reply to this message to respond' })
         .setTimestamp();
       
       await user.send({ embeds: [embed] });
@@ -1229,6 +1261,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (ticket.claimed_by) return interaction.reply({ content: `Already claimed by <@${ticket.claimed_by}>`, ephemeral: true });
     await pool.query(`UPDATE modmail_tickets SET claimed_by = $1 WHERE id = $2`, [interaction.user.id, ticket.id]);
     await interaction.reply(`✋ Claimed by ${interaction.user}`);
+    
+    // Notify the user that their ticket has been seen
+    try {
+      const user = await client.users.fetch(ticket.user_id);
+      await user.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('👀 Ticket Received')
+          .setDescription('A staff member is now reviewing your message. Please wait for a response.')
+          .setColor(CONFIG.COLORS.success)
+          .setFooter({ text: 'The Unpatched Method • Support' })
+        ]
+      });
+    } catch (e) {}
   }
   
   if (interaction.customId === 'close') {
@@ -1409,12 +1454,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
         VALUES ($1, $2, $3, $4, true)
       `, [ticket.id, interaction.user.id, interaction.user.tag, content]);
       
-      // DM the user
+      // DM the user - show as Burner Phone, not staff
       const dmEmbed = new EmbedBuilder()
-        .setTitle('📬 Message from The Unpatched Method Team')
+        .setAuthor({ 
+          name: 'The Unpatched Method Team', 
+          iconURL: client.user.displayAvatarURL() 
+        })
         .setDescription(content)
         .setColor(CONFIG.COLORS.primary)
-        .setFooter({ text: 'Reply to this DM to respond' })
+        .setFooter({ text: 'Reply to this message to respond' })
         .setTimestamp();
       
       await user.send({ embeds: [dmEmbed] });
@@ -1479,57 +1527,23 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferUpdate();
     
     try {
-      const { content, guild, user, existingTicket } = pending;
+      const { content, guild, user, originalMessage } = pending;
       
-      if (existingTicket) {
-        // Add to existing ticket
-        const channel = guild.channels.cache.get(existingTicket.channel_id);
-        if (channel) {
-          await pool.query(`
-            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
-            VALUES ($1, $2, $3, $4, false)
-          `, [existingTicket.id, user.id, user.tag, content]);
-          
-          // Send message to ticket channel
-          const embed = new EmbedBuilder()
-            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
-            .setDescription(content)
-            .setColor(CONFIG.COLORS.info)
-            .setTimestamp();
-          
-          await channel.send({ embeds: [embed] });
-          
-          const successEmbed = new EmbedBuilder()
-            .setTitle('✅ Message Sent!')
-            .setDescription('Your message has been sent to staff. They will respond soon.')
-            .setColor(CONFIG.COLORS.success)
-            .setFooter({ text: 'The Unpatched Method • Support' });
-          
-          await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
-        } else {
-          // Channel doesn't exist anymore, create new ticket
-          const ticket = await createTicket(user, guild, content, {});
-          
-          const successEmbed = new EmbedBuilder()
-            .setTitle('📨 Ticket Created!')
-            .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon.`)
-            .setColor(CONFIG.COLORS.success)
-            .setFooter({ text: 'The Unpatched Method • Support' });
-          
-          await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
-        }
-      } else {
-        // Create new ticket
-        const ticket = await createTicket(user, guild, content, {});
-        
-        const successEmbed = new EmbedBuilder()
-          .setTitle('📨 Ticket Created!')
-          .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon.`)
-          .setColor(CONFIG.COLORS.success)
-          .setFooter({ text: 'The Unpatched Method • Support' });
-        
-        await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+      // Create new ticket
+      const ticket = await createTicket(user, guild, content, {});
+      
+      // Add green checkmark to original message
+      if (originalMessage) {
+        await originalMessage.react('✅').catch(() => {});
       }
+      
+      const successEmbed = new EmbedBuilder()
+        .setTitle('📨 Ticket Created!')
+        .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. You can send more messages and they'll be added to your ticket.`)
+        .setColor(CONFIG.COLORS.success)
+        .setFooter({ text: 'The Unpatched Method • Support' });
+      
+      await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
       
       client.pendingTickets.delete(interaction.user.id);
     } catch (e) {
