@@ -762,72 +762,10 @@ client.on(Events.MessageCreate, async (message) => {
     
     let ticket = await getOpenTicket(message.author.id);
     
-    if (ticket) {
-      // Add to existing ticket
-      const channel = guild.channels.cache.get(ticket.channel_id);
-      if (channel) {
-        await pool.query(`
-          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
-          VALUES ($1, $2, $3, $4, $5, $6, false)
-        `, [ticket.id, message.author.id, message.author.tag, translation.translated || message.content, message.content, translation.languageCode]);
-        
-        // Build embed with all info
-        const embed = new EmbedBuilder()
-          .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
-          .setDescription(message.content)
-          .setColor(CONFIG.COLORS.info)
-          .setTimestamp();
-        
-        // Add translation if not English
-        if (translation.translated && !translation.isEnglish) {
-          embed.addFields({ 
-            name: `🌐 Translated from ${translation.language}`, 
-            value: translation.translated.slice(0, 1024),
-            inline: false 
-          });
-        }
-        
-        // Add mood indicator
-        embed.addFields({ 
-          name: 'Mood', 
-          value: `${mood.emoji} ${mood.mood} | Urgency: ${mood.urgency}`, 
-          inline: true 
-        });
-        
-        // Add link scan results
-        if (linkResults.length > 0) {
-          const linkStatus = linkResults.map(r => 
-            `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 50)}${r.url.length > 50 ? '...' : ''}`
-          ).join('\n');
-          embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
-          
-          if (unsafeLinks.length > 0) {
-            const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
-            embed.addFields({ name: '⚠️ THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
-            embed.setColor(CONFIG.COLORS.danger);
-          }
-        }
-        
-        // Add scam warning
-        if (scamThreats.length > 0) {
-          embed.addFields({ name: '🚨 SCAM PATTERNS', value: scamThreats.join('\n').slice(0, 1024), inline: false });
-          embed.setColor(CONFIG.COLORS.danger);
-        }
-        
-        await channel.send({ embeds: [embed] });
-        
-        // Alert if escalation needed
-        if (mood.escalate) {
-          await channel.send(`⚠️ **AUTO-ESCALATION**: ${mood.reason}`);
-        }
-        
-        await message.react('✅');
-      }
-    } else {
-      // NEW USER - Show warning and require confirmation
-      const warningEmbed = new EmbedBuilder()
-        .setTitle('⚠️ BEFORE YOU CONTINUE')
-        .setDescription(`
+    // ALWAYS show warning and require confirmation for EVERY message
+    const warningEmbed = new EmbedBuilder()
+      .setTitle('⚠️ BEFORE YOU CONTINUE')
+      .setDescription(`
 **This is The Unpatched Method support system.**
 
 This is for **legitimate inquiries only**:
@@ -841,41 +779,41 @@ This is for **legitimate inquiries only**:
 ❌ Wasting staff time
 
 **Misuse will result in a permanent ban.**
-        `)
-        .addFields({
-          name: '📝 Your Message',
-          value: message.content.slice(0, 500) || 'No message',
-          inline: false
-        })
-        .setColor(CONFIG.COLORS.warning)
-        .setFooter({ text: 'Click the button below to confirm and send your message' });
-      
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('confirm_ticket')
-          .setLabel('✅ I Understand - Send My Message')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('cancel_ticket')
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Danger)
-      );
-      
-      await message.reply({ embeds: [warningEmbed], components: [row] });
-      
-      // Store pending ticket with all scanned data
-      client.pendingTickets = client.pendingTickets || new Map();
-      client.pendingTickets.set(message.author.id, {
-        content: message.content,
-        guild: guild,
-        user: message.author,
-        translation: translation,
-        mood: mood,
-        reputation: reputation,
-        linkResults: linkResults,
-        scamThreats: scamThreats
-      });
-    }
+      `)
+      .addFields({
+        name: '📝 Your Message',
+        value: message.content.slice(0, 500) || 'No message',
+        inline: false
+      })
+      .setColor(CONFIG.COLORS.warning)
+      .setFooter({ text: 'Click the button below to confirm and send your message' });
+    
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('confirm_ticket')
+        .setLabel('✅ I Understand - Send My Message')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('cancel_ticket')
+        .setLabel('❌ Cancel')
+        .setStyle(ButtonStyle.Danger)
+    );
+    
+    await message.reply({ embeds: [warningEmbed], components: [row] });
+    
+    // Store pending message with all scanned data
+    client.pendingTickets = client.pendingTickets || new Map();
+    client.pendingTickets.set(message.author.id, {
+      content: message.content,
+      guild: guild,
+      user: message.author,
+      translation: translation,
+      mood: mood,
+      reputation: reputation,
+      linkResults: linkResults,
+      scamThreats: scamThreats,
+      existingTicket: ticket // Pass existing ticket if any
+    });
     return;
   }
   
@@ -1597,24 +1535,96 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferUpdate();
     
     try {
-      const { content, guild, user, translation, mood, reputation, linkResults, scamThreats } = pending;
+      const { content, guild, user, translation, mood, reputation, linkResults, scamThreats, existingTicket } = pending;
       
-      // Create the ticket with all the scanned data
-      const ticket = await createTicket(user, guild, content, {
-        translation,
-        mood,
-        reputation,
-        linkResults,
-        scamThreats
-      });
-      
-      const successEmbed = new EmbedBuilder()
-        .setTitle('📨 Ticket Created!')
-        .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
-        .setColor(CONFIG.COLORS.success)
-        .setFooter({ text: 'The Unpatched Method • Support' });
-      
-      await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+      if (existingTicket) {
+        // Add to existing ticket
+        const channel = guild.channels.cache.get(existingTicket.channel_id);
+        if (channel) {
+          await pool.query(`
+            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
+            VALUES ($1, $2, $3, $4, $5, $6, false)
+          `, [existingTicket.id, user.id, user.tag, translation?.translated || content, content, translation?.languageCode || 'en']);
+          
+          // Build embed with all info
+          const embed = new EmbedBuilder()
+            .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+            .setDescription(content)
+            .setColor(CONFIG.COLORS.info)
+            .setTimestamp();
+          
+          // Add translation if not English
+          if (translation?.translated && !translation.isEnglish) {
+            embed.addFields({ 
+              name: `🌐 Translated from ${translation.language}`, 
+              value: translation.translated.slice(0, 1024),
+              inline: false 
+            });
+          }
+          
+          // Add mood indicator
+          if (mood) {
+            embed.addFields({ 
+              name: 'Mood', 
+              value: `${mood.emoji} ${mood.mood} | Urgency: ${mood.urgency}`, 
+              inline: true 
+            });
+          }
+          
+          // Add link scan results
+          if (linkResults && linkResults.length > 0) {
+            const linkStatus = linkResults.map(r => 
+              `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 50)}${r.url.length > 50 ? '...' : ''}`
+            ).join('\n');
+            embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
+            
+            const unsafeLinks = linkResults.filter(r => !r.safe);
+            if (unsafeLinks.length > 0) {
+              const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
+              embed.addFields({ name: '⚠️ THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
+              embed.setColor(CONFIG.COLORS.danger);
+            }
+          }
+          
+          // Add scam warning
+          if (scamThreats && scamThreats.length > 0) {
+            embed.addFields({ name: '🚨 SCAM PATTERNS', value: scamThreats.join('\n').slice(0, 1024), inline: false });
+            embed.setColor(CONFIG.COLORS.danger);
+          }
+          
+          await channel.send({ embeds: [embed] });
+          
+          // Alert if escalation needed
+          if (mood?.escalate) {
+            await channel.send(`⚠️ **AUTO-ESCALATION**: ${mood.reason}`);
+          }
+          
+          const successEmbed = new EmbedBuilder()
+            .setTitle('✅ Message Sent!')
+            .setDescription('Your message has been added to your ticket. Staff will respond soon.')
+            .setColor(CONFIG.COLORS.success)
+            .setFooter({ text: 'The Unpatched Method • Support' });
+          
+          await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+        }
+      } else {
+        // Create new ticket
+        const ticket = await createTicket(user, guild, content, {
+          translation,
+          mood,
+          reputation,
+          linkResults,
+          scamThreats
+        });
+        
+        const successEmbed = new EmbedBuilder()
+          .setTitle('📨 Ticket Created!')
+          .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
+          .setColor(CONFIG.COLORS.success)
+          .setFooter({ text: 'The Unpatched Method • Support' });
+        
+        await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+      }
       
       client.pendingTickets.delete(interaction.user.id);
     } catch (e) {
