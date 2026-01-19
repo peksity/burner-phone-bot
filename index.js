@@ -557,12 +557,11 @@ async function getTicketByChannel(channelId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TICKET CREATION (Enhanced with AI/Security)
+// TICKET CREATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function createTicket(user, guild, message, extraData = {}) {
   const ticketNum = await getNextTicketNumber();
-  const { translation, mood, reputation, linkResults, scamThreats } = extraData;
   
   // Find or create category
   let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
@@ -579,106 +578,38 @@ async function createTicket(user, guild, message, extraData = {}) {
     name: `ticket-${ticketNum.toString().padStart(4, '0')}`,
     type: ChannelType.GuildText,
     parent: category.id,
-    topic: `User: ${user.tag} (${user.id}) | ${mood?.emoji || '😐'} ${mood?.mood || 'neutral'}`
+    topic: `User: ${user.tag} (${user.id})`
   });
   
-  // Save to DB with language
+  // Save to DB
   const r = await pool.query(`
-    INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id, mood, language)
-    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
-  `, [ticketNum, user.id, guild.id, channel.id, mood?.mood || 'neutral', translation?.languageCode || 'en']);
+    INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id)
+    VALUES ($1, $2, $3, $4) RETURNING *
+  `, [ticketNum, user.id, guild.id, channel.id]);
   const ticket = r.rows[0];
   
-  // Update user reputation - opened ticket
+  // Save message
   await pool.query(`
-    UPDATE user_reputation SET total_tickets = total_tickets + 1, last_updated = NOW() WHERE user_id = $1
-  `, [user.id]);
+    INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+    VALUES ($1, $2, $3, $4, false)
+  `, [ticket.id, user.id, user.tag, message]);
   
-  await pool.query(`
-    INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
-    VALUES ($1, $2, $3, $4, $5, $6, false)
-  `, [ticket.id, user.id, user.tag, translation?.translated || message, message, translation?.languageCode || 'en']);
-  
-  // Build comprehensive ticket embed
+  // Build ticket embed
   const embed = new EmbedBuilder()
     .setTitle(`📨 Ticket #${ticketNum}`)
     .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}`)
+    .addFields({ name: '📝 Message', value: message.slice(0, 1024) || 'No message', inline: false })
     .setColor(CONFIG.COLORS.primary)
     .setThumbnail(user.displayAvatarURL())
     .setTimestamp();
   
-  // Message content
-  embed.addFields({ name: '📝 Message', value: message.slice(0, 1024) || 'No message', inline: false });
-  
-  // Translation if not English
-  if (translation?.translated && !translation.isEnglish) {
-    embed.addFields({ 
-      name: `🌐 Translated from ${translation.language}`, 
-      value: translation.translated.slice(0, 1024),
-      inline: false 
-    });
-  }
-  
-  // Mood and urgency
-  if (mood) {
-    embed.addFields({ 
-      name: '🎭 Mood Analysis', 
-      value: `${mood.emoji} **${mood.mood}** | Urgency: **${mood.urgency}**`, 
-      inline: true 
-    });
-  }
-  
-  // User reputation
-  if (reputation) {
-    const repEmoji = reputation.tier === 'trusted' ? '⭐' : 
-                     reputation.tier === 'neutral' ? '😐' : 
-                     reputation.tier === 'caution' ? '⚠️' : '🚨';
-    embed.addFields({ 
-      name: '📊 Reputation', 
-      value: `${repEmoji} **${reputation.tier.toUpperCase()}** (Score: ${reputation.score}/100)\n${reputation.total_tickets} previous tickets`, 
-      inline: true 
-    });
-  }
-  
-  // Link scan results
-  if (linkResults && linkResults.length > 0) {
-    const linkStatus = linkResults.map(r => 
-      `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 40)}${r.url.length > 40 ? '...' : ''}`
-    ).join('\n');
-    embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
-    
-    const unsafeLinks = linkResults.filter(r => !r.safe);
-    if (unsafeLinks.length > 0) {
-      const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
-      embed.addFields({ name: '⚠️ LINK THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
-      embed.setColor(CONFIG.COLORS.danger);
-    }
-  }
-  
-  // Scam pattern warnings
-  if (scamThreats && scamThreats.length > 0) {
-    embed.addFields({ name: '🚨 SCAM PATTERNS DETECTED', value: scamThreats.join('\n').slice(0, 1024), inline: false });
-    embed.setColor(CONFIG.COLORS.danger);
-  }
-  
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
     new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-    new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡'),
-    new ButtonBuilder().setCustomId('rep_good').setLabel('+Rep').setStyle(ButtonStyle.Success).setEmoji('👍'),
-    new ButtonBuilder().setCustomId('rep_bad').setLabel('-Rep').setStyle(ButtonStyle.Danger).setEmoji('👎')
+    new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
   );
   
-  // Ping message with escalation if needed
-  let pingContent = '@here New ticket!';
-  if (mood?.escalate) {
-    pingContent = `🚨 **AUTO-ESCALATION** 🚨 @here\n**Reason:** ${mood.reason}`;
-  }
-  if (reputation?.tier === 'problematic') {
-    pingContent = `⚠️ **PROBLEM USER ALERT** ⚠️ @here\nThis user has a history of issues.`;
-  }
-  
-  await channel.send({ content: pingContent, embeds: [embed], components: [row] });
+  await channel.send({ content: '@here New ticket!', embeds: [embed], components: [row] });
   
   return ticket;
 }
@@ -700,7 +631,7 @@ client.on(Events.MessageCreate, async (message) => {
     if (!guild) return;
     
     // ═══════════════════════════════════════════════════════════════
-    // SECURITY SCANNING
+    // SECURITY SCANNING - BLOCK DANGEROUS CONTENT
     // ═══════════════════════════════════════════════════════════════
     
     // Check for threats
@@ -708,7 +639,6 @@ client.on(Events.MessageCreate, async (message) => {
     if (threats.length > 0) {
       const criticalThreats = threats.filter(t => t.severity === 'critical');
       if (criticalThreats.length > 0) {
-        // Log and alert staff
         const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
         if (logChannel) {
           const alertEmbed = new EmbedBuilder()
@@ -723,12 +653,14 @@ client.on(Events.MessageCreate, async (message) => {
       }
     }
     
-    // Check for scam patterns
+    // Check for scam patterns in message text
     const scamThreats = detectScamPatterns(message.content);
     
     // Scan links
     const links = extractLinks(message.content);
     const linkResults = [];
+    let blockedForScam = false;
+    
     for (const link of links) {
       const result = await scanLink(link);
       linkResults.push({ url: link, ...result });
@@ -738,60 +670,73 @@ client.on(Events.MessageCreate, async (message) => {
         INSERT INTO link_scans (url, user_id, is_safe, threats)
         VALUES ($1, $2, $3, $4)
       `, [link, message.author.id, result.safe, result.threats]);
+      
+      // BLOCK if dangerous link detected
+      if (!result.safe) {
+        blockedForScam = true;
+      }
     }
     
-    const unsafeLinks = linkResults.filter(r => !r.safe);
+    // If scam/phishing detected - BLOCK and alert staff
+    if (blockedForScam || scamThreats.length > 0) {
+      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+      if (logChannel) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨 SCAM/PHISHING BLOCKED IN DM')
+          .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
+          .addFields(
+            { name: '📝 Message', value: message.content.slice(0, 1024) || 'N/A', inline: false },
+            { name: '🔗 Links', value: links.join('\n').slice(0, 1024) || 'None', inline: false },
+            { name: '⚠️ Reasons', value: [
+              ...scamThreats,
+              ...linkResults.filter(r => !r.safe).flatMap(r => r.threats)
+            ].join('\n').slice(0, 1024) || 'Pattern match', inline: false }
+          )
+          .setColor(CONFIG.COLORS.danger)
+          .setTimestamp();
+        await logChannel.send({ content: '@here **SCAM ATTEMPT BLOCKED**', embeds: [alertEmbed] });
+      }
+      
+      return message.reply({
+        embeds: [new EmbedBuilder()
+          .setTitle('🚫 Message Blocked')
+          .setDescription('Your message was blocked because it contains a suspicious or dangerous link.\n\nIf you believe this is an error, contact staff through another method.')
+          .setColor(CONFIG.COLORS.danger)
+        ]
+      });
+    }
     
     // ═══════════════════════════════════════════════════════════════
-    // TRANSLATION
+    // MESSAGE IS SAFE - SHOW CONFIRMATION
     // ═══════════════════════════════════════════════════════════════
-    
-    const translation = await detectAndTranslate(message.content);
-    
-    // ═══════════════════════════════════════════════════════════════
-    // MOOD DETECTION
-    // ═══════════════════════════════════════════════════════════════
-    
-    const mood = await analyzeMood(message.content);
-    
-    // ═══════════════════════════════════════════════════════════════
-    // GET USER REPUTATION
-    // ═══════════════════════════════════════════════════════════════
-    
-    const reputation = await getUserReputation(message.author.id);
     
     let ticket = await getOpenTicket(message.author.id);
     
-    // ALWAYS show warning and require confirmation for EVERY message
+    // Show warning and require confirmation for EVERY message
     const warningEmbed = new EmbedBuilder()
-      .setTitle('⚠️ BEFORE YOU CONTINUE')
+      .setTitle('⚠️ CONFIRM YOUR MESSAGE')
       .setDescription(`
 **This is The Unpatched Method support system.**
 
-This is for **legitimate inquiries only**:
-• Server questions
-• Reporting issues
-• Appeals
+**Rules:**
+• Legitimate inquiries only
+• No trolling or spam
+• No wasting staff time
 
-**DO NOT use this for:**
-❌ Trolling or spam
-❌ Irrelevant messages
-❌ Wasting staff time
-
-**Misuse will result in a permanent ban.**
+**Misuse = Permanent Ban**
       `)
       .addFields({
-        name: '📝 Your Message',
-        value: message.content.slice(0, 500) || 'No message',
+        name: '📝 Your Message Preview',
+        value: '```' + message.content.slice(0, 500) + '```' || 'No message',
         inline: false
       })
       .setColor(CONFIG.COLORS.warning)
-      .setFooter({ text: 'Click the button below to confirm and send your message' });
+      .setFooter({ text: 'Press the button below to send your message to staff' });
     
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('confirm_ticket')
-        .setLabel('✅ I Understand - Send My Message')
+        .setLabel('✅ I Understand - Send Message')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId('cancel_ticket')
@@ -801,18 +746,13 @@ This is for **legitimate inquiries only**:
     
     await message.reply({ embeds: [warningEmbed], components: [row] });
     
-    // Store pending message with all scanned data
+    // Store pending message
     client.pendingTickets = client.pendingTickets || new Map();
     client.pendingTickets.set(message.author.id, {
       content: message.content,
       guild: guild,
       user: message.author,
-      translation: translation,
-      mood: mood,
-      reputation: reputation,
-      linkResults: linkResults,
-      scamThreats: scamThreats,
-      existingTicket: ticket // Pass existing ticket if any
+      existingTicket: ticket
     });
     return;
   }
@@ -1535,73 +1475,40 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferUpdate();
     
     try {
-      const { content, guild, user, translation, mood, reputation, linkResults, scamThreats, existingTicket } = pending;
+      const { content, guild, user, existingTicket } = pending;
       
       if (existingTicket) {
         // Add to existing ticket
         const channel = guild.channels.cache.get(existingTicket.channel_id);
         if (channel) {
           await pool.query(`
-            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
-            VALUES ($1, $2, $3, $4, $5, $6, false)
-          `, [existingTicket.id, user.id, user.tag, translation?.translated || content, content, translation?.languageCode || 'en']);
+            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+            VALUES ($1, $2, $3, $4, false)
+          `, [existingTicket.id, user.id, user.tag, content]);
           
-          // Build embed with all info
+          // Send message to ticket channel
           const embed = new EmbedBuilder()
             .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
             .setDescription(content)
             .setColor(CONFIG.COLORS.info)
             .setTimestamp();
           
-          // Add translation if not English
-          if (translation?.translated && !translation.isEnglish) {
-            embed.addFields({ 
-              name: `🌐 Translated from ${translation.language}`, 
-              value: translation.translated.slice(0, 1024),
-              inline: false 
-            });
-          }
-          
-          // Add mood indicator
-          if (mood) {
-            embed.addFields({ 
-              name: 'Mood', 
-              value: `${mood.emoji} ${mood.mood} | Urgency: ${mood.urgency}`, 
-              inline: true 
-            });
-          }
-          
-          // Add link scan results
-          if (linkResults && linkResults.length > 0) {
-            const linkStatus = linkResults.map(r => 
-              `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 50)}${r.url.length > 50 ? '...' : ''}`
-            ).join('\n');
-            embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
-            
-            const unsafeLinks = linkResults.filter(r => !r.safe);
-            if (unsafeLinks.length > 0) {
-              const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
-              embed.addFields({ name: '⚠️ THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
-              embed.setColor(CONFIG.COLORS.danger);
-            }
-          }
-          
-          // Add scam warning
-          if (scamThreats && scamThreats.length > 0) {
-            embed.addFields({ name: '🚨 SCAM PATTERNS', value: scamThreats.join('\n').slice(0, 1024), inline: false });
-            embed.setColor(CONFIG.COLORS.danger);
-          }
-          
           await channel.send({ embeds: [embed] });
-          
-          // Alert if escalation needed
-          if (mood?.escalate) {
-            await channel.send(`⚠️ **AUTO-ESCALATION**: ${mood.reason}`);
-          }
           
           const successEmbed = new EmbedBuilder()
             .setTitle('✅ Message Sent!')
-            .setDescription('Your message has been added to your ticket. Staff will respond soon.')
+            .setDescription('Your message has been sent to staff. They will respond soon.')
+            .setColor(CONFIG.COLORS.success)
+            .setFooter({ text: 'The Unpatched Method • Support' });
+          
+          await interaction.editReply({ content: null, embeds: [successEmbed], components: [] });
+        } else {
+          // Channel doesn't exist anymore, create new ticket
+          const ticket = await createTicket(user, guild, content, {});
+          
+          const successEmbed = new EmbedBuilder()
+            .setTitle('📨 Ticket Created!')
+            .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon.`)
             .setColor(CONFIG.COLORS.success)
             .setFooter({ text: 'The Unpatched Method • Support' });
           
@@ -1609,17 +1516,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
       } else {
         // Create new ticket
-        const ticket = await createTicket(user, guild, content, {
-          translation,
-          mood,
-          reputation,
-          linkResults,
-          scamThreats
-        });
+        const ticket = await createTicket(user, guild, content, {});
         
         const successEmbed = new EmbedBuilder()
           .setTitle('📨 Ticket Created!')
-          .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
+          .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon.`)
           .setColor(CONFIG.COLORS.success)
           .setFooter({ text: 'The Unpatched Method • Support' });
         
@@ -1629,7 +1530,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       client.pendingTickets.delete(interaction.user.id);
     } catch (e) {
       console.error('Ticket creation error:', e);
-      await interaction.editReply({ content: '❌ Error creating ticket. Please try again.', embeds: [], components: [] });
+      await interaction.editReply({ content: '❌ Error. Please try again.', embeds: [], components: [] });
     }
   }
 });
