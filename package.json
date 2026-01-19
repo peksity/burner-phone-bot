@@ -1,12 +1,13 @@
 {
   "name": "burner-phone-bot",
-  "version": "1.0.0",
-  "description": "Modmail & Support System for The Unpatched Method",
+  "version": "2.0.0",
+  "description": "ULTIMATE Modmail & Security System - AI, Translation, Link Scanning, Appeals",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1",
     "pg": "^8.11.3"

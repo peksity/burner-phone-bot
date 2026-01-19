@@ -6,8 +6,8 @@
  * ██████╔╝╚██████╔╝██║  ██║██║ ╚████║███████╗██║  ██║    ██║     ██║  ██║╚██████╔╝██║ ╚████║███████╗
  * ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
  * 
- * BURNER PHONE - Modmail & Support System
- * All DMs go through this bot
+ * BURNER PHONE - ULTIMATE Modmail & Security System
+ * Advanced AI, Link Scanning, Translation, Threat Detection
  */
 
 require('dotenv').config();
@@ -17,6 +17,7 @@ const {
   ButtonStyle, ChannelType, StringSelectMenuBuilder
 } = require('discord.js');
 const { Pool } = require('pg');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const client = new Client({
   intents: [
@@ -24,7 +25,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.DirectMessages
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildBans
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User]
 });
@@ -33,6 +35,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+// AI Client
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIG
@@ -43,20 +48,360 @@ const CONFIG = {
   GUILD_ID: '1446317951757062256',
   VERIFIED_ROLE_ID: '1453304594317836423',
   ROLES_CHANNEL_ID: '1453304724681134163',
-  COLORS: { primary: 0xFF6B35, success: 0x00FF00, error: 0xFF0000, warning: 0xFFAA00, info: 0x0099FF }
+  COLORS: { primary: 0xFF6B35, success: 0x00FF00, error: 0xFF0000, warning: 0xFFAA00, info: 0x0099FF, danger: 0xFF0000 }
 };
+
+// Known scam patterns
+const SCAM_PATTERNS = [
+  /free\s*nitro/i,
+  /discord\s*nitro\s*gift/i,
+  /steam\s*gift/i,
+  /click\s*here\s*to\s*claim/i,
+  /you\s*have\s*been\s*selected/i,
+  /won\s*a?\s*prize/i,
+  /verify\s*your\s*account\s*at/i,
+  /suspicious\s*activity/i,
+  /account\s*will\s*be\s*terminated/i,
+  /login\s*to\s*verify/i,
+  /bit\.ly/i,
+  /discord\.gift/i,
+  /discordgift/i,
+  /steamcommunity\.ru/i,
+  /dlscord/i,
+  /disc0rd/i,
+  /discorcl/i
+];
+
+// Suspicious domains
+const SUSPICIOUS_DOMAINS = [
+  'bit.ly', 'tinyurl.com', 'shorturl.at', 'rb.gy',
+  'dlscord.com', 'discorcl.com', 'disc0rd.com',
+  'steamcommunlty.com', 'steampowered.ru'
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LINK SCANNER & SECURITY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function scanLink(url) {
+  const results = {
+    safe: true,
+    threats: [],
+    warnings: []
+  };
+  
+  try {
+    // Check against known suspicious domains
+    const domain = new URL(url).hostname.toLowerCase();
+    
+    for (const suspicious of SUSPICIOUS_DOMAINS) {
+      if (domain.includes(suspicious)) {
+        results.safe = false;
+        results.threats.push(`Suspicious domain detected: ${suspicious}`);
+      }
+    }
+    
+    // Check for URL shorteners
+    if (['bit.ly', 'tinyurl.com', 'shorturl.at', 'rb.gy', 't.co', 'goo.gl'].some(s => domain.includes(s))) {
+      results.warnings.push('URL shortener detected - could hide malicious link');
+    }
+    
+    // Check for Discord impersonation
+    if (domain.includes('discord') && !domain.includes('discord.com') && !domain.includes('discord.gg') && !domain.includes('discordapp.com')) {
+      results.safe = false;
+      results.threats.push('Fake Discord domain detected - likely phishing');
+    }
+    
+    // Check for Steam impersonation
+    if (domain.includes('steam') && !domain.includes('steampowered.com') && !domain.includes('steamcommunity.com')) {
+      results.safe = false;
+      results.threats.push('Fake Steam domain detected - likely phishing');
+    }
+    
+    // VirusTotal scan if API key exists
+    if (process.env.VIRUSTOTAL_API_KEY) {
+      try {
+        const vtResult = await scanWithVirusTotal(url);
+        if (vtResult.malicious > 0) {
+          results.safe = false;
+          results.threats.push(`VirusTotal: ${vtResult.malicious} security vendors flagged this as malicious`);
+        }
+        if (vtResult.suspicious > 0) {
+          results.warnings.push(`VirusTotal: ${vtResult.suspicious} security vendors flagged this as suspicious`);
+        }
+      } catch (e) {
+        results.warnings.push('Could not complete VirusTotal scan');
+      }
+    }
+    
+  } catch (e) {
+    results.warnings.push('Invalid URL format');
+  }
+  
+  return results;
+}
+
+async function scanWithVirusTotal(url) {
+  const apiKey = process.env.VIRUSTOTAL_API_KEY;
+  if (!apiKey) return { malicious: 0, suspicious: 0 };
+  
+  try {
+    // Submit URL for scanning
+    const submitResponse = await fetch('https://www.virustotal.com/api/v3/urls', {
+      method: 'POST',
+      headers: {
+        'x-apikey': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `url=${encodeURIComponent(url)}`
+    });
+    
+    const submitData = await submitResponse.json();
+    const analysisId = submitData.data?.id;
+    
+    if (!analysisId) return { malicious: 0, suspicious: 0 };
+    
+    // Wait a moment then get results
+    await new Promise(r => setTimeout(r, 3000));
+    
+    const resultResponse = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { 'x-apikey': apiKey }
+    });
+    
+    const resultData = await resultResponse.json();
+    const stats = resultData.data?.attributes?.stats || {};
+    
+    return {
+      malicious: stats.malicious || 0,
+      suspicious: stats.suspicious || 0
+    };
+  } catch (e) {
+    console.log('VirusTotal error:', e.message);
+    return { malicious: 0, suspicious: 0 };
+  }
+}
+
+function detectScamPatterns(message) {
+  const threats = [];
+  
+  for (const pattern of SCAM_PATTERNS) {
+    if (pattern.test(message)) {
+      threats.push(`Scam pattern detected: ${pattern.toString()}`);
+    }
+  }
+  
+  return threats;
+}
+
+function extractLinks(text) {
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/gi;
+  return text.match(urlRegex) || [];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRANSLATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function detectAndTranslate(text) {
+  if (!anthropic) return { original: text, translated: null, language: 'unknown' };
+  
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: `Analyze this text and respond ONLY with a JSON object (no markdown, no explanation):
+{
+  "language": "detected language name",
+  "languageCode": "ISO code like en, es, fr",
+  "isEnglish": true/false,
+  "translation": "English translation if not English, otherwise null"
+}
+
+Text to analyze: "${text}"`
+      }]
+    });
+    
+    const result = JSON.parse(response.content[0].text);
+    return {
+      original: text,
+      translated: result.translation,
+      language: result.language,
+      languageCode: result.languageCode,
+      isEnglish: result.isEnglish
+    };
+  } catch (e) {
+    console.log('Translation error:', e.message);
+    return { original: text, translated: null, language: 'unknown' };
+  }
+}
+
+async function translateToLanguage(text, targetLanguage) {
+  if (!anthropic) return text;
+  
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: `Translate this text to ${targetLanguage}. Respond ONLY with the translation, nothing else:
+
+"${text}"`
+      }]
+    });
+    
+    return response.content[0].text;
+  } catch (e) {
+    return text;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MOOD DETECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function analyzeMood(text) {
+  if (!anthropic) return { mood: 'neutral', urgency: 'normal', emoji: '😐' };
+  
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `Analyze the mood and urgency of this message. Respond ONLY with JSON (no markdown):
+{
+  "mood": "angry/frustrated/upset/neutral/friendly/happy",
+  "urgency": "critical/high/normal/low",
+  "emoji": "appropriate emoji",
+  "escalate": true/false,
+  "reason": "brief reason if escalate is true"
+}
+
+Message: "${text}"`
+      }]
+    });
+    
+    return JSON.parse(response.content[0].text);
+  } catch (e) {
+    return { mood: 'neutral', urgency: 'normal', emoji: '😐', escalate: false };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI BAN APPEAL SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function processAppeal(userId, appealText, banReason) {
+  if (!anthropic) return { recommendation: 'manual_review', reasoning: 'AI not available' };
+  
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `You are a fair but strict appeal reviewer for a gaming Discord server called "The Unpatched Method". 
+
+Review this ban appeal and provide your recommendation.
+
+**Original Ban Reason:** ${banReason || 'Not specified'}
+
+**User's Appeal:** ${appealText}
+
+Respond ONLY with JSON (no markdown):
+{
+  "recommendation": "approve/deny/manual_review",
+  "confidence": 0-100,
+  "reasoning": "detailed explanation",
+  "redFlags": ["list of concerns if any"],
+  "positiveFactors": ["list of good points if any"],
+  "suggestedAction": "what staff should do",
+  "followUpQuestions": ["questions to ask user if needed"]
+}`
+      }]
+    });
+    
+    return JSON.parse(response.content[0].text);
+  } catch (e) {
+    return { recommendation: 'manual_review', reasoning: 'AI analysis failed: ' + e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// THREAT DETECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const THREAT_PATTERNS = [
+  { pattern: /kill\s*(your)?self/i, type: 'self_harm', severity: 'critical' },
+  { pattern: /i('ll|m\s*gonna|will)\s*kill/i, type: 'threat', severity: 'critical' },
+  { pattern: /bomb\s*threat/i, type: 'threat', severity: 'critical' },
+  { pattern: /shoot\s*up/i, type: 'threat', severity: 'critical' },
+  { pattern: /doxx/i, type: 'doxxing', severity: 'high' },
+  { pattern: /your\s*(address|ip|location)/i, type: 'doxxing', severity: 'high' },
+  { pattern: /swat/i, type: 'swatting', severity: 'critical' },
+];
+
+function detectThreats(message) {
+  const threats = [];
+  
+  for (const { pattern, type, severity } of THREAT_PATTERNS) {
+    if (pattern.test(message)) {
+      threats.push({ type, severity, pattern: pattern.toString() });
+    }
+  }
+  
+  return threats;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER REPUTATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function getUserReputation(userId) {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM user_reputation WHERE user_id = $1
+    `, [userId]);
+    
+    if (result.rows.length === 0) {
+      // Create default reputation
+      await pool.query(`
+        INSERT INTO user_reputation (user_id, score, total_tickets, good_interactions, bad_interactions)
+        VALUES ($1, 50, 0, 0, 0)
+      `, [userId]);
+      return { score: 50, total_tickets: 0, good_interactions: 0, bad_interactions: 0, tier: 'neutral' };
+    }
+    
+    const rep = result.rows[0];
+    rep.tier = rep.score >= 80 ? 'trusted' : rep.score >= 50 ? 'neutral' : rep.score >= 20 ? 'caution' : 'problematic';
+    return rep;
+  } catch (e) {
+    return { score: 50, tier: 'neutral' };
+  }
+}
+
+async function updateReputation(userId, change, reason) {
+  try {
+    await pool.query(`
+      UPDATE user_reputation 
+      SET score = GREATEST(0, LEAST(100, score + $2)),
+          ${change > 0 ? 'good_interactions = good_interactions + 1' : 'bad_interactions = bad_interactions + 1'}
+      WHERE user_id = $1
+    `, [userId, change]);
+  } catch (e) {
+    console.log('Rep update error:', e.message);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DATABASE
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function initDatabase() {
-  // Drop old tables if they have wrong schema
-  await pool.query(`DROP TABLE IF EXISTS modmail_messages CASCADE`);
-  await pool.query(`DROP TABLE IF EXISTS modmail_tickets CASCADE`);
-  await pool.query(`DROP TABLE IF EXISTS modmail_blacklist CASCADE`);
-  await pool.query(`DROP TABLE IF EXISTS modmail_canned CASCADE`);
-  
+  // Core modmail tables
   await pool.query(`
     CREATE TABLE IF NOT EXISTS modmail_tickets (
       id SERIAL PRIMARY KEY,
@@ -68,6 +413,8 @@ async function initDatabase() {
       priority TEXT DEFAULT 'normal',
       category TEXT DEFAULT 'general',
       claimed_by TEXT,
+      mood TEXT DEFAULT 'neutral',
+      language TEXT DEFAULT 'en',
       created_at TIMESTAMP DEFAULT NOW(),
       closed_at TIMESTAMP,
       closed_by TEXT,
@@ -81,6 +428,8 @@ async function initDatabase() {
       author_id TEXT NOT NULL,
       author_name TEXT NOT NULL,
       content TEXT NOT NULL,
+      original_content TEXT,
+      detected_language TEXT,
       is_staff BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT NOW()
     )
@@ -98,7 +447,48 @@ async function initDatabase() {
       content TEXT NOT NULL
     )
   `);
-  console.log('[DB] Tables ready');
+  
+  // User reputation system
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_reputation (
+      user_id TEXT PRIMARY KEY,
+      score INT DEFAULT 50,
+      total_tickets INT DEFAULT 0,
+      good_interactions INT DEFAULT 0,
+      bad_interactions INT DEFAULT 0,
+      last_updated TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Ban appeals system
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ban_appeals (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      ban_reason TEXT,
+      appeal_text TEXT NOT NULL,
+      ai_recommendation TEXT,
+      ai_reasoning TEXT,
+      status TEXT DEFAULT 'pending',
+      reviewed_by TEXT,
+      reviewed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Link scan history
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS link_scans (
+      id SERIAL PRIMARY KEY,
+      url TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      is_safe BOOLEAN,
+      threats TEXT[],
+      scanned_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  console.log('[DB] All tables ready');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -158,11 +548,12 @@ async function getTicketByChannel(channelId) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TICKET CREATION
+// TICKET CREATION (Enhanced with AI/Security)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function createTicket(user, guild, message) {
+async function createTicket(user, guild, message, extraData = {}) {
   const ticketNum = await getNextTicketNumber();
+  const { translation, mood, reputation, linkResults, scamThreats } = extraData;
   
   // Find or create category
   let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
@@ -179,37 +570,106 @@ async function createTicket(user, guild, message) {
     name: `ticket-${ticketNum.toString().padStart(4, '0')}`,
     type: ChannelType.GuildText,
     parent: category.id,
-    topic: `User: ${user.tag} (${user.id})`
+    topic: `User: ${user.tag} (${user.id}) | ${mood?.emoji || '😐'} ${mood?.mood || 'neutral'}`
   });
   
-  // Save to DB
+  // Save to DB with language
   const r = await pool.query(`
-    INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id)
-    VALUES ($1, $2, $3, $4) RETURNING *
-  `, [ticketNum, user.id, guild.id, channel.id]);
+    INSERT INTO modmail_tickets (ticket_number, user_id, guild_id, channel_id, mood, language)
+    VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+  `, [ticketNum, user.id, guild.id, channel.id, mood?.mood || 'neutral', translation?.languageCode || 'en']);
   const ticket = r.rows[0];
   
+  // Update user reputation - opened ticket
   await pool.query(`
-    INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
-    VALUES ($1, $2, $3, $4, false)
-  `, [ticket.id, user.id, user.tag, message]);
+    UPDATE user_reputation SET total_tickets = total_tickets + 1, last_updated = NOW() WHERE user_id = $1
+  `, [user.id]);
   
-  // Ticket embed
+  await pool.query(`
+    INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
+    VALUES ($1, $2, $3, $4, $5, $6, false)
+  `, [ticket.id, user.id, user.tag, translation?.translated || message, message, translation?.languageCode || 'en']);
+  
+  // Build comprehensive ticket embed
   const embed = new EmbedBuilder()
     .setTitle(`📨 Ticket #${ticketNum}`)
     .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}`)
-    .addFields({ name: '📝 Message', value: message.slice(0, 1024) || 'No message' })
     .setColor(CONFIG.COLORS.primary)
     .setThumbnail(user.displayAvatarURL())
     .setTimestamp();
   
+  // Message content
+  embed.addFields({ name: '📝 Message', value: message.slice(0, 1024) || 'No message', inline: false });
+  
+  // Translation if not English
+  if (translation?.translated && !translation.isEnglish) {
+    embed.addFields({ 
+      name: `🌐 Translated from ${translation.language}`, 
+      value: translation.translated.slice(0, 1024),
+      inline: false 
+    });
+  }
+  
+  // Mood and urgency
+  if (mood) {
+    embed.addFields({ 
+      name: '🎭 Mood Analysis', 
+      value: `${mood.emoji} **${mood.mood}** | Urgency: **${mood.urgency}**`, 
+      inline: true 
+    });
+  }
+  
+  // User reputation
+  if (reputation) {
+    const repEmoji = reputation.tier === 'trusted' ? '⭐' : 
+                     reputation.tier === 'neutral' ? '😐' : 
+                     reputation.tier === 'caution' ? '⚠️' : '🚨';
+    embed.addFields({ 
+      name: '📊 Reputation', 
+      value: `${repEmoji} **${reputation.tier.toUpperCase()}** (Score: ${reputation.score}/100)\n${reputation.total_tickets} previous tickets`, 
+      inline: true 
+    });
+  }
+  
+  // Link scan results
+  if (linkResults && linkResults.length > 0) {
+    const linkStatus = linkResults.map(r => 
+      `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 40)}${r.url.length > 40 ? '...' : ''}`
+    ).join('\n');
+    embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
+    
+    const unsafeLinks = linkResults.filter(r => !r.safe);
+    if (unsafeLinks.length > 0) {
+      const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
+      embed.addFields({ name: '⚠️ LINK THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
+      embed.setColor(CONFIG.COLORS.danger);
+    }
+  }
+  
+  // Scam pattern warnings
+  if (scamThreats && scamThreats.length > 0) {
+    embed.addFields({ name: '🚨 SCAM PATTERNS DETECTED', value: scamThreats.join('\n').slice(0, 1024), inline: false });
+    embed.setColor(CONFIG.COLORS.danger);
+  }
+  
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
     new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-    new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
+    new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡'),
+    new ButtonBuilder().setCustomId('rep_good').setLabel('+Rep').setStyle(ButtonStyle.Success).setEmoji('👍'),
+    new ButtonBuilder().setCustomId('rep_bad').setLabel('-Rep').setStyle(ButtonStyle.Danger).setEmoji('👎')
   );
   
-  await channel.send({ content: '@here New ticket!', embeds: [embed], components: [row] });
+  // Ping message with escalation if needed
+  let pingContent = '@here New ticket!';
+  if (mood?.escalate) {
+    pingContent = `🚨 **AUTO-ESCALATION** 🚨 @here\n**Reason:** ${mood.reason}`;
+  }
+  if (reputation?.tier === 'problematic') {
+    pingContent = `⚠️ **PROBLEM USER ALERT** ⚠️ @here\nThis user has a history of issues.`;
+  }
+  
+  await channel.send({ content: pingContent, embeds: [embed], components: [row] });
   
   return ticket;
 }
@@ -230,6 +690,67 @@ client.on(Events.MessageCreate, async (message) => {
     const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
     if (!guild) return;
     
+    // ═══════════════════════════════════════════════════════════════
+    // SECURITY SCANNING
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Check for threats
+    const threats = detectThreats(message.content);
+    if (threats.length > 0) {
+      const criticalThreats = threats.filter(t => t.severity === 'critical');
+      if (criticalThreats.length > 0) {
+        // Log and alert staff
+        const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+        if (logChannel) {
+          const alertEmbed = new EmbedBuilder()
+            .setTitle('🚨 CRITICAL THREAT DETECTED')
+            .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Message:** ${message.content.slice(0, 500)}`)
+            .addFields({ name: 'Threats', value: criticalThreats.map(t => `• ${t.type}: ${t.severity}`).join('\n') })
+            .setColor(CONFIG.COLORS.danger)
+            .setTimestamp();
+          await logChannel.send({ content: '@here', embeds: [alertEmbed] });
+        }
+        return message.reply('⚠️ Your message contains content that violates our policies. This has been reported to staff.');
+      }
+    }
+    
+    // Check for scam patterns
+    const scamThreats = detectScamPatterns(message.content);
+    
+    // Scan links
+    const links = extractLinks(message.content);
+    const linkResults = [];
+    for (const link of links) {
+      const result = await scanLink(link);
+      linkResults.push({ url: link, ...result });
+      
+      // Log scan
+      await pool.query(`
+        INSERT INTO link_scans (url, user_id, is_safe, threats)
+        VALUES ($1, $2, $3, $4)
+      `, [link, message.author.id, result.safe, result.threats]);
+    }
+    
+    const unsafeLinks = linkResults.filter(r => !r.safe);
+    
+    // ═══════════════════════════════════════════════════════════════
+    // TRANSLATION
+    // ═══════════════════════════════════════════════════════════════
+    
+    const translation = await detectAndTranslate(message.content);
+    
+    // ═══════════════════════════════════════════════════════════════
+    // MOOD DETECTION
+    // ═══════════════════════════════════════════════════════════════
+    
+    const mood = await analyzeMood(message.content);
+    
+    // ═══════════════════════════════════════════════════════════════
+    // GET USER REPUTATION
+    // ═══════════════════════════════════════════════════════════════
+    
+    const reputation = await getUserReputation(message.author.id);
+    
     let ticket = await getOpenTicket(message.author.id);
     
     if (ticket) {
@@ -237,29 +758,115 @@ client.on(Events.MessageCreate, async (message) => {
       const channel = guild.channels.cache.get(ticket.channel_id);
       if (channel) {
         await pool.query(`
-          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
-          VALUES ($1, $2, $3, $4, false)
-        `, [ticket.id, message.author.id, message.author.tag, message.content]);
+          INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, original_content, detected_language, is_staff)
+          VALUES ($1, $2, $3, $4, $5, $6, false)
+        `, [ticket.id, message.author.id, message.author.tag, translation.translated || message.content, message.content, translation.languageCode]);
         
+        // Build embed with all info
         const embed = new EmbedBuilder()
           .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
           .setDescription(message.content)
           .setColor(CONFIG.COLORS.info)
           .setTimestamp();
         
+        // Add translation if not English
+        if (translation.translated && !translation.isEnglish) {
+          embed.addFields({ 
+            name: `🌐 Translated from ${translation.language}`, 
+            value: translation.translated.slice(0, 1024),
+            inline: false 
+          });
+        }
+        
+        // Add mood indicator
+        embed.addFields({ 
+          name: 'Mood', 
+          value: `${mood.emoji} ${mood.mood} | Urgency: ${mood.urgency}`, 
+          inline: true 
+        });
+        
+        // Add link scan results
+        if (linkResults.length > 0) {
+          const linkStatus = linkResults.map(r => 
+            `${r.safe ? '✅' : '🚨'} ${r.url.slice(0, 50)}${r.url.length > 50 ? '...' : ''}`
+          ).join('\n');
+          embed.addFields({ name: '🔗 Links Scanned', value: linkStatus.slice(0, 1024), inline: false });
+          
+          if (unsafeLinks.length > 0) {
+            const threatDetails = unsafeLinks.flatMap(r => r.threats).join('\n• ');
+            embed.addFields({ name: '⚠️ THREATS DETECTED', value: `• ${threatDetails}`, inline: false });
+            embed.setColor(CONFIG.COLORS.danger);
+          }
+        }
+        
+        // Add scam warning
+        if (scamThreats.length > 0) {
+          embed.addFields({ name: '🚨 SCAM PATTERNS', value: scamThreats.join('\n').slice(0, 1024), inline: false });
+          embed.setColor(CONFIG.COLORS.danger);
+        }
+        
         await channel.send({ embeds: [embed] });
+        
+        // Alert if escalation needed
+        if (mood.escalate) {
+          await channel.send(`⚠️ **AUTO-ESCALATION**: ${mood.reason}`);
+        }
+        
         await message.react('✅');
       }
     } else {
-      // Create new ticket
-      ticket = await createTicket(message.author, guild, message.content);
+      // NEW USER - Show warning and require confirmation
+      const warningEmbed = new EmbedBuilder()
+        .setTitle('⚠️ BEFORE YOU CONTINUE')
+        .setDescription(`
+**This is The Unpatched Method support system.**
+
+This is for **legitimate inquiries only**:
+• Server questions
+• Reporting issues
+• Appeals
+• Partnership requests
+
+**DO NOT use this for:**
+❌ Trolling or spam
+❌ Irrelevant messages
+❌ Wasting staff time
+
+**Misuse will result in a permanent ban.**
+        `)
+        .addFields({
+          name: '📝 Your Message',
+          value: message.content.slice(0, 500) || 'No message',
+          inline: false
+        })
+        .setColor(CONFIG.COLORS.warning)
+        .setFooter({ text: 'Click the button below to confirm and send your message' });
       
-      const confirmEmbed = new EmbedBuilder()
-        .setTitle('📨 Ticket Created!')
-        .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
-        .setColor(CONFIG.COLORS.success);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('confirm_ticket')
+          .setLabel('✅ I Understand - Send My Message')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('cancel_ticket')
+          .setLabel('❌ Cancel')
+          .setStyle(ButtonStyle.Danger)
+      );
       
-      await message.reply({ embeds: [confirmEmbed] });
+      await message.reply({ embeds: [warningEmbed], components: [row] });
+      
+      // Store pending ticket with all scanned data
+      client.pendingTickets = client.pendingTickets || new Map();
+      client.pendingTickets.set(message.author.id, {
+        content: message.content,
+        guild: guild,
+        user: message.author,
+        translation: translation,
+        mood: mood,
+        reputation: reputation,
+        linkResults: linkResults,
+        scamThreats: scamThreats
+      });
     }
     return;
   }
@@ -270,6 +877,15 @@ client.on(Events.MessageCreate, async (message) => {
     if (!ticket || message.content.startsWith(CONFIG.PREFIX)) return;
     if (!isStaff(message.member)) return;
     
+    // Get user's language preference from ticket
+    const userLanguage = ticket.language || 'en';
+    let translatedContent = message.content;
+    
+    // Translate staff message if user isn't English
+    if (userLanguage !== 'en') {
+      translatedContent = await translateToLanguage(message.content, userLanguage);
+    }
+    
     await pool.query(`
       INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
       VALUES ($1, $2, $3, $4, true)
@@ -278,8 +894,8 @@ client.on(Events.MessageCreate, async (message) => {
     try {
       const user = await client.users.fetch(ticket.user_id);
       const embed = new EmbedBuilder()
-        .setTitle('📬 Staff Response')
-        .setDescription(message.content)
+        .setTitle('📬 Message from The Unpatched Method Team')
+        .setDescription(translatedContent)
         .setColor(CONFIG.COLORS.primary)
         .setFooter({ text: `Ticket #${ticket.ticket_number}` })
         .setTimestamp();
@@ -528,89 +1144,164 @@ client.on(Events.MessageCreate, async (message) => {
           name: 'modmail-guide',
           type: ChannelType.GuildText,
           parent: cat.id,
-          topic: 'How to use the Burner Phone modmail system'
+          topic: 'How to use the Burner Phone ULTIMATE modmail system'
         });
         
         // Send the guide
         const guideEmbed1 = new EmbedBuilder()
-          .setTitle('📱 BURNER PHONE - STAFF GUIDE')
-          .setDescription('This is your secure modmail system. All staff-to-member communication goes through this bot so you never have to use your personal DMs.')
+          .setTitle('📱 BURNER PHONE ULTIMATE - STAFF GUIDE')
+          .setDescription(`This is your **secure modmail system** with advanced AI features.
+
+**Features:**
+🔒 Anonymous staff-to-member communication
+🔗 Automatic link scanning & scam detection
+🌐 Auto-translation for non-English users
+🎭 AI mood detection & auto-escalation
+📊 User reputation tracking
+⚖️ AI-powered ban appeal system
+🔥 Self-destructing messages`)
           .setColor(CONFIG.COLORS.primary);
         
         const guideEmbed2 = new EmbedBuilder()
           .setTitle('📥 WHEN A USER DMS THE BOT')
           .setDescription(`
 **What happens:**
-1. User sends a DM to Burner Phone
-2. A ticket channel is created here (ticket-0001, etc.)
-3. You see their message in the ticket
-4. Just type in the ticket channel to reply
-5. They receive your reply as a DM
+1. User must confirm they understand the rules first
+2. Their message is scanned for:
+   • 🔗 Dangerous links (VirusTotal scan)
+   • 🚨 Scam patterns (fake nitro, phishing)
+   • ⚠️ Threats (auto-reported)
+3. AI detects their mood & language
+4. Ticket created with all this intel
+5. Just type to reply - they get anonymous DM
 
-**They never see your name - it's all anonymous!**
+**They never see your name!**
           `)
           .setColor(CONFIG.COLORS.info);
         
         const guideEmbed3 = new EmbedBuilder()
-          .setTitle('📤 WHEN YOU NEED TO DM A USER')
+          .setTitle('🔗 LINK SCANNING')
           .setDescription(`
-**Go to #staff-dm and use:**
-\`?dm @user Your message here\`
+**Every link is automatically scanned:**
+✅ Safe links show green checkmark
+🚨 Dangerous links show red alert
 
-**What happens:**
-1. User gets a DM from Burner Phone
-2. A ticket is created to track replies
-3. If they respond, it shows up in the ticket
+**Scans include:**
+• Known phishing domains
+• Fake Discord/Steam sites
+• URL shorteners (flagged as suspicious)
+• VirusTotal database check
+
+**DO NOT click suspicious links!**
+          `)
+          .setColor(CONFIG.COLORS.warning);
+        
+        const guideEmbed4 = new EmbedBuilder()
+          .setTitle('🌐 AUTO-TRANSLATION')
+          .setDescription(`
+**Non-English messages are auto-translated:**
+• Original message shown
+• English translation below
+• Your replies are translated back to their language
+
+**Language shown in ticket header**
           `)
           .setColor(CONFIG.COLORS.info);
         
-        const guideEmbed4 = new EmbedBuilder()
+        const guideEmbed5 = new EmbedBuilder()
+          .setTitle('🎭 MOOD & REPUTATION')
+          .setDescription(`
+**AI Mood Detection:**
+😡 Angry | 😤 Frustrated | 😢 Upset | 😐 Neutral | 😊 Friendly
+
+**Auto-Escalation:** Angry/critical messages ping staff immediately
+
+**User Reputation:**
+⭐ Trusted (80+) - Good history
+😐 Neutral (50-79) - Normal
+⚠️ Caution (20-49) - Some issues
+🚨 Problematic (<20) - Frequent problems
+
+**Use +Rep / -Rep buttons** to adjust scores
+          `)
+          .setColor(CONFIG.COLORS.success);
+        
+        const guideEmbed6 = new EmbedBuilder()
           .setTitle('⌨️ COMMANDS')
           .addFields(
             { name: '💬 In Ticket Channels', value: `
-\`?close [reason]\` - Close ticket & delete messages
-\`?closeandkick [reason]\` - Close ticket, delete messages, AND kick user
+\`?close [reason]\` - Close ticket & burn messages
+\`?closeandkick [reason]\` - Close, burn, AND kick user
 \`?claim\` - Mark ticket as yours
+\`+Rep / -Rep buttons\` - Adjust user reputation
             `, inline: false },
             { name: '📤 In #staff-dm', value: `
-\`?dm @user message\` - DM a user through the bot
+\`?dm @user message\` - DM user (shows preview first)
             `, inline: false },
             { name: '📋 Anywhere', value: `
 \`?tickets\` - View all open tickets
-\`?blacklist @user\` - Block user from modmail
+\`?blacklist @user\` - Block from modmail
 \`?unblacklist @user\` - Unblock user
             `, inline: false }
           )
           .setColor(CONFIG.COLORS.success);
         
-        const guideEmbed5 = new EmbedBuilder()
-          .setTitle('🔥 BURNER STYLE')
+        const guideEmbed7 = new EmbedBuilder()
+          .setTitle('⚖️ BAN APPEAL SYSTEM')
           .setDescription(`
-**When you close a ticket:**
-• User gets a "Ticket Closed" message
-• ALL bot messages in their DMs are **deleted**
-• The ticket channel is deleted
-• Only their own messages remain
+**When someone is banned:**
+1. They get DM with appeal instructions
+2. They reply with \`APPEAL: [explanation]\`
+3. AI reviews their appeal
+4. You get notification with AI recommendation
+5. Click ✅ Approve or ❌ Deny
 
-**This protects both staff and the server!**
+**AI checks for:**
+• Sincerity of apology
+• Understanding of rules
+• Red flags (excuses, lies)
+• Positive factors
           `)
           .setColor(CONFIG.COLORS.warning);
         
-        const guideEmbed6 = new EmbedBuilder()
-          .setTitle('⚠️ IMPORTANT TIPS')
+        const guideEmbed8 = new EmbedBuilder()
+          .setTitle('🔥 BURNER STYLE')
           .setDescription(`
-• **Close BEFORE kicking** - Use \`?closeandkick\` to do both in the right order
-• **Claim tickets** you're working on so others know
-• **Check #modmail-logs** for ticket history
-• **Never share your personal Discord** - use this system!
+**When you close a ticket:**
+• Transcript saved to logs
+• User notified of closure
+• ALL bot messages **DELETED** from their DMs
+• Ticket channel deleted
+• Only their own messages remain
+
+**Always close BEFORE kicking!**
+Use \`?closeandkick\` to do both safely.
           `)
-          .setColor(CONFIG.COLORS.error)
-          .setFooter({ text: 'Burner Phone • The Unpatched Method' });
+          .setColor(CONFIG.COLORS.error);
         
-        await guide.send({ embeds: [guideEmbed1, guideEmbed2, guideEmbed3, guideEmbed4, guideEmbed5, guideEmbed6] });
+        const guideEmbed9 = new EmbedBuilder()
+          .setTitle('⚠️ SECURITY ALERTS')
+          .setDescription(`
+**Critical threats are auto-reported:**
+• Death threats
+• Doxxing attempts
+• Swatting mentions
+
+**Scam patterns flagged:**
+• "Free Nitro" links
+• Fake Discord domains
+• Phishing attempts
+
+**Trust the system - don't click suspicious links!**
+          `)
+          .setColor(CONFIG.COLORS.danger)
+          .setFooter({ text: 'Burner Phone ULTIMATE • The Unpatched Method • Stay Safe' });
+        
+        await guide.send({ embeds: [guideEmbed1, guideEmbed2, guideEmbed3, guideEmbed4, guideEmbed5] });
+        await guide.send({ embeds: [guideEmbed6, guideEmbed7, guideEmbed8, guideEmbed9] });
       }
       
-      await message.reply(`✅ Modmail ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
+      await message.reply(`✅ Modmail ULTIMATE ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
     }
     
     // ?modmailguide
@@ -867,6 +1558,57 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+// Handle ticket confirmation from DMs
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isButton()) return;
+  
+  // Only handle in DMs
+  if (interaction.channel.type !== ChannelType.DM) return;
+  
+  if (interaction.customId === 'cancel_ticket') {
+    client.pendingTickets?.delete(interaction.user.id);
+    await interaction.update({ 
+      content: '❌ Cancelled. Your message was not sent.', 
+      embeds: [], 
+      components: [] 
+    });
+    return;
+  }
+  
+  if (interaction.customId === 'confirm_ticket') {
+    const pending = client.pendingTickets?.get(interaction.user.id);
+    
+    if (!pending) {
+      return interaction.update({ 
+        content: '❌ Session expired. Please send your message again.', 
+        embeds: [], 
+        components: [] 
+      });
+    }
+    
+    const { content, guild, user, translation, mood, reputation, linkResults, scamThreats } = pending;
+    
+    // Create the ticket with all the scanned data
+    const ticket = await createTicket(user, guild, content, {
+      translation,
+      mood,
+      reputation,
+      linkResults,
+      scamThreats
+    });
+    
+    const successEmbed = new EmbedBuilder()
+      .setTitle('📨 Ticket Created!')
+      .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. Just reply here to add more info.`)
+      .setColor(CONFIG.COLORS.success)
+      .setFooter({ text: 'The Unpatched Method • Support' });
+    
+    await interaction.update({ embeds: [successEmbed], components: [] });
+    
+    client.pendingTickets.delete(interaction.user.id);
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MEMBER EVENTS - Welcome DMs
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -929,19 +1671,233 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BAN APPEAL SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+client.on(Events.GuildBanAdd, async (ban) => {
+  try {
+    const user = ban.user;
+    const reason = ban.reason || 'No reason provided';
+    
+    // Send appeal information to banned user
+    const appealEmbed = new EmbedBuilder()
+      .setTitle('⛔ You Have Been Banned')
+      .setDescription(`
+You have been banned from **The Unpatched Method**.
+
+**Reason:** ${reason}
+
+**Appeal Process:**
+If you believe this ban was unjust, you can submit an appeal. Your appeal will be reviewed by our AI system and staff.
+
+**To appeal, reply to this message with:**
+\`APPEAL: [Your explanation here]\`
+
+Example: \`APPEAL: I was banned for spam but I was hacked. I've secured my account now.\`
+
+**Important:**
+• Be honest and detailed
+• Explain what happened
+• Show you understand the rules
+• Appeals are reviewed within 48 hours
+      `)
+      .setColor(CONFIG.COLORS.error)
+      .setFooter({ text: 'The Unpatched Method • Ban Appeal System' })
+      .setTimestamp();
+    
+    await user.send({ embeds: [appealEmbed] });
+    
+    // Store ban info for appeals
+    await pool.query(`
+      INSERT INTO ban_appeals (user_id, ban_reason, appeal_text, status)
+      VALUES ($1, $2, 'Awaiting appeal submission', 'awaiting')
+      ON CONFLICT DO NOTHING
+    `, [user.id, reason]);
+    
+  } catch (e) {
+    console.log('Could not DM banned user:', e.message);
+  }
+});
+
+// Handle appeal submissions in DM
+client.on(Events.MessageCreate, async (message) => {
+  if (message.author.bot) return;
+  if (message.channel.type !== ChannelType.DM) return;
+  
+  // Check if message is an appeal
+  if (message.content.toUpperCase().startsWith('APPEAL:')) {
+    const appealText = message.content.slice(7).trim();
+    
+    if (appealText.length < 20) {
+      return message.reply('❌ Your appeal is too short. Please provide a detailed explanation.');
+    }
+    
+    // Get ban info
+    const banInfo = await pool.query(`
+      SELECT * FROM ban_appeals WHERE user_id = $1 AND status IN ('awaiting', 'pending')
+      ORDER BY created_at DESC LIMIT 1
+    `, [message.author.id]);
+    
+    if (banInfo.rows.length === 0) {
+      return message.reply('❌ No pending ban found for your account.');
+    }
+    
+    const ban = banInfo.rows[0];
+    
+    // Process with AI
+    await message.reply('🔄 Processing your appeal with AI review...');
+    
+    const aiResult = await processAppeal(message.author.id, appealText, ban.ban_reason);
+    
+    // Save appeal
+    await pool.query(`
+      UPDATE ban_appeals 
+      SET appeal_text = $1, ai_recommendation = $2, ai_reasoning = $3, status = 'pending'
+      WHERE id = $4
+    `, [appealText, aiResult.recommendation, aiResult.reasoning, ban.id]);
+    
+    // Send to staff
+    const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
+    const logChannel = guild?.channels.cache.get(MODMAIL_LOG_CHANNEL);
+    
+    if (logChannel) {
+      const appealEmbed = new EmbedBuilder()
+        .setTitle('📋 New Ban Appeal')
+        .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
+        .addFields(
+          { name: '⛔ Ban Reason', value: ban.ban_reason || 'Not specified', inline: false },
+          { name: '📝 Appeal', value: appealText.slice(0, 1024), inline: false },
+          { name: '🤖 AI Recommendation', value: `**${aiResult.recommendation.toUpperCase()}** (${aiResult.confidence}% confidence)`, inline: true },
+          { name: '📊 AI Reasoning', value: aiResult.reasoning?.slice(0, 1024) || 'N/A', inline: false }
+        )
+        .setColor(
+          aiResult.recommendation === 'approve' ? CONFIG.COLORS.success :
+          aiResult.recommendation === 'deny' ? CONFIG.COLORS.error : CONFIG.COLORS.warning
+        )
+        .setTimestamp();
+      
+      if (aiResult.redFlags?.length > 0) {
+        appealEmbed.addFields({ name: '🚩 Red Flags', value: aiResult.redFlags.join('\n'), inline: true });
+      }
+      if (aiResult.positiveFactors?.length > 0) {
+        appealEmbed.addFields({ name: '✅ Positive Factors', value: aiResult.positiveFactors.join('\n'), inline: true });
+      }
+      
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`appeal_approve_${ban.id}`).setLabel('✅ Approve & Unban').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`appeal_deny_${ban.id}`).setLabel('❌ Deny').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`appeal_questions_${ban.id}`).setLabel('❓ Need More Info').setStyle(ButtonStyle.Secondary)
+      );
+      
+      await logChannel.send({ content: '@here Ban appeal received', embeds: [appealEmbed], components: [row] });
+    }
+    
+    // Confirm to user
+    const confirmEmbed = new EmbedBuilder()
+      .setTitle('✅ Appeal Submitted')
+      .setDescription(`
+Your appeal has been received and is being reviewed.
+
+**AI Pre-Assessment:** ${aiResult.recommendation === 'approve' ? '✅ Favorable' : aiResult.recommendation === 'deny' ? '❌ Unfavorable' : '⏳ Needs Review'}
+
+A staff member will make the final decision within 48 hours. You will be notified of the outcome.
+      `)
+      .setColor(CONFIG.COLORS.info);
+    
+    await message.reply({ embeds: [confirmEmbed] });
+  }
+});
+
+// Handle appeal buttons
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isButton()) return;
+  
+  // Appeal approve
+  if (interaction.customId.startsWith('appeal_approve_')) {
+    const appealId = interaction.customId.split('_')[2];
+    
+    const appeal = await pool.query(`SELECT * FROM ban_appeals WHERE id = $1`, [appealId]);
+    if (appeal.rows.length === 0) return interaction.reply({ content: 'Appeal not found.', ephemeral: true });
+    
+    const userId = appeal.rows[0].user_id;
+    
+    // Unban user
+    try {
+      await interaction.guild.bans.remove(userId, 'Appeal approved');
+      
+      await pool.query(`
+        UPDATE ban_appeals SET status = 'approved', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2
+      `, [interaction.user.id, appealId]);
+      
+      // Notify user
+      const user = await client.users.fetch(userId);
+      await user.send({ embeds: [new EmbedBuilder()
+        .setTitle('✅ Appeal Approved!')
+        .setDescription('Your ban appeal has been approved. You may rejoin the server.\n\n**Please follow the rules this time.**')
+        .setColor(CONFIG.COLORS.success)
+      ]});
+      
+      await interaction.update({ content: `✅ Appeal approved by ${interaction.user.tag}. User unbanned.`, components: [] });
+    } catch (e) {
+      await interaction.reply({ content: `Error: ${e.message}`, ephemeral: true });
+    }
+  }
+  
+  // Appeal deny
+  if (interaction.customId.startsWith('appeal_deny_')) {
+    const appealId = interaction.customId.split('_')[2];
+    
+    const appeal = await pool.query(`SELECT * FROM ban_appeals WHERE id = $1`, [appealId]);
+    if (appeal.rows.length === 0) return interaction.reply({ content: 'Appeal not found.', ephemeral: true });
+    
+    await pool.query(`
+      UPDATE ban_appeals SET status = 'denied', reviewed_by = $1, reviewed_at = NOW() WHERE id = $2
+    `, [interaction.user.id, appealId]);
+    
+    // Notify user
+    try {
+      const user = await client.users.fetch(appeal.rows[0].user_id);
+      await user.send({ embeds: [new EmbedBuilder()
+        .setTitle('❌ Appeal Denied')
+        .setDescription('Your ban appeal has been denied. The ban will remain in place.\n\nYou may submit another appeal in 30 days.')
+        .setColor(CONFIG.COLORS.error)
+      ]});
+    } catch (e) {}
+    
+    await interaction.update({ content: `❌ Appeal denied by ${interaction.user.tag}.`, components: [] });
+  }
+  
+  // Reputation buttons
+  if (interaction.customId === 'rep_good') {
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (!ticket) return;
+    await updateReputation(ticket.user_id, 5, 'Good interaction');
+    await interaction.reply({ content: '👍 User reputation increased (+5)', ephemeral: true });
+  }
+  
+  if (interaction.customId === 'rep_bad') {
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (!ticket) return;
+    await updateReputation(ticket.user_id, -10, 'Bad interaction');
+    await interaction.reply({ content: '👎 User reputation decreased (-10)', ephemeral: true });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // READY
 // ═══════════════════════════════════════════════════════════════════════════════
 
 client.once(Events.ClientReady, async () => {
-  console.log('╔════════════════════════════════════════╗');
-  console.log('║      BURNER PHONE - ONLINE             ║');
-  console.log('╚════════════════════════════════════════╝');
+  console.log('╔════════════════════════════════════════════════════════════╗');
+  console.log('║      BURNER PHONE - ULTIMATE SECURITY SYSTEM              ║');
+  console.log('║      AI • Translation • Link Scanning • Appeals           ║');
+  console.log('╚════════════════════════════════════════════════════════════╝');
   console.log(`Logged in as ${client.user.tag}`);
   
   await initDatabase();
   
   client.user.setPresence({
-    activities: [{ name: 'DM me for support', type: 3 }],
+    activities: [{ name: 'DM me for support | 🔒 Secure', type: 3 }],
     status: 'online'
   });
 });
