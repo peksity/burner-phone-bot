@@ -1348,6 +1348,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.update({ content: '❌ Message expired. Please try again.', embeds: [], components: [] });
     }
     
+    // Defer first to avoid timeout
+    await interaction.deferUpdate();
+    
     try {
       const { user, content, guild, originalMsg, preview } = pending;
       
@@ -1438,7 +1441,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // Clean up
       client.pendingDMs.delete(key);
     } catch (e) {
-      await interaction.update({ content: `❌ Could not DM user - they may have DMs disabled.`, embeds: [], components: [] });
+      console.error('DM error:', e);
+      await interaction.editReply({ content: `❌ Could not DM user - they may have DMs disabled.`, embeds: [], components: [] }).catch(() => {});
       client.pendingDMs.delete(key);
     }
   }
