@@ -401,13 +401,18 @@ async function updateReputation(userId, change, reason) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function initDatabase() {
-  // Drop old tables to recreate with correct schema
+  // Drop ALL old tables to recreate with correct schema
   await pool.query(`DROP TABLE IF EXISTS modmail_messages CASCADE`);
   await pool.query(`DROP TABLE IF EXISTS modmail_tickets CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_blacklist CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_canned CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS user_reputation CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS ban_appeals CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS link_scans CASCADE`);
   
   // Core modmail tables
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS modmail_tickets (
+    CREATE TABLE modmail_tickets (
       id SERIAL PRIMARY KEY,
       ticket_number INT NOT NULL,
       user_id TEXT NOT NULL,
@@ -426,7 +431,7 @@ async function initDatabase() {
     )
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS modmail_messages (
+    CREATE TABLE modmail_messages (
       id SERIAL PRIMARY KEY,
       ticket_id INT,
       author_id TEXT NOT NULL,
@@ -439,14 +444,14 @@ async function initDatabase() {
     )
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS modmail_blacklist (
+    CREATE TABLE modmail_blacklist (
       user_id TEXT PRIMARY KEY,
       reason TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS modmail_canned (
+    CREATE TABLE modmail_canned (
       name TEXT PRIMARY KEY,
       content TEXT NOT NULL
     )
@@ -454,7 +459,7 @@ async function initDatabase() {
   
   // User reputation system
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_reputation (
+    CREATE TABLE user_reputation (
       user_id TEXT PRIMARY KEY,
       score INT DEFAULT 50,
       total_tickets INT DEFAULT 0,
@@ -466,7 +471,7 @@ async function initDatabase() {
   
   // Ban appeals system
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS ban_appeals (
+    CREATE TABLE ban_appeals (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL,
       ban_reason TEXT,
@@ -482,7 +487,7 @@ async function initDatabase() {
   
   // Link scan history
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS link_scans (
+    CREATE TABLE link_scans (
       id SERIAL PRIMARY KEY,
       url TEXT NOT NULL,
       user_id TEXT NOT NULL,
