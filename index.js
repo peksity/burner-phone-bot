@@ -401,6 +401,10 @@ async function updateReputation(userId, change, reason) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function initDatabase() {
+  // Drop old tables to recreate with correct schema
+  await pool.query(`DROP TABLE IF EXISTS modmail_messages CASCADE`);
+  await pool.query(`DROP TABLE IF EXISTS modmail_tickets CASCADE`);
+  
   // Core modmail tables
   await pool.query(`
     CREATE TABLE IF NOT EXISTS modmail_tickets (
