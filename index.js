@@ -634,7 +634,82 @@ client.on(Events.MessageCreate, async (message) => {
     // SECURITY SCANNING - BLOCK DANGEROUS CONTENT
     // ═══════════════════════════════════════════════════════════════
     
-    // Check for threats
+    // Check for suspicious file attachments
+    const DANGEROUS_EXTENSIONS = [
+      '.exe', '.bat', '.cmd', '.scr', '.pif', '.com', '.vbs', '.vbe', 
+      '.js', '.jse', '.ws', '.wsf', '.msc', '.msi', '.msp', '.hta',
+      '.cpl', '.jar', '.ps1', '.psm1', '.dll', '.sys', '.drv',
+      '.reg', '.inf', '.scf', '.lnk', '.url'
+    ];
+    
+    const SUSPICIOUS_EXTENSIONS = [
+      '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.img',
+      '.doc', '.docm', '.xls', '.xlsm', '.ppt', '.pptm', // Macro-enabled
+      '.pdf', '.txt', '.rtf'
+    ];
+    
+    let fileThreats = [];
+    let hasDangerousFile = false;
+    
+    if (message.attachments.size > 0) {
+      for (const [, attachment] of message.attachments) {
+        const fileName = attachment.name.toLowerCase();
+        const ext = '.' + fileName.split('.').pop();
+        
+        // Check for dangerous extensions
+        if (DANGEROUS_EXTENSIONS.includes(ext)) {
+          hasDangerousFile = true;
+          fileThreats.push(`🚨 DANGEROUS FILE: ${attachment.name} (${ext} files can contain malware)`);
+        }
+        // Check for suspicious extensions
+        else if (SUSPICIOUS_EXTENSIONS.includes(ext)) {
+          fileThreats.push(`⚠️ Suspicious file: ${attachment.name}`);
+        }
+        
+        // Check for double extensions (e.g., image.jpg.exe)
+        const parts = fileName.split('.');
+        if (parts.length > 2) {
+          const lastExt = '.' + parts[parts.length - 1];
+          if (DANGEROUS_EXTENSIONS.includes(lastExt)) {
+            hasDangerousFile = true;
+            fileThreats.push(`🚨 HIDDEN EXTENSION: ${attachment.name} (disguised dangerous file)`);
+          }
+        }
+        
+        // Check file size (very small executables are suspicious)
+        if (attachment.size < 1000 && DANGEROUS_EXTENSIONS.includes(ext)) {
+          fileThreats.push(`🚨 Suspiciously small dangerous file: ${attachment.name}`);
+        }
+      }
+    }
+    
+    // Block dangerous files immediately
+    if (hasDangerousFile) {
+      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+      if (logChannel) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨 DANGEROUS FILE BLOCKED')
+          .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
+          .addFields(
+            { name: '📝 Message', value: message.content.slice(0, 1024) || 'No text', inline: false },
+            { name: '📎 Files', value: [...message.attachments.values()].map(a => `${a.name} (${Math.round(a.size/1024)}KB)`).join('\n').slice(0, 1024), inline: false },
+            { name: '⚠️ Threats', value: fileThreats.join('\n').slice(0, 1024), inline: false }
+          )
+          .setColor(CONFIG.COLORS.danger)
+          .setTimestamp();
+        await logChannel.send({ content: '@here **DANGEROUS FILE BLOCKED**', embeds: [alertEmbed] });
+      }
+      
+      return message.reply({
+        embeds: [new EmbedBuilder()
+          .setTitle('🚫 File Blocked')
+          .setDescription('Your message was blocked because it contains a potentially dangerous file type.\n\nExecutable files, scripts, and similar attachments are not allowed.\n\nIf you need to share a file, please describe what you need help with instead.')
+          .setColor(CONFIG.COLORS.danger)
+        ]
+      });
+    }
+    
+    // Check for threats in text
     const threats = detectThreats(message.content);
     if (threats.length > 0) {
       const criticalThreats = threats.filter(t => t.severity === 'critical');
@@ -704,6 +779,23 @@ client.on(Events.MessageCreate, async (message) => {
           .setColor(CONFIG.COLORS.danger)
         ]
       });
+    }
+    
+    // Alert staff about suspicious (but not blocked) files
+    if (fileThreats.length > 0) {
+      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+      if (logChannel) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('⚠️ SUSPICIOUS FILE ATTACHMENT')
+          .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Note:** File was allowed but flagged for review`)
+          .addFields(
+            { name: '📎 Files', value: [...message.attachments.values()].map(a => `${a.name} (${Math.round(a.size/1024)}KB)`).join('\n').slice(0, 1024), inline: false },
+            { name: '⚠️ Concerns', value: fileThreats.join('\n').slice(0, 1024), inline: false }
+          )
+          .setColor(CONFIG.COLORS.warning)
+          .setTimestamp();
+        await logChannel.send({ embeds: [alertEmbed] });
+      }
     }
     
     // ═══════════════════════════════════════════════════════════════
