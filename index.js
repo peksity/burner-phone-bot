@@ -2914,13 +2914,14 @@ client.on(Events.MessageCreate, async (message) => {
     
     await message.reply({ embeds: [warningEmbed], components: [row] });
     
-    // Store pending message including original message for checkmark
+    // Store pending message including original message for checkmark AND threat analysis
     client.pendingTickets = client.pendingTickets || new Map();
     client.pendingTickets.set(message.author.id, {
       content: message.content,
       guild: guild,
       user: message.author,
-      originalMessage: message
+      originalMessage: message,
+      threatAnalysis: threatAnalysis // Store the threat analysis!
     });
     return;
   }
@@ -4323,7 +4324,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferUpdate();
     
     try {
-      const { content, guild, user, originalMessage } = pending;
+      const { content, guild, user, originalMessage, threatAnalysis } = pending;
       
       // Create new ticket
       const ticket = await createTicket(user, guild, content, {});
@@ -4331,6 +4332,58 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // Add green checkmark to original message
       if (originalMessage) {
         await originalMessage.react('✅').catch(() => {});
+      }
+      
+      // If there was a security threat, send alert to the ticket channel
+      if (threatAnalysis && threatAnalysis.score >= RISK_THRESHOLDS.LOW) {
+        const ticketChannel = guild.channels.cache.get(ticket.channel_id);
+        if (ticketChannel) {
+          // Build detailed threat breakdown for staff
+          let staffAlert = `**Risk Score:** ${threatAnalysis.score}/100\n**Action:** ${threatAnalysis.action}\n\n`;
+          staffAlert += `**Detections:**\n`;
+          for (const f of (threatAnalysis.findings || []).slice(0, 5)) {
+            if (f.code) {
+              staffAlert += `• \`[${f.code}]\` +${f.points}pts - ${f.detail}\n`;
+            }
+          }
+          
+          // API results if available
+          if (threatAnalysis.apiResults) {
+            staffAlert += `\n**API Scan Results:**\n`;
+            if (threatAnalysis.apiResults.virustotal?.available) {
+              const vt = threatAnalysis.apiResults.virustotal;
+              staffAlert += `• VirusTotal: ${vt.malicious || 0} malicious, ${vt.suspicious || 0} suspicious\n`;
+            }
+            if (threatAnalysis.apiResults.googleSafeBrowsing?.available && threatAnalysis.apiResults.googleSafeBrowsing.threats?.length) {
+              staffAlert += `• Google: ${threatAnalysis.apiResults.googleSafeBrowsing.threats.map(t => t.threatType).join(', ')}\n`;
+            }
+            if (threatAnalysis.apiResults.phishtank?.available && threatAnalysis.apiResults.phishtank.isPhish) {
+              staffAlert += `• PhishTank: ⚠️ CONFIRMED PHISHING\n`;
+            }
+            if (threatAnalysis.apiResults.ipqualityscore?.available) {
+              const ipqs = threatAnalysis.apiResults.ipqualityscore;
+              staffAlert += `• IPQualityScore: Risk ${ipqs.fraudScore || ipqs.riskScore || 0}%\n`;
+            }
+          }
+          
+          const staffEmbed = new EmbedBuilder()
+            .setTitle(`🔒 SECURITY FLAG - Staff Only`)
+            .setDescription(staffAlert)
+            .setColor(0xFF6600)
+            .setFooter({ text: 'This alert is only visible to staff in this channel' });
+          
+          await ticketChannel.send({ embeds: [staffEmbed] });
+          
+          // Also log to security channel
+          await handleThreatResponse(originalMessage, threatAnalysis, guild);
+          
+          // Store threat data in database for ticket close
+          await pool.query(`
+            UPDATE modmail_tickets 
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb 
+            WHERE id = $2
+          `, [JSON.stringify({ lastThreat: { score: threatAnalysis.score, findings: threatAnalysis.findings?.slice(0, 5), apiResults: threatAnalysis.apiResults } }), ticket.id]).catch(() => {});
+        }
       }
       
       const successEmbed = new EmbedBuilder()
