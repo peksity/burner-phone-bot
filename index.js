@@ -1722,7 +1722,7 @@ async function initDatabase() {
   
   // Core modmail tables
   await pool.query(`
-    CREATE TABLE modmail_tickets (
+    CREATE TABLE IF NOT EXISTS modmail_tickets (
       id SERIAL PRIMARY KEY,
       ticket_number INT NOT NULL,
       user_id TEXT NOT NULL,
@@ -1741,7 +1741,7 @@ async function initDatabase() {
     )
   `);
   await pool.query(`
-    CREATE TABLE modmail_messages (
+    CREATE TABLE IF NOT EXISTS modmail_messages (
       id SERIAL PRIMARY KEY,
       ticket_id INT,
       author_id TEXT NOT NULL,
@@ -1754,14 +1754,14 @@ async function initDatabase() {
     )
   `);
   await pool.query(`
-    CREATE TABLE modmail_blacklist (
+    CREATE TABLE IF NOT EXISTS modmail_blacklist (
       user_id TEXT PRIMARY KEY,
       reason TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
   await pool.query(`
-    CREATE TABLE modmail_canned (
+    CREATE TABLE IF NOT EXISTS modmail_canned (
       name TEXT PRIMARY KEY,
       content TEXT NOT NULL
     )
@@ -1769,7 +1769,7 @@ async function initDatabase() {
   
   // User reputation system
   await pool.query(`
-    CREATE TABLE user_reputation (
+    CREATE TABLE IF NOT EXISTS user_reputation (
       user_id TEXT PRIMARY KEY,
       score INT DEFAULT 50,
       total_tickets INT DEFAULT 0,
@@ -1781,7 +1781,7 @@ async function initDatabase() {
   
   // Ban appeals system
   await pool.query(`
-    CREATE TABLE ban_appeals (
+    CREATE TABLE IF NOT EXISTS ban_appeals (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL,
       ban_reason TEXT,
@@ -1797,7 +1797,7 @@ async function initDatabase() {
   
   // Link scan history
   await pool.query(`
-    CREATE TABLE link_scans (
+    CREATE TABLE IF NOT EXISTS link_scans (
       id SERIAL PRIMARY KEY,
       url TEXT NOT NULL,
       user_id TEXT NOT NULL,
@@ -1813,7 +1813,7 @@ async function initDatabase() {
   
   // User notes (persistent across tickets)
   await pool.query(`
-    CREATE TABLE user_notes (
+    CREATE TABLE IF NOT EXISTS user_notes (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL,
       note TEXT NOT NULL,
@@ -1825,7 +1825,7 @@ async function initDatabase() {
   
   // Canned responses/snippets
   await pool.query(`
-    CREATE TABLE snippets (
+    CREATE TABLE IF NOT EXISTS snippets (
       id SERIAL PRIMARY KEY,
       name TEXT UNIQUE NOT NULL,
       content TEXT NOT NULL,
@@ -1837,7 +1837,7 @@ async function initDatabase() {
   
   // Staff away status
   await pool.query(`
-    CREATE TABLE staff_status (
+    CREATE TABLE IF NOT EXISTS staff_status (
       user_id TEXT PRIMARY KEY,
       status TEXT DEFAULT 'available',
       away_message TEXT,
@@ -1848,7 +1848,7 @@ async function initDatabase() {
   
   // Ticket feedback/ratings
   await pool.query(`
-    CREATE TABLE ticket_feedback (
+    CREATE TABLE IF NOT EXISTS ticket_feedback (
       id SERIAL PRIMARY KEY,
       ticket_id INT NOT NULL,
       user_id TEXT NOT NULL,
@@ -1860,7 +1860,7 @@ async function initDatabase() {
   
   // Read receipts
   await pool.query(`
-    CREATE TABLE read_receipts (
+    CREATE TABLE IF NOT EXISTS read_receipts (
       id SERIAL PRIMARY KEY,
       ticket_id INT NOT NULL,
       message_id TEXT NOT NULL,
@@ -1871,7 +1871,7 @@ async function initDatabase() {
   
   // Ticket views (who viewed when)
   await pool.query(`
-    CREATE TABLE ticket_views (
+    CREATE TABLE IF NOT EXISTS ticket_views (
       id SERIAL PRIMARY KEY,
       ticket_id INT NOT NULL,
       viewer_id TEXT NOT NULL,
@@ -1882,7 +1882,7 @@ async function initDatabase() {
   
   // Linked tickets
   await pool.query(`
-    CREATE TABLE ticket_links (
+    CREATE TABLE IF NOT EXISTS ticket_links (
       id SERIAL PRIMARY KEY,
       ticket_id INT NOT NULL,
       linked_ticket_id INT NOT NULL,
@@ -1893,7 +1893,7 @@ async function initDatabase() {
   
   // User sentiment history
   await pool.query(`
-    CREATE TABLE user_sentiment (
+    CREATE TABLE IF NOT EXISTS user_sentiment (
       id SERIAL PRIMARY KEY,
       user_id TEXT NOT NULL,
       ticket_id INT NOT NULL,
@@ -1905,7 +1905,7 @@ async function initDatabase() {
   
   // Staff analytics
   await pool.query(`
-    CREATE TABLE staff_analytics (
+    CREATE TABLE IF NOT EXISTS staff_analytics (
       id SERIAL PRIMARY KEY,
       staff_id TEXT NOT NULL,
       ticket_id INT NOT NULL,
@@ -1917,7 +1917,7 @@ async function initDatabase() {
   
   // Scheduled messages
   await pool.query(`
-    CREATE TABLE scheduled_messages (
+    CREATE TABLE IF NOT EXISTS scheduled_messages (
       id SERIAL PRIMARY KEY,
       ticket_id INT NOT NULL,
       content TEXT NOT NULL,
