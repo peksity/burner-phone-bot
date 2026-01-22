@@ -351,7 +351,8 @@ class ThreatAnalyzer {
       action,
       findings: this.findings,
       signals: this.signals,
-      summary: this.signals.join('\n')
+      summary: this.signals.join('\n'),
+      apiResults: this.apiResults || {}
     };
   }
 }
@@ -1017,6 +1018,11 @@ async function deepLinkAnalysis(url, analyzer) {
     }
   } catch (e) {}
   
+  // Initialize API results storage on analyzer
+  if (!analyzer.apiResults) {
+    analyzer.apiResults = {};
+  }
+  
   // Run all API checks in parallel for speed
   const [vtResult, gsbResult, ptResult, ipqsResult, otxResult] = await Promise.all([
     // 1. VirusTotal
@@ -1034,6 +1040,13 @@ async function deepLinkAnalysis(url, analyzer) {
     // 5. AlienVault OTX (check domain)
     domainToCheck ? checkWithAlienVault(domainToCheck, 'domain').catch(e => ({ available: false, error: e.message })) : Promise.resolve({ available: false })
   ]);
+  
+  // Store API results for detailed reporting
+  analyzer.apiResults.virustotal = vtResult;
+  analyzer.apiResults.googleSafeBrowsing = gsbResult;
+  analyzer.apiResults.phishtank = ptResult;
+  analyzer.apiResults.ipqualityscore = ipqsResult;
+  analyzer.apiResults.alienvault = otxResult;
   
   // Process VirusTotal results
   if (vtResult.available) {
@@ -1060,6 +1073,9 @@ async function deepLinkAnalysis(url, analyzer) {
   
   // Process IPQualityScore results
   if (ipqsResult.available) {
+    // Store fraud score for reporting
+    analyzer.apiResults.ipqualityscore.fraudScore = ipqsResult.riskScore;
+    
     if (ipqsResult.phishing) {
       analyzer.addRisk(55, 'IPQS_PHISH', `IPQualityScore: Detected as phishing`);
     }
@@ -1086,13 +1102,20 @@ async function deepLinkAnalysis(url, analyzer) {
     if (otxResult.pulses && otxResult.pulses.length > 0) {
       const threatNames = otxResult.pulses.slice(0, 2).map(p => p.name).join(', ');
       analyzer.signals.push(`[API] OTX Threats: ${threatNames}`);
+      // Store malware families for reporting
+      analyzer.apiResults.alienvault.malwareFamilies = otxResult.pulses.slice(0, 3).map(p => p.name);
     }
   }
   
   // Check IP with AbuseIPDB if URL contains an IP
   if (ipToCheck) {
     const abuseResult = await checkWithAbuseIPDB(ipToCheck).catch(e => ({ available: false }));
+    analyzer.apiResults.abuseipdb = abuseResult;
+    
     if (abuseResult.available) {
+      // Store for reporting
+      abuseResult.abuseScore = abuseResult.abuseConfidenceScore;
+      
       if (abuseResult.abuseConfidenceScore >= 50) {
         analyzer.addRisk(40, 'ABUSEIPDB', `AbuseIPDB: High abuse score (${abuseResult.abuseConfidenceScore}%), ${abuseResult.totalReports} reports`);
       } else if (abuseResult.abuseConfidenceScore >= 25) {
@@ -1389,37 +1412,247 @@ async function analyzeThreat(message) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleThreatResponse(message, analysis, guild) {
-  const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+  const securityChannel = guild.channels.cache.get(SECURITY_LOG_CHANNEL);
+  const modmailLog = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
   
-  // Build detailed log embed
-  const logEmbed = new EmbedBuilder()
-    .setTitle(`🔒 THREAT ANALYSIS: ${analysis.level.toUpperCase()}`)
-    .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Risk Score:** ${analysis.score}/100`)
-    .addFields(
-      { name: '📝 Message', value: message.content.slice(0, 500) || 'No text', inline: false },
-      { name: '📊 Analysis', value: analysis.summary.slice(0, 1024) || 'No findings', inline: false },
-      { name: '⚡ Action', value: analysis.action, inline: true },
-      { name: '🎯 Level', value: analysis.level, inline: true }
-    )
-    .setColor(
-      analysis.level === 'critical' ? 0xFF0000 :
-      analysis.level === 'high' ? 0xFF6600 :
-      analysis.level === 'medium' ? 0xFFAA00 : 0x00FF00
-    )
+  // Skip if nothing significant
+  if (analysis.score < RISK_THRESHOLDS.LOW) return analysis;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // BUILD DETAILED SECURITY ALERT
+  // ═══════════════════════════════════════════════════════════════
+  
+  const threatEmoji = {
+    critical: '🚨',
+    high: '⚠️',
+    medium: '⚡',
+    low: '📋'
+  }[analysis.level] || '📋';
+  
+  const threatColor = {
+    critical: 0xFF0000,
+    high: 0xFF6600,
+    medium: 0xFFAA00,
+    low: 0xFFFF00
+  }[analysis.level] || 0x00FF00;
+  
+  // Main alert embed
+  const alertEmbed = new EmbedBuilder()
+    .setTitle(`${threatEmoji} SECURITY ALERT: ${analysis.level.toUpperCase()} THREAT`)
+    .setDescription(`
+**━━━━━━━━━━━━ THREAT SUMMARY ━━━━━━━━━━━━**
+**Risk Score:** \`${analysis.score}/100\`
+**Action Taken:** \`${analysis.action}\`
+**Detection Time:** <t:${Math.floor(Date.now()/1000)}:F>
+    `)
+    .setColor(threatColor)
     .setTimestamp();
   
-  // Add attachment info if present
-  if (message.attachments.size > 0) {
-    const attachList = [...message.attachments.values()]
-      .map(a => `${a.name} (${Math.round(a.size/1024)}KB)`)
-      .join('\n');
-    logEmbed.addFields({ name: '📎 Attachments', value: attachList, inline: false });
+  // User info
+  alertEmbed.addFields({
+    name: '👤 User Information',
+    value: `**User:** ${message.author.tag}\n**ID:** \`${message.author.id}\`\n**Account Age:** ${Math.floor((Date.now() - message.author.createdTimestamp) / 86400000)} days`,
+    inline: false
+  });
+  
+  // Message content
+  alertEmbed.addFields({
+    name: '📝 Message Content',
+    value: `\`\`\`${message.content.slice(0, 900) || 'No text content'}\`\`\``,
+    inline: false
+  });
+  
+  // ═══════════════════════════════════════════════════════════════
+  // API RESULTS BREAKDOWN
+  // ═══════════════════════════════════════════════════════════════
+  
+  if (analysis.apiResults) {
+    const api = analysis.apiResults;
+    
+    // VirusTotal Results
+    if (api.virustotal?.available) {
+      const vt = api.virustotal;
+      let vtStatus = '✅ Clean';
+      if (vt.malicious > 0) vtStatus = `🚨 **${vt.malicious} MALICIOUS**`;
+      else if (vt.suspicious > 0) vtStatus = `⚠️ ${vt.suspicious} Suspicious`;
+      
+      alertEmbed.addFields({
+        name: '🦠 VirusTotal (70+ Antivirus Engines)',
+        value: `**Status:** ${vtStatus}\n**Malicious:** ${vt.malicious || 0}\n**Suspicious:** ${vt.suspicious || 0}\n**Clean:** ${vt.harmless || 0}${vt.threatNames?.length ? `\n**Threats:** ${vt.threatNames.slice(0,5).join(', ')}` : ''}`,
+        inline: true
+      });
+    }
+    
+    // Google Safe Browsing Results
+    if (api.googleSafeBrowsing?.available) {
+      const gsb = api.googleSafeBrowsing;
+      let gsbStatus = '✅ Not in Google\'s threat database';
+      if (gsb.threats?.length > 0) {
+        const threatTypes = gsb.threats.map(t => t.threatType).join(', ');
+        gsbStatus = `🚨 **FLAGGED:** ${threatTypes}`;
+      }
+      
+      alertEmbed.addFields({
+        name: '🔍 Google Safe Browsing',
+        value: gsbStatus,
+        inline: true
+      });
+    }
+    
+    // PhishTank Results
+    if (api.phishtank?.available) {
+      const pt = api.phishtank;
+      let ptStatus = '✅ Not in PhishTank database';
+      if (pt.isPhish) {
+        ptStatus = `🚨 **CONFIRMED PHISHING**${pt.verified ? ' (Verified)' : ''}\n**Reported:** ${pt.verifiedAt || 'Unknown'}`;
+      }
+      
+      alertEmbed.addFields({
+        name: '🎣 PhishTank (Community Reports)',
+        value: ptStatus,
+        inline: true
+      });
+    }
+    
+    // IPQualityScore Results
+    if (api.ipqualityscore?.available) {
+      const ipqs = api.ipqualityscore;
+      let ipqsStatus = `**Fraud Score:** ${ipqs.fraudScore || 0}/100\n`;
+      ipqsStatus += `**Suspicious:** ${ipqs.suspicious ? '⚠️ Yes' : '✅ No'}\n`;
+      ipqsStatus += `**Phishing:** ${ipqs.phishing ? '🚨 Yes' : '✅ No'}\n`;
+      ipqsStatus += `**Malware:** ${ipqs.malware ? '🚨 Yes' : '✅ No'}`;
+      if (ipqs.category) ipqsStatus += `\n**Category:** ${ipqs.category}`;
+      
+      alertEmbed.addFields({
+        name: '📊 IPQualityScore',
+        value: ipqsStatus,
+        inline: true
+      });
+    }
+    
+    // AlienVault OTX Results
+    if (api.alienvault?.available) {
+      const otx = api.alienvault;
+      let otxStatus = `**Pulse Count:** ${otx.pulseCount || 0}\n`;
+      if (otx.pulseCount > 0) {
+        otxStatus += `⚠️ Found in ${otx.pulseCount} threat intelligence feeds\n`;
+        if (otx.malwareFamilies?.length) {
+          otxStatus += `**Malware Families:** ${otx.malwareFamilies.slice(0,3).join(', ')}`;
+        }
+      } else {
+        otxStatus += '✅ Not found in threat feeds';
+      }
+      
+      alertEmbed.addFields({
+        name: '👽 AlienVault OTX (Threat Intel)',
+        value: otxStatus,
+        inline: true
+      });
+    }
+    
+    // AbuseIPDB Results
+    if (api.abuseipdb?.available) {
+      const aip = api.abuseipdb;
+      let aipStatus = `**Abuse Score:** ${aip.abuseScore || 0}%\n`;
+      aipStatus += `**Reports:** ${aip.totalReports || 0}\n`;
+      aipStatus += aip.abuseScore > 50 ? '🚨 HIGH ABUSE CONFIDENCE' : '✅ Low abuse reports';
+      
+      alertEmbed.addFields({
+        name: '🚫 AbuseIPDB',
+        value: aipStatus,
+        inline: true
+      });
+    }
   }
   
-  // Log all detections
-  if (logChannel && analysis.score >= RISK_THRESHOLDS.LOW) {
-    const pingLevel = analysis.level === 'critical' ? '@here **CRITICAL THREAT**' : '';
-    await logChannel.send({ content: pingLevel, embeds: [logEmbed] });
+  // ═══════════════════════════════════════════════════════════════
+  // DETECTION DETAILS
+  // ═══════════════════════════════════════════════════════════════
+  
+  if (analysis.findings?.length > 0) {
+    const detections = analysis.findings.slice(0, 10).map(f => 
+      `${f.points >= 30 ? '🚨' : f.points >= 15 ? '⚠️' : '📋'} **[${f.code}]** +${f.points} pts\n└ ${f.detail}`
+    ).join('\n\n');
+    
+    alertEmbed.addFields({
+      name: '🔬 Detection Breakdown',
+      value: detections.slice(0, 1024) || 'No specific detections',
+      inline: false
+    });
+  }
+  
+  // Attachments
+  if (message.attachments.size > 0) {
+    const attachList = [...message.attachments.values()]
+      .map(a => `📎 **${a.name}** (${Math.round(a.size/1024)}KB) - ${a.contentType || 'Unknown type'}`)
+      .join('\n');
+    alertEmbed.addFields({ name: '📁 Attachments', value: attachList, inline: false });
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // THREAT EXPLANATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  let explanation = '';
+  if (analysis.findings) {
+    for (const f of analysis.findings) {
+      if (f.code === 'TYPOSQUAT') explanation += '**Typosquatting:** Domain mimics a legitimate site (e.g., discrod.com instead of discord.com). Common phishing tactic.\n\n';
+      if (f.code === 'HOMOGRAPH') explanation += '**Homograph Attack:** Uses lookalike Unicode characters (е vs e, а vs a) to create fake domains that look identical to real ones.\n\n';
+      if (f.code === 'VIRUSTOTAL') explanation += '**Antivirus Detection:** Multiple security engines have flagged this URL/file as malicious. Likely contains malware, phishing, or exploit code.\n\n';
+      if (f.code === 'PHISHTANK') explanation += '**Confirmed Phishing:** Community-verified phishing site designed to steal credentials.\n\n';
+      if (f.code === 'GOOGLE_SAFE') explanation += '**Google Blacklist:** Google has identified this as a dangerous site (malware, phishing, or unwanted software).\n\n';
+      if (f.code === 'DANGEROUS_EXT') explanation += '**Dangerous File:** Executable or script file that can run code on your computer. Never open files like .exe, .bat, .scr from untrusted sources.\n\n';
+      if (f.code === 'SE_URGENCY' || f.code === 'SE_THREAT') explanation += '**Social Engineering:** Uses psychological manipulation (urgency, fear, threats) to trick victims into acting without thinking.\n\n';
+      if (f.code === 'FILE_CONTENT') explanation += '**File Analysis:** The actual file contents don\'t match its extension, or contain hidden executable code.\n\n';
+    }
+  }
+  
+  if (explanation) {
+    alertEmbed.addFields({
+      name: '📚 What This Means',
+      value: explanation.slice(0, 1024),
+      inline: false
+    });
+  }
+  
+  // Action buttons
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`security_ban_${message.author.id}`)
+      .setLabel('Ban User')
+      .setStyle(ButtonStyle.Danger)
+      .setEmoji('🔨'),
+    new ButtonBuilder()
+      .setCustomId(`security_warn_${message.author.id}`)
+      .setLabel('Warn User')
+      .setStyle(ButtonStyle.Primary)
+      .setEmoji('⚠️'),
+    new ButtonBuilder()
+      .setCustomId(`security_dismiss_${message.author.id}`)
+      .setLabel('Dismiss')
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji('✖️')
+  );
+  
+  // Send to security log channel
+  if (securityChannel) {
+    const pingRole = analysis.level === 'critical' ? '@here' : '';
+    await securityChannel.send({ 
+      content: pingRole, 
+      embeds: [alertEmbed],
+      components: [actionRow]
+    });
+  }
+  
+  // Also send brief to modmail log if it's a different channel
+  if (modmailLog && modmailLog.id !== SECURITY_LOG_CHANNEL) {
+    const briefEmbed = new EmbedBuilder()
+      .setTitle(`${threatEmoji} Security Alert - ${analysis.level.toUpperCase()}`)
+      .setDescription(`**User:** ${message.author.tag}\n**Score:** ${analysis.score}/100\n**Action:** ${analysis.action}`)
+      .setColor(threatColor)
+      .setFooter({ text: 'Full details in #security-logs' });
+    
+    await modmailLog.send({ embeds: [briefEmbed] });
   }
   
   return analysis;
@@ -2195,6 +2428,7 @@ function isStaff(member) {
 }
 
 const MODMAIL_LOG_CHANNEL = '1463728261128388639';
+const SECURITY_LOG_CHANNEL = '1463995707651522622';
 
 async function logToModmail(guild, ticket, closedBy, reason, kicked = false) {
   try {
@@ -4255,6 +4489,63 @@ client.on(Events.MessageCreate, async (message) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isButton()) return;
+  
+  // Handle security action buttons (Ban/Warn/Dismiss)
+  if (interaction.customId.startsWith('security_')) {
+    // Check if user is staff
+    const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
+    if (!member || !isStaff(member)) {
+      return interaction.reply({ content: '❌ Only staff can use security actions.', ephemeral: true });
+    }
+    
+    const [, action, targetUserId] = interaction.customId.split('_');
+    const targetUser = await client.users.fetch(targetUserId).catch(() => null);
+    
+    if (action === 'ban') {
+      try {
+        await interaction.guild.members.ban(targetUserId, { reason: 'Security threat - banned via security alert' });
+        await interaction.update({
+          content: `🔨 **User Banned** by ${interaction.user.tag}\n<@${targetUserId}> was banned for security violations.`,
+          embeds: interaction.message.embeds,
+          components: []
+        });
+      } catch (e) {
+        await interaction.reply({ content: `❌ Failed to ban: ${e.message}`, ephemeral: true });
+      }
+    }
+    
+    else if (action === 'warn') {
+      try {
+        if (targetUser) {
+          await targetUser.send({
+            embeds: [new EmbedBuilder()
+              .setTitle('⚠️ Security Warning')
+              .setDescription('Your message was flagged by our security system. Please avoid sending suspicious links or files.\n\nRepeated violations may result in a ban.')
+              .setColor(0xFFAA00)
+              .setFooter({ text: 'The Unpatched Method • Security' })
+            ]
+          }).catch(() => {});
+        }
+        await interaction.update({
+          content: `⚠️ **User Warned** by ${interaction.user.tag}\n<@${targetUserId}> was sent a security warning.`,
+          embeds: interaction.message.embeds,
+          components: []
+        });
+      } catch (e) {
+        await interaction.reply({ content: `❌ Failed to warn: ${e.message}`, ephemeral: true });
+      }
+    }
+    
+    else if (action === 'dismiss') {
+      await interaction.update({
+        content: `✖️ **Dismissed** by ${interaction.user.tag}\nNo action taken.`,
+        embeds: interaction.message.embeds,
+        components: []
+      });
+    }
+    
+    return;
+  }
   
   // Handle feedback ratings
   if (interaction.customId.startsWith('feedback_')) {
