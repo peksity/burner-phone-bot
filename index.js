@@ -1967,12 +1967,17 @@ async function initDatabase() {
       claimed_by TEXT,
       mood TEXT DEFAULT 'neutral',
       language TEXT DEFAULT 'en',
+      metadata JSONB DEFAULT '{}',
       created_at TIMESTAMP DEFAULT NOW(),
       closed_at TIMESTAMP,
       closed_by TEXT,
       close_reason TEXT
     )
   `);
+  
+  // Add metadata column if it doesn't exist (for existing tables)
+  await pool.query(`ALTER TABLE modmail_tickets ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`).catch(() => {});
+  
   await pool.query(`
     CREATE TABLE IF NOT EXISTS modmail_messages (
       id SERIAL PRIMARY KEY,
@@ -2580,21 +2585,51 @@ client.on(Events.MessageCreate, async (message) => {
     
     // Handle based on threat level
     if (threatAnalysis.action === 'BLOCK' || threatAnalysis.action === 'QUARANTINE') {
-      // Log the threat
+      // Log the threat to security channel
       await handleThreatResponse(message, threatAnalysis, guild);
       
-      // Block the message
+      // Build explanation of what they tried to send
+      let threatExplanation = '';
+      for (const f of threatAnalysis.findings || []) {
+        if (f.code === 'TYPOSQUAT') threatExplanation += '• **Fake Website Detected:** The link mimics a legitimate site (like "discrod" instead of "discord"). This is a phishing tactic to steal credentials.\n';
+        if (f.code === 'HOMOGRAPH') threatExplanation += '• **Homograph Attack:** The link uses lookalike characters (like Cyrillic "а" vs Latin "a") to create a fake domain that looks identical to a real one.\n';
+        if (f.code === 'VIRUSTOTAL') threatExplanation += '• **Malware Detected:** Multiple antivirus engines flagged this as malicious. It may contain viruses, trojans, or ransomware.\n';
+        if (f.code === 'PHISHTANK') threatExplanation += '• **Confirmed Phishing:** This link is in a database of known phishing sites designed to steal your login info.\n';
+        if (f.code === 'GOOGLE_SAFE') threatExplanation += '• **Google Blacklisted:** Google has identified this as a dangerous website (malware, phishing, or scam).\n';
+        if (f.code === 'DANGEROUS_EXT') threatExplanation += '• **Dangerous File:** Executable files (.exe, .bat, .scr) can run malicious code on your computer.\n';
+        if (f.code === 'SE_URGENCY' || f.code === 'SE_THREAT') threatExplanation += '• **Social Engineering:** Your message uses manipulation tactics (urgency, threats) commonly used in scams.\n';
+        if (f.code === 'IPQS_PHISH' || f.code === 'IPQS_MALWARE') threatExplanation += '• **Fraud Detection:** This link has a high fraud score and is likely a scam or malware.\n';
+      }
+      
+      // Remove duplicates
+      threatExplanation = [...new Set(threatExplanation.split('\n'))].join('\n');
+      
+      // Tell the user EXACTLY what they tried to send and why it's blocked
       return message.reply({
         embeds: [new EmbedBuilder()
-          .setTitle('🚫 Message Blocked')
-          .setDescription(`Your message was blocked by our security system.\n\n**Risk Level:** ${threatAnalysis.level.toUpperCase()}\n**Score:** ${threatAnalysis.score}/100\n\nIf you believe this is an error, please rephrase your message or contact staff through another method.`)
-          .setColor(CONFIG.COLORS.danger)
-          .setFooter({ text: 'Security powered by SOC-Level Detection' })
+          .setTitle('🚫 Threat Detected - Message Blocked')
+          .setDescription(`**We know what you're trying to do.**
+
+Your message contained malicious content that our security system detected and blocked.
+
+**Risk Level:** \`${threatAnalysis.level.toUpperCase()}\`
+**Risk Score:** \`${threatAnalysis.score}/100\`
+
+**What We Found:**
+${threatExplanation || 'Multiple security flags triggered.'}
+
+**What This Means:**
+${threatAnalysis.action === 'BLOCK' ? 'Your message was completely blocked and will not be seen by staff.' : 'Your message was flagged for review.'}
+
+⚠️ **Warning:** Attempting to send scam links, phishing, malware, or other malicious content will result in an immediate ban. This incident has been logged.`)
+          .setColor(0xFF0000)
+          .setFooter({ text: 'Security powered by 7 threat intelligence APIs • This incident has been logged' })
+          .setTimestamp()
         ]
       });
     }
     
-    // Log medium/low threats but allow
+    // Log medium/low threats but allow the message
     if (threatAnalysis.action === 'FLAG' || threatAnalysis.action === 'WARN') {
       await handleThreatResponse(message, threatAnalysis, guild);
     }
@@ -2606,7 +2641,7 @@ client.on(Events.MessageCreate, async (message) => {
     let ticket = await getOpenTicket(message.author.id);
     
     if (ticket) {
-      // USER HAS EXISTING TICKET - Just add message and react with checkmark
+      // USER HAS EXISTING TICKET - Add message to ticket
       const channel = guild.channels.cache.get(ticket.channel_id);
       if (channel) {
         await pool.query(`
@@ -2614,23 +2649,58 @@ client.on(Events.MessageCreate, async (message) => {
           VALUES ($1, $2, $3, $4, false)
         `, [ticket.id, message.author.id, message.author.tag, message.content]);
         
-        // Send message to ticket channel with threat info if applicable
+        // Send message to ticket channel
         const embed = new EmbedBuilder()
           .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
           .setDescription(message.content)
           .setColor(threatAnalysis.score > 0 ? CONFIG.COLORS.warning : CONFIG.COLORS.info)
           .setTimestamp();
         
-        // Add threat warning if flagged
-        if (threatAnalysis.score >= RISK_THRESHOLDS.LOW) {
-          embed.addFields({
-            name: `⚠️ Security Flag (Score: ${threatAnalysis.score})`,
-            value: threatAnalysis.findings.slice(0, 3).map(f => f.detail).join('\n').slice(0, 500) || 'Flagged for review',
-            inline: false
-          });
-        }
-        
         await channel.send({ embeds: [embed] });
+        
+        // If there's a security flag, send PRIVATE alert to staff in the same channel (user doesn't see this)
+        if (threatAnalysis.score >= RISK_THRESHOLDS.LOW) {
+          // Build detailed threat breakdown for staff
+          let staffAlert = `**Risk Score:** ${threatAnalysis.score}/100\n**Action:** ${threatAnalysis.action}\n\n`;
+          staffAlert += `**Detections:**\n`;
+          for (const f of threatAnalysis.findings.slice(0, 5)) {
+            staffAlert += `• \`[${f.code}]\` +${f.points}pts - ${f.detail}\n`;
+          }
+          
+          // API results if available
+          if (threatAnalysis.apiResults) {
+            staffAlert += `\n**API Scan Results:**\n`;
+            if (threatAnalysis.apiResults.virustotal?.available) {
+              const vt = threatAnalysis.apiResults.virustotal;
+              staffAlert += `• VirusTotal: ${vt.malicious || 0} malicious, ${vt.suspicious || 0} suspicious\n`;
+            }
+            if (threatAnalysis.apiResults.googleSafeBrowsing?.available && threatAnalysis.apiResults.googleSafeBrowsing.threats?.length) {
+              staffAlert += `• Google: ${threatAnalysis.apiResults.googleSafeBrowsing.threats.map(t => t.threatType).join(', ')}\n`;
+            }
+            if (threatAnalysis.apiResults.phishtank?.available && threatAnalysis.apiResults.phishtank.isPhish) {
+              staffAlert += `• PhishTank: ⚠️ CONFIRMED PHISHING\n`;
+            }
+            if (threatAnalysis.apiResults.ipqualityscore?.available) {
+              const ipqs = threatAnalysis.apiResults.ipqualityscore;
+              staffAlert += `• IPQualityScore: Risk ${ipqs.fraudScore || ipqs.riskScore || 0}%\n`;
+            }
+          }
+          
+          const staffEmbed = new EmbedBuilder()
+            .setTitle(`🔒 SECURITY FLAG - Staff Only`)
+            .setDescription(staffAlert)
+            .setColor(0xFF6600)
+            .setFooter({ text: 'This alert is only visible to staff in this channel' });
+          
+          await channel.send({ embeds: [staffEmbed] });
+          
+          // Store threat data in database for ticket close
+          await pool.query(`
+            UPDATE modmail_tickets 
+            SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb 
+            WHERE id = $2
+          `, [JSON.stringify({ lastThreat: { score: threatAnalysis.score, findings: threatAnalysis.findings.slice(0, 5), apiResults: threatAnalysis.apiResults } }), ticket.id]).catch(() => {});
+        }
         
         // React with checkmark to confirm message sent
         await message.react('✅');
@@ -2855,6 +2925,36 @@ client.on(Events.MessageCreate, async (message) => {
         }
       } catch (e) {}
       
+      // Get any stored threat data from ticket metadata
+      let threatInfo = '';
+      try {
+        const metaResult = await pool.query(`SELECT metadata FROM modmail_tickets WHERE id = $1`, [ticket.id]);
+        if (metaResult.rows[0]?.metadata?.lastThreat) {
+          const threat = metaResult.rows[0].metadata.lastThreat;
+          threatInfo = `\n\n════════════════════ SECURITY FINDINGS ════════════════════\n\n`;
+          threatInfo += `Risk Score: ${threat.score}/100\n`;
+          threatInfo += `Findings:\n`;
+          for (const f of threat.findings || []) {
+            threatInfo += `  [${f.code}] +${f.points}pts - ${f.detail}\n`;
+          }
+          if (threat.apiResults) {
+            threatInfo += `\nAPI Results:\n`;
+            if (threat.apiResults.virustotal?.available) {
+              threatInfo += `  VirusTotal: ${threat.apiResults.virustotal.malicious || 0} malicious\n`;
+            }
+            if (threat.apiResults.phishtank?.isPhish) {
+              threatInfo += `  PhishTank: CONFIRMED PHISHING\n`;
+            }
+            if (threat.apiResults.googleSafeBrowsing?.threats?.length) {
+              threatInfo += `  Google: ${threat.apiResults.googleSafeBrowsing.threats.map(t => t.threatType).join(', ')}\n`;
+            }
+          }
+        }
+      } catch (e) {}
+      
+      // Append threat info to transcript
+      transcript += threatInfo;
+      
       // Send transcript to log channel
       const logChannel = message.guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
       if (logChannel) {
@@ -2867,6 +2967,16 @@ client.on(Events.MessageCreate, async (message) => {
           )
           .setColor(CONFIG.COLORS.warning)
           .setTimestamp();
+        
+        // Add security note if there were threats
+        if (threatInfo) {
+          logEmbed.addFields({
+            name: '🔒 Security Note',
+            value: '⚠️ This ticket had security flags. See transcript for details.',
+            inline: false
+          });
+          logEmbed.setColor(0xFF6600);
+        }
         
         const transcriptBuffer = Buffer.from(transcript, 'utf-8');
         await logChannel.send({ 
