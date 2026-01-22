@@ -6,8 +6,81 @@
  * ██████╔╝╚██████╔╝██║  ██║██║ ╚████║███████╗██║  ██║    ██║     ██║  ██║╚██████╔╝██║ ╚████║███████╗
  * ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
  * 
- * BURNER PHONE - ULTIMATE Modmail & Security System
- * Advanced AI, Link Scanning, Translation, Threat Detection
+ * BURNER PHONE - ELITE PREMIUM MODMAIL + SOC-LEVEL SECURITY SYSTEM
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ELITE MODMAIL FEATURES:
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * ✨ Typing Indicators      - Both ways (staff ↔ user)
+ * 📖 Read Receipts          - Delivered → Seen (like iMessage)
+ * 🟢 Staff Online Status    - "Staff online" / "Expected wait: 2-4h"
+ * ⏱️ Response Timer         - Live "waiting for X minutes" 
+ * 💬 Message Edit Sync      - Edits sync both ways
+ * 🔢 Queue Position         - "You are #3 in queue"
+ * 👀 Staff Viewing Alert    - User knows when staff opens ticket
+ * 🌙 Auto Away Messages     - Staff away status with auto-reply
+ * 📌 Pinned Info            - Important details stay visible
+ * 🔗 Ticket Linking         - Connect related tickets
+ * 💾 User Notes             - Persistent notes across tickets
+ * ⚡ Quick Actions          - One-click buttons for everything
+ * 🎨 Priority Colors        - Visual urgency system
+ * 🔁 Auto-Close Inactive    - Warning → auto close stale tickets
+ * 🎭 Anonymous Mode         - Staff can reply anonymously
+ * 📊 Sentiment Tracking     - Mood history per user
+ * ⭐ Feedback System        - Post-close ratings
+ * 📝 Canned Responses       - Saved reply snippets
+ * 📈 Analytics Dashboard    - Response times, staff stats
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * SOC-LEVEL SECURITY SYSTEM (Enterprise Grade):
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * 🔗 LINK ANALYSIS:
+ *    • Domain reputation scoring
+ *    • Typosquatting detection (discord → disc0rd, dlscord)
+ *    • URL shortener expansion & analysis
+ *    • Redirect chain following
+ *    • SSL certificate anomaly detection
+ *    • IP-based hosting vs CDN detection
+ *    • Known phishing kit fingerprinting
+ *    • Homograph attack detection (cyrillic chars)
+ * 
+ * 📁 FILE ANALYSIS (Static - No Execution):
+ *    • Magic byte signature verification
+ *    • Extension mismatch detection
+ *    • PDF threat indicators (JS, auto-open, macros)
+ *    • Image metadata anomaly detection
+ *    • Archive content inspection
+ *    • Executable detection in archives
+ *    • Double extension detection
+ * 
+ * 🧠 SOCIAL ENGINEERING DETECTION:
+ *    • Urgency language patterns
+ *    • Authority impersonation
+ *    • Account threat language
+ *    • Prize/reward scam patterns
+ *    • Fear-based manipulation
+ *    • Time pressure tactics
+ * 
+ * 📊 RISK SCORING SYSTEM:
+ *    • Multi-signal aggregation
+ *    • Weighted risk calculation
+ *    • Score decay over time
+ *    • Threshold-based actions
+ *    • No instant bans - graduated response
+ * 
+ * 🛡️ SAFE ACTIONS:
+ *    • Soft warnings
+ *    • Message quarantine
+ *    • Temporary blocks
+ *    • Moderator alerts
+ *    • Human escalation
+ * 
+ * 📋 AUDIT LOGGING:
+ *    • Full detection reasoning
+ *    • Risk score breakdown
+ *    • Privacy-respecting
+ *    • Appeal support
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 require('dotenv').config();
@@ -51,36 +124,1533 @@ const CONFIG = {
   COLORS: { primary: 0xFF6B35, success: 0x00FF00, error: 0xFF0000, warning: 0xFFAA00, info: 0x0099FF, danger: 0xFF0000 }
 };
 
-// Known scam patterns
-const SCAM_PATTERNS = [
-  /free\s*nitro/i,
-  /discord\s*nitro\s*gift/i,
-  /steam\s*gift/i,
-  /click\s*here\s*to\s*claim/i,
-  /you\s*have\s*been\s*selected/i,
-  /won\s*a?\s*prize/i,
-  /verify\s*your\s*account\s*at/i,
-  /suspicious\s*activity/i,
-  /account\s*will\s*be\s*terminated/i,
-  /login\s*to\s*verify/i,
-  /bit\.ly/i,
-  /discord\.gift/i,
-  /discordgift/i,
-  /steamcommunity\.ru/i,
-  /dlscord/i,
-  /disc0rd/i,
-  /discorcl/i
-];
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOC-LEVEL SECURITY SYSTEM - ENTERPRISE GRADE THREAT DETECTION
+// ═══════════════════════════════════════════════════════════════════════════════
 
-// Suspicious domains
-const SUSPICIOUS_DOMAINS = [
-  'bit.ly', 'tinyurl.com', 'shorturl.at', 'rb.gy',
-  'dlscord.com', 'discorcl.com', 'disc0rd.com',
-  'steamcommunlty.com', 'steampowered.ru'
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// RISK SCORING THRESHOLDS
+// ─────────────────────────────────────────────────────────────────────────────
+const RISK_THRESHOLDS = {
+  LOW: 20,        // Soft warning
+  MEDIUM: 40,     // Flag for review
+  HIGH: 60,       // Quarantine/block
+  CRITICAL: 80    // Immediate action + alert
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPOSQUATTING DETECTION - Common brand impersonation patterns
+// ─────────────────────────────────────────────────────────────────────────────
+const BRAND_TYPOSQUATS = {
+  discord: [
+    'dlscord', 'disc0rd', 'discorcl', 'discrod', 'diiscord', 'disscord',
+    'dlsocrd', 'd1scord', 'discorb', 'discorc', 'discordd', 'discor',
+    'dicsord', 'disord', 'discorld', 'discord-app', 'discord-login',
+    'discord-verify', 'discordgift', 'discordnitro', 'discord-free',
+    'discordtoken', 'discordsupport', 'discordhelp', 'discord-help'
+  ],
+  steam: [
+    'stearn', 'stearn', 'steampowered', 'steamcommunlty', 'stearnpowered',
+    'steamcommunity', 'steampowerd', 'steam-community', 'steamtrade',
+    'steam-trade', 'steamgift', 'steam-login', 'steam-verify'
+  ],
+  nitro: [
+    'nitr0', 'n1tro', 'nitrogift', 'nitrofree', 'freenitro', 'discordnitro'
+  ],
+  paypal: [
+    'paypa1', 'paypai', 'paypal-login', 'paypal-verify', 'paypaI'
+  ],
+  microsoft: [
+    'mlcrosoft', 'micros0ft', 'mircosoft', 'microsfot'
+  ]
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SOCIAL ENGINEERING LANGUAGE PATTERNS (NLP Indicators)
+// ─────────────────────────────────────────────────────────────────────────────
+const SOCIAL_ENGINEERING_PATTERNS = {
+  // Urgency patterns (+15 risk each)
+  urgency: [
+    /\b(urgent|immediately|right now|asap|hurry|quick|fast|limited time)\b/i,
+    /\b(expires? (in|soon)|only \d+ (left|remaining)|act (now|fast))\b/i,
+    /\b(don'?t (wait|miss|delay)|last chance|final warning)\b/i,
+    /\b(within \d+ (hours?|minutes?|days?))\b/i
+  ],
+  
+  // Authority impersonation (+20 risk each)
+  authority: [
+    /\b(official|administrator|support team|staff member|discord team)\b/i,
+    /\b(we('ve| have) (noticed|detected|found)|your account (has been|was))\b/i,
+    /\b(security (team|alert|warning)|from discord|discord (support|team))\b/i,
+    /\b(verified (by|staff)|official (message|notice))\b/i
+  ],
+  
+  // Account threat language (+25 risk each)
+  threat: [
+    /\b(account.{0,20}(terminated|suspended|disabled|deleted|banned))\b/i,
+    /\b(violation|unauthorized|suspicious activity|security breach)\b/i,
+    /\b(will be (closed|terminated|deleted)|permanent(ly)? (ban|delete))\b/i,
+    /\b(verify.{0,10}(or|otherwise)|confirm.{0,10}(to avoid|or else))\b/i
+  ],
+  
+  // Prize/reward scam patterns (+20 risk each)
+  prize: [
+    /\b(you('ve| have)? (won|been selected|been chosen))\b/i,
+    /\b(free (nitro|gift|money|steam)|claim (your|now|free))\b/i,
+    /\b(congratulations|winner|lucky|selected|giveaway)\b/i,
+    /\b(gift.{0,10}(card|code|nitro)|nitro.{0,10}(free|gift))\b/i
+  ],
+  
+  // Fear-based manipulation (+15 risk each)
+  fear: [
+    /\b(hack(ed|ing|er)|compromised|stolen|leaked|breach)\b/i,
+    /\b(someone (is|has)|unusual (login|activity)|different (device|location))\b/i,
+    /\b(protect your|secure your|safety of your)\b/i
+  ],
+  
+  // Action demands (+10 risk each)
+  demands: [
+    /\b(click (here|this|below|the link)|must (verify|confirm|login))\b/i,
+    /\b(enter (your|the)|provide (your|the)|submit (your|the))\b/i,
+    /\b(scan (this|the) (qr|code)|download (this|the))\b/i
+  ]
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KNOWN MALICIOUS INDICATORS
+// ─────────────────────────────────────────────────────────────────────────────
+const MALICIOUS_INDICATORS = {
+  // URL shorteners (need expansion)
+  shorteners: [
+    'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly',
+    'adf.ly', 'bc.vc', 'j.mp', 'v.gd', 'shorturl.at', 'rb.gy', 'cutt.ly',
+    'tiny.cc', 'short.io', 't.ly', 'soo.gd', 's.id', 'clck.ru'
+  ],
+  
+  // Free hosting often used for phishing
+  freeHosting: [
+    'github.io', 'netlify.app', 'vercel.app', 'herokuapp.com', 'glitch.me',
+    'repl.co', '000webhostapp.com', 'infinityfreeapp.com', 'web.app',
+    'firebaseapp.com', 'pages.dev', 'workers.dev', 'surge.sh'
+  ],
+  
+  // Known phishing TLDs (higher risk)
+  suspiciousTLDs: [
+    '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', '.click',
+    '.link', '.info', '.online', '.site', '.website', '.space', '.fun',
+    '.icu', '.buzz', '.monster'
+  ],
+  
+  // Legitimate domains (whitelist - reduce risk)
+  trustedDomains: [
+    'discord.com', 'discord.gg', 'discordapp.com', 'discord.media',
+    'steam.com', 'steampowered.com', 'steamcommunity.com',
+    'youtube.com', 'youtu.be', 'twitter.com', 'x.com', 'twitch.tv',
+    'reddit.com', 'imgur.com', 'giphy.com', 'tenor.com',
+    'github.com', 'google.com', 'microsoft.com', 'apple.com',
+    'amazon.com', 'paypal.com', 'spotify.com', 'netflix.com'
+  ]
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE THREAT INDICATORS (Static Analysis)
+// ─────────────────────────────────────────────────────────────────────────────
+const FILE_THREATS = {
+  // Dangerous extensions - immediate high risk
+  dangerous: [
+    '.exe', '.bat', '.cmd', '.scr', '.pif', '.com', '.vbs', '.vbe',
+    '.js', '.jse', '.ws', '.wsf', '.msc', '.msi', '.msp', '.hta',
+    '.cpl', '.jar', '.ps1', '.psm1', '.dll', '.sys', '.drv',
+    '.reg', '.inf', '.scf', '.lnk', '.url', '.application', '.gadget',
+    '.msu', '.appx', '.appxbundle', '.msix', '.msixbundle'
+  ],
+  
+  // Macro-enabled documents
+  macroEnabled: [
+    '.docm', '.xlsm', '.pptm', '.dotm', '.xltm', '.potm', '.xlam', '.ppam'
+  ],
+  
+  // Archives that need inspection
+  archives: [
+    '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso', '.img', '.cab'
+  ],
+  
+  // Magic bytes for file type verification
+  magicBytes: {
+    'exe': ['4D5A'], // MZ header
+    'pdf': ['255044462D'], // %PDF-
+    'zip': ['504B0304', '504B0506', '504B0708'],
+    'rar': ['526172211A07'],
+    '7z': ['377ABCAF271C'],
+    'png': ['89504E47'],
+    'jpg': ['FFD8FF'],
+    'gif': ['474946383961', '474946383761'],
+    'doc': ['D0CF11E0A1B11AE1'],
+    'docx': ['504B0304'] // Same as ZIP (OOXML)
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOMOGRAPH ATTACK DETECTION (Cyrillic/Unicode lookalikes)
+// ─────────────────────────────────────────────────────────────────────────────
+const HOMOGRAPH_MAP = {
+  'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',
+  'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O',
+  'Р': 'P', 'С': 'C', 'Т': 'T', 'Х': 'X', 'і': 'i', 'ї': 'i', 'ј': 'j',
+  'ѕ': 's', 'ѡ': 'w', 'ԁ': 'd', 'ԛ': 'q', 'ɑ': 'a', 'ɡ': 'g', 'ɩ': 'i',
+  'ο': 'o', 'ρ': 'p', 'ν': 'v', 'τ': 't', 'ᴀ': 'a', 'ᴅ': 'd', 'ᴇ': 'e',
+  'ᴍ': 'm', 'ɴ': 'n', 'ᴏ': 'o', 'ᴘ': 'p', 'ʀ': 'r', 'ꜱ': 's', 'ᴛ': 't'
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// LINK SCANNER & SECURITY
+// COMPREHENSIVE RISK SCORING ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class ThreatAnalyzer {
+  constructor() {
+    this.riskScore = 0;
+    this.findings = [];
+    this.signals = [];
+  }
+  
+  addRisk(points, category, detail) {
+    this.riskScore += points;
+    this.findings.push({ points, category, detail });
+    this.signals.push(`[+${points}] ${category}: ${detail}`);
+  }
+  
+  reduceRisk(points, reason) {
+    this.riskScore = Math.max(0, this.riskScore - points);
+    this.signals.push(`[-${points}] Trust: ${reason}`);
+  }
+  
+  getResult() {
+    let action = 'ALLOW';
+    let level = 'safe';
+    
+    if (this.riskScore >= RISK_THRESHOLDS.CRITICAL) {
+      action = 'BLOCK';
+      level = 'critical';
+    } else if (this.riskScore >= RISK_THRESHOLDS.HIGH) {
+      action = 'QUARANTINE';
+      level = 'high';
+    } else if (this.riskScore >= RISK_THRESHOLDS.MEDIUM) {
+      action = 'FLAG';
+      level = 'medium';
+    } else if (this.riskScore >= RISK_THRESHOLDS.LOW) {
+      action = 'WARN';
+      level = 'low';
+    }
+    
+    return {
+      score: this.riskScore,
+      level,
+      action,
+      findings: this.findings,
+      signals: this.signals,
+      summary: this.signals.join('\n')
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REAL API INTEGRATIONS - ENTERPRISE GRADE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IPQUALITYSCORE API (Fraud Detection, Proxy/VPN, Malicious URL)
+// ─────────────────────────────────────────────────────────────────────────────
+async function scanWithIPQualityScore(url) {
+  const apiKey = process.env.IPQUALITYSCORE_API_KEY;
+  if (!apiKey) return { available: false };
+  
+  try {
+    const encodedUrl = encodeURIComponent(url);
+    const response = await fetch(
+      `https://ipqualityscore.com/api/json/url/${apiKey}/${encodedUrl}?strictness=1&fast=false`,
+      { timeout: 10000 }
+    );
+    
+    if (!response.ok) return { available: false, error: 'API request failed' };
+    
+    const data = await response.json();
+    
+    return {
+      available: true,
+      success: data.success,
+      unsafe: data.unsafe || false,
+      suspicious: data.suspicious || false,
+      phishing: data.phishing || false,
+      malware: data.malware || false,
+      spamming: data.spamming || false,
+      adult: data.adult || false,
+      riskScore: data.risk_score || 0,
+      domain: data.domain,
+      ipAddress: data.ip_address,
+      countryCode: data.country_code,
+      parking: data.parking || false,
+      redirected: data.redirected || false,
+      finalUrl: data.final_url
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// Check IP reputation with IPQualityScore
+async function checkIPWithIPQS(ip) {
+  const apiKey = process.env.IPQUALITYSCORE_API_KEY;
+  if (!apiKey) return { available: false };
+  
+  try {
+    const response = await fetch(
+      `https://ipqualityscore.com/api/json/ip/${apiKey}/${ip}?strictness=1&allow_public_access_points=true`,
+      { timeout: 10000 }
+    );
+    
+    if (!response.ok) return { available: false };
+    
+    const data = await response.json();
+    
+    return {
+      available: true,
+      fraudScore: data.fraud_score || 0,
+      proxy: data.proxy || false,
+      vpn: data.vpn || false,
+      tor: data.tor || false,
+      recentAbuse: data.recent_abuse || false,
+      botStatus: data.bot_status || false,
+      countryCode: data.country_code,
+      isp: data.ISP
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ABUSEIPDB API (IP Reputation Database)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkWithAbuseIPDB(ip) {
+  const apiKey = process.env.ABUSEIPDB_API_KEY;
+  if (!apiKey) return { available: false };
+  
+  try {
+    const response = await fetch(
+      `https://api.abuseipdb.com/api/v2/check?ipAddress=${encodeURIComponent(ip)}&maxAgeInDays=90`,
+      {
+        headers: {
+          'Key': apiKey,
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+    
+    if (!response.ok) return { available: false, error: 'API request failed' };
+    
+    const data = await response.json();
+    const result = data.data || {};
+    
+    return {
+      available: true,
+      ipAddress: result.ipAddress,
+      isPublic: result.isPublic,
+      abuseConfidenceScore: result.abuseConfidenceScore || 0,
+      countryCode: result.countryCode,
+      isp: result.isp,
+      domain: result.domain,
+      totalReports: result.totalReports || 0,
+      numDistinctUsers: result.numDistinctUsers || 0,
+      lastReportedAt: result.lastReportedAt,
+      isTor: result.isTor || false,
+      isWhitelisted: result.isWhitelisted || false
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALIENVAULT OTX API (Threat Intelligence - IOCs, Pulses)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkWithAlienVault(indicator, type = 'domain') {
+  const apiKey = process.env.ALIENVAULT_OTX_KEY;
+  if (!apiKey) return { available: false };
+  
+  // type can be: domain, hostname, url, IPv4, IPv6, file (hash)
+  const section = type === 'url' ? 'url' : type === 'file' ? 'file' : type;
+  
+  try {
+    const encodedIndicator = encodeURIComponent(indicator);
+    const response = await fetch(
+      `https://otx.alienvault.com/api/v1/indicators/${section}/${encodedIndicator}/general`,
+      {
+        headers: {
+          'X-OTX-API-KEY': apiKey,
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { available: true, found: false, pulseCount: 0 };
+      }
+      return { available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      available: true,
+      found: true,
+      pulseCount: data.pulse_info?.count || 0,
+      pulses: (data.pulse_info?.pulses || []).slice(0, 5).map(p => ({
+        name: p.name,
+        description: p.description?.slice(0, 100),
+        tags: p.tags?.slice(0, 5),
+        malwareFamily: p.malware_families,
+        created: p.created
+      })),
+      reputation: data.reputation || 0,
+      validation: data.validation || [],
+      country: data.country_code,
+      asn: data.asn
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// Check file hash with AlienVault
+async function checkFileHashOTX(hash) {
+  return await checkWithAlienVault(hash, 'file');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HYBRID ANALYSIS API (Sandbox File Analysis)
+// ─────────────────────────────────────────────────────────────────────────────
+async function scanWithHybridAnalysis(fileUrl, filename) {
+  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
+  if (!apiKey) return { available: false };
+  
+  try {
+    // First, check if file hash already exists in their database
+    // For quick lookup, we'll use URL scanning
+    const response = await fetch(
+      'https://www.hybrid-analysis.com/api/v2/quick-scan/url',
+      {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Falcon Sandbox'
+        },
+        body: `scan_type=all&url=${encodeURIComponent(fileUrl)}`,
+        timeout: 15000
+      }
+    );
+    
+    if (!response.ok) return { available: false, error: 'API request failed' };
+    
+    const data = await response.json();
+    
+    return {
+      available: true,
+      id: data.id,
+      sha256: data.sha256,
+      finished: data.finished || false,
+      verdict: data.verdict, // 'malicious', 'suspicious', 'no specific threat', 'whitelisted'
+      threatScore: data.threat_score || 0,
+      threatLevel: data.threat_level || 0, // 0=no threat, 1=suspicious, 2=malicious
+      malwareFamily: data.vx_family
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// Search Hybrid Analysis for existing reports on a hash
+async function searchHybridAnalysis(hash) {
+  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
+  if (!apiKey) return { available: false };
+  
+  try {
+    const response = await fetch(
+      'https://www.hybrid-analysis.com/api/v2/search/hash',
+      {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Falcon Sandbox'
+        },
+        body: `hash=${encodeURIComponent(hash)}`,
+        timeout: 10000
+      }
+    );
+    
+    if (!response.ok) return { available: false };
+    
+    const data = await response.json();
+    
+    if (!data || data.length === 0) {
+      return { available: true, found: false };
+    }
+    
+    const result = data[0]; // Most recent result
+    
+    return {
+      available: true,
+      found: true,
+      verdict: result.verdict,
+      threatScore: result.threat_score,
+      malwareFamily: result.vx_family,
+      submitName: result.submit_name,
+      analysisStartTime: result.analysis_start_time,
+      tags: result.type_short
+    };
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// URL SHORTENER EXPANSION (Actually follows redirects)
+// ─────────────────────────────────────────────────────────────────────────────
+async function expandShortUrl(url) {
+  try {
+    // First try unshorten.me API (free, no key needed)
+    const response = await fetch(`https://unshorten.me/json/${encodeURIComponent(url)}`, {
+      timeout: 5000
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.resolved_url) {
+        return {
+          original: url,
+          expanded: data.resolved_url,
+          success: true
+        };
+      }
+    }
+    
+    // Fallback: Follow redirects manually with HEAD request
+    const headResponse = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      timeout: 5000
+    });
+    
+    if (headResponse.url !== url) {
+      return {
+        original: url,
+        expanded: headResponse.url,
+        success: true
+      };
+    }
+    
+    return { original: url, expanded: url, success: false };
+  } catch (e) {
+    return { original: url, expanded: url, success: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIRUSTOTAL API (Deep URL/File Scanning)
+// ─────────────────────────────────────────────────────────────────────────────
+async function scanWithVirusTotal(url) {
+  const apiKey = process.env.VIRUSTOTAL_API_KEY;
+  if (!apiKey) return { malicious: 0, suspicious: 0, harmless: 0, available: false };
+  
+  try {
+    // Submit URL for scanning
+    const submitResponse = await fetch('https://www.virustotal.com/api/v3/urls', {
+      method: 'POST',
+      headers: {
+        'x-apikey': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `url=${encodeURIComponent(url)}`
+    });
+    
+    if (!submitResponse.ok) {
+      return { malicious: 0, suspicious: 0, harmless: 0, error: 'Submit failed' };
+    }
+    
+    const submitData = await submitResponse.json();
+    const analysisId = submitData.data?.id;
+    
+    if (!analysisId) {
+      return { malicious: 0, suspicious: 0, harmless: 0, error: 'No analysis ID' };
+    }
+    
+    // Wait a moment for analysis
+    await new Promise(r => setTimeout(r, 2000));
+    
+    // Get results
+    const resultResponse = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+      headers: { 'x-apikey': apiKey }
+    });
+    
+    if (!resultResponse.ok) {
+      return { malicious: 0, suspicious: 0, harmless: 0, error: 'Result fetch failed' };
+    }
+    
+    const resultData = await resultResponse.json();
+    const stats = resultData.data?.attributes?.stats || {};
+    
+    return {
+      malicious: stats.malicious || 0,
+      suspicious: stats.suspicious || 0,
+      harmless: stats.harmless || 0,
+      undetected: stats.undetected || 0,
+      available: true
+    };
+  } catch (e) {
+    return { malicious: 0, suspicious: 0, harmless: 0, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GOOGLE SAFE BROWSING API (Checks Google's phishing database)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkGoogleSafeBrowsing(urls) {
+  const apiKey = process.env.GOOGLE_SAFE_BROWSING_KEY;
+  if (!apiKey) return { threats: [], available: false };
+  
+  try {
+    const response = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client: {
+          clientId: 'burner-phone-bot',
+          clientVersion: '1.0.0'
+        },
+        threatInfo: {
+          threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE', 'POTENTIALLY_HARMFUL_APPLICATION'],
+          platformTypes: ['ANY_PLATFORM'],
+          threatEntryTypes: ['URL'],
+          threatEntries: urls.map(url => ({ url }))
+        }
+      })
+    });
+    
+    if (!response.ok) {
+      return { threats: [], error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    return {
+      threats: data.matches || [],
+      available: true
+    };
+  } catch (e) {
+    return { threats: [], error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// URLSCAN.IO API (Deep URL Analysis - Screenshot, DOM, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+async function scanWithUrlScan(url) {
+  const apiKey = process.env.URLSCAN_API_KEY;
+  if (!apiKey) return { malicious: false, score: 0, available: false };
+  
+  try {
+    // Submit URL for scanning
+    const submitResponse = await fetch('https://urlscan.io/api/v1/scan/', {
+      method: 'POST',
+      headers: {
+        'API-Key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        url: url,
+        visibility: 'unlisted'
+      })
+    });
+    
+    if (!submitResponse.ok) {
+      const errorText = await submitResponse.text();
+      return { malicious: false, score: 0, error: `Submit failed: ${errorText}` };
+    }
+    
+    const submitData = await submitResponse.json();
+    const resultUrl = submitData.api;
+    
+    if (!resultUrl) {
+      return { malicious: false, score: 0, error: 'No result URL' };
+    }
+    
+    // Wait for scan to complete (urlscan takes ~10-30 seconds)
+    await new Promise(r => setTimeout(r, 15000));
+    
+    // Get results
+    const resultResponse = await fetch(resultUrl);
+    
+    if (!resultResponse.ok) {
+      // Scan might still be processing
+      return { malicious: false, score: 0, pending: true };
+    }
+    
+    const resultData = await resultResponse.json();
+    
+    return {
+      malicious: resultData.verdicts?.overall?.malicious || false,
+      score: resultData.verdicts?.overall?.score || 0,
+      categories: resultData.verdicts?.overall?.categories || [],
+      brands: resultData.verdicts?.overall?.brands || [],
+      screenshot: resultData.task?.screenshotURL,
+      available: true
+    };
+  } catch (e) {
+    return { malicious: false, score: 0, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHISHTANK API (Community-driven phishing database)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkPhishTank(url) {
+  const apiKey = process.env.PHISHTANK_API_KEY;
+  // PhishTank works without API key but rate limited
+  
+  try {
+    const formData = new URLSearchParams();
+    formData.append('url', Buffer.from(url).toString('base64'));
+    formData.append('format', 'json');
+    if (apiKey) formData.append('app_key', apiKey);
+    
+    const response = await fetch('https://checkurl.phishtank.com/checkurl/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString()
+    });
+    
+    if (!response.ok) {
+      return { inDatabase: false, isPhish: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      inDatabase: data.results?.in_database || false,
+      isPhish: data.results?.valid || false,
+      verified: data.results?.verified || false,
+      verifiedAt: data.results?.verified_at,
+      available: true
+    };
+  } catch (e) {
+    return { inDatabase: false, isPhish: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IPQUALITYSCORE API (URL & IP Risk Scoring)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkIPQualityScore(url) {
+  const apiKey = process.env.IPQUALITYSCORE_API_KEY;
+  if (!apiKey) return { riskScore: 0, suspicious: false, phishing: false, malware: false, available: false };
+  
+  try {
+    const encodedUrl = encodeURIComponent(url);
+    const response = await fetch(`https://ipqualityscore.com/api/json/url/${apiKey}/${encodedUrl}`, {
+      method: 'GET'
+    });
+    
+    if (!response.ok) {
+      return { riskScore: 0, available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      riskScore: data.risk_score || 0,
+      suspicious: data.suspicious || false,
+      phishing: data.phishing || false,
+      malware: data.malware || false,
+      spamming: data.spamming || false,
+      adult: data.adult || false,
+      parking: data.parking || false,
+      domainAge: data.domain_age?.human || 'Unknown',
+      category: data.category || 'Unknown',
+      available: true
+    };
+  } catch (e) {
+    return { riskScore: 0, available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ABUSEIPDB API (IP Reputation - for IPs in URLs)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkAbuseIPDB(ip) {
+  const apiKey = process.env.ABUSEIPDB_API_KEY;
+  if (!apiKey) return { abuseScore: 0, totalReports: 0, available: false };
+  
+  try {
+    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}&maxAgeInDays=90`, {
+      method: 'GET',
+      headers: {
+        'Key': apiKey,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      return { abuseScore: 0, totalReports: 0, available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      abuseScore: data.data?.abuseConfidenceScore || 0,
+      totalReports: data.data?.totalReports || 0,
+      countryCode: data.data?.countryCode || 'Unknown',
+      isp: data.data?.isp || 'Unknown',
+      domain: data.data?.domain || 'Unknown',
+      isTor: data.data?.isTor || false,
+      isWhitelisted: data.data?.isWhitelisted || false,
+      available: true
+    };
+  } catch (e) {
+    return { abuseScore: 0, totalReports: 0, available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALIENVAULT OTX API (Open Threat Exchange - Threat Intelligence)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkAlienVaultOTX(indicator, type = 'url') {
+  const apiKey = process.env.ALIENVAULT_OTX_KEY;
+  if (!apiKey) return { pulseCount: 0, malicious: false, available: false };
+  
+  try {
+    // Type can be: url, domain, ip, hostname
+    let endpoint;
+    if (type === 'url') {
+      endpoint = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(indicator)}/general`;
+    } else if (type === 'domain') {
+      endpoint = `https://otx.alienvault.com/api/v1/indicators/domain/${indicator}/general`;
+    } else if (type === 'ip') {
+      endpoint = `https://otx.alienvault.com/api/v1/indicators/IPv4/${indicator}/general`;
+    } else {
+      endpoint = `https://otx.alienvault.com/api/v1/indicators/hostname/${indicator}/general`;
+    }
+    
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'X-OTX-API-KEY': apiKey
+      }
+    });
+    
+    if (!response.ok) {
+      return { pulseCount: 0, malicious: false, available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      pulseCount: data.pulse_info?.count || 0,
+      malicious: (data.pulse_info?.count || 0) > 0,
+      pulses: data.pulse_info?.pulses?.slice(0, 5) || [],
+      reputation: data.reputation || 0,
+      sections: data.sections || [],
+      available: true
+    };
+  } catch (e) {
+    return { pulseCount: 0, malicious: false, available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HYBRID ANALYSIS API (Sandbox File Analysis)
+// ─────────────────────────────────────────────────────────────────────────────
+async function checkHybridAnalysis(hash) {
+  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
+  if (!apiKey) return { verdict: null, threatScore: 0, available: false };
+  
+  try {
+    // Search for existing analysis by hash
+    const response = await fetch('https://www.hybrid-analysis.com/api/v2/search/hash', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Falcon Sandbox'
+      },
+      body: `hash=${hash}`
+    });
+    
+    if (!response.ok) {
+      return { verdict: null, threatScore: 0, available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      const result = data[0];
+      return {
+        verdict: result.verdict || 'unknown',
+        threatScore: result.threat_score || 0,
+        vxFamily: result.vx_family || null,
+        tags: result.type_short || [],
+        available: true
+      };
+    }
+    
+    return { verdict: 'not_found', threatScore: 0, available: true };
+  } catch (e) {
+    return { verdict: null, threatScore: 0, available: false, error: e.message };
+  }
+}
+
+// Quick URL hash check with Hybrid Analysis
+async function checkHybridAnalysisUrl(url) {
+  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
+  if (!apiKey) return { verdict: null, available: false };
+  
+  try {
+    const response = await fetch('https://www.hybrid-analysis.com/api/v2/quick-scan/url', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Falcon Sandbox'
+      },
+      body: `scan_type=all&url=${encodeURIComponent(url)}`
+    });
+    
+    if (!response.ok) {
+      return { verdict: null, available: false, error: 'API request failed' };
+    }
+    
+    const data = await response.json();
+    
+    return {
+      verdict: data.verdict || 'unknown',
+      scanners: data.scanners || [],
+      available: true
+    };
+  } catch (e) {
+    return { verdict: null, available: false, error: e.message };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTRACT IP FROM URL (Helper for IP-based APIs)
+// ─────────────────────────────────────────────────────────────────────────────
+function extractIPFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    
+    // Check if hostname is an IP address
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipRegex.test(hostname)) {
+      return hostname;
+    }
+    
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Extract domain from URL
+function extractDomainFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname;
+  } catch (e) {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE CONTENT ANALYSIS (Download and inspect)
+// ─────────────────────────────────────────────────────────────────────────────
+async function analyzeFileContent(attachment) {
+  const results = {
+    safe: true,
+    threats: [],
+    warnings: [],
+    magicByteMatch: null
+  };
+  
+  try {
+    // Only download files under 10MB for safety
+    if (attachment.size > 10 * 1024 * 1024) {
+      results.warnings.push('File too large for deep inspection');
+      return results;
+    }
+    
+    // Download first 8KB for magic byte analysis (enough for headers)
+    const response = await fetch(attachment.url, {
+      headers: { 'Range': 'bytes=0-8192' }
+    });
+    
+    if (!response.ok) {
+      results.warnings.push('Could not download file for inspection');
+      return results;
+    }
+    
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const hexHeader = Array.from(bytes.slice(0, 16))
+      .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      .join('');
+    
+    // Get claimed extension
+    const ext = attachment.name.split('.').pop().toLowerCase();
+    
+    // Check magic bytes against known signatures
+    const MAGIC_SIGNATURES = {
+      // Executables
+      '4D5A': { type: 'exe', dangerous: true, name: 'Windows Executable' },
+      '7F454C46': { type: 'elf', dangerous: true, name: 'Linux Executable' },
+      'CAFEBABE': { type: 'class', dangerous: true, name: 'Java Class' },
+      '504B0304': { type: 'zip', dangerous: false, name: 'ZIP Archive' },
+      
+      // Documents
+      '25504446': { type: 'pdf', dangerous: false, name: 'PDF Document' },
+      'D0CF11E0A1B11AE1': { type: 'doc', dangerous: false, name: 'MS Office (old)' },
+      
+      // Images
+      '89504E47': { type: 'png', dangerous: false, name: 'PNG Image' },
+      'FFD8FF': { type: 'jpg', dangerous: false, name: 'JPEG Image' },
+      '47494638': { type: 'gif', dangerous: false, name: 'GIF Image' },
+      '52494646': { type: 'webp', dangerous: false, name: 'WebP Image' },
+      
+      // Archives
+      '526172211A07': { type: 'rar', dangerous: false, name: 'RAR Archive' },
+      '377ABCAF271C': { type: '7z', dangerous: false, name: '7-Zip Archive' },
+      '1F8B08': { type: 'gz', dangerous: false, name: 'GZIP Archive' }
+    };
+    
+    let detectedType = null;
+    for (const [signature, info] of Object.entries(MAGIC_SIGNATURES)) {
+      if (hexHeader.startsWith(signature)) {
+        detectedType = info;
+        break;
+      }
+    }
+    
+    if (detectedType) {
+      results.magicByteMatch = detectedType;
+      
+      // Check for extension mismatch
+      const safeImageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+      const safeDocExts = ['pdf', 'doc', 'docx', 'txt'];
+      
+      if (detectedType.dangerous) {
+        if (safeImageExts.includes(ext) || safeDocExts.includes(ext)) {
+          results.safe = false;
+          results.threats.push(`🚨 EXTENSION MISMATCH: File claims to be .${ext} but is actually ${detectedType.name}`);
+        }
+      }
+      
+      // Executable disguised as something else
+      if (detectedType.type === 'exe' && ext !== 'exe') {
+        results.safe = false;
+        results.threats.push(`🚨 HIDDEN EXECUTABLE: File is Windows executable disguised as .${ext}`);
+      }
+    }
+    
+    // Check for embedded scripts in PDFs
+    if (ext === 'pdf' || (detectedType && detectedType.type === 'pdf')) {
+      const textContent = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      
+      if (textContent.includes('/JavaScript') || textContent.includes('/JS')) {
+        results.warnings.push('⚠️ PDF contains JavaScript (potentially dangerous)');
+        results.safe = false;
+        results.threats.push('PDF with embedded JavaScript detected');
+      }
+      
+      if (textContent.includes('/OpenAction') || textContent.includes('/AA')) {
+        results.warnings.push('⚠️ PDF has auto-execute actions');
+      }
+      
+      if (textContent.includes('/Launch') || textContent.includes('/URI')) {
+        results.warnings.push('⚠️ PDF contains external links or launch actions');
+      }
+    }
+    
+    // Check archives for dangerous contents (by filename in archive)
+    if (['zip', 'rar', '7z'].includes(detectedType?.type) || ['zip', 'rar', '7z'].includes(ext)) {
+      const textContent = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      const dangerousInArchive = ['.exe', '.bat', '.cmd', '.scr', '.vbs', '.ps1', '.dll'];
+      
+      for (const dangerExt of dangerousInArchive) {
+        if (textContent.toLowerCase().includes(dangerExt)) {
+          results.safe = false;
+          results.threats.push(`🚨 Archive contains dangerous file type: ${dangerExt}`);
+          break;
+        }
+      }
+    }
+    
+  } catch (e) {
+    results.warnings.push(`File inspection error: ${e.message}`);
+  }
+  
+  return results;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPREHENSIVE DEEP LINK ANALYSIS (Uses all APIs)
+// ─────────────────────────────────────────────────────────────────────────────
+async function deepLinkAnalysis(url, analyzer) {
+  // 1. Expand shortened URLs first
+  const shortenerDomains = ['bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly', 'short.io', 'cutt.ly'];
+  let urlToAnalyze = url;
+  
+  try {
+    const domain = new URL(url).hostname.toLowerCase();
+    if (shortenerDomains.some(s => domain.includes(s))) {
+      const expanded = await expandShortUrl(url);
+      if (expanded.success && expanded.expanded !== url) {
+        urlToAnalyze = expanded.expanded;
+        analyzer.addRisk(10, 'SHORTENED', `URL was shortened, expanded to: ${expanded.expanded.slice(0, 50)}...`);
+        
+        // Now analyze the REAL destination
+        analyzeLink(urlToAnalyze, analyzer);
+      }
+    }
+  } catch (e) {}
+  
+  // Extract domain and IP for various checks
+  let domainToCheck = null;
+  let ipToCheck = null;
+  try {
+    const parsed = new URL(urlToAnalyze);
+    domainToCheck = parsed.hostname;
+    // Check if hostname is an IP address
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(domainToCheck)) {
+      ipToCheck = domainToCheck;
+    }
+  } catch (e) {}
+  
+  // Run all API checks in parallel for speed
+  const [vtResult, gsbResult, ptResult, ipqsResult, otxResult] = await Promise.all([
+    // 1. VirusTotal
+    scanWithVirusTotal(urlToAnalyze).catch(e => ({ available: false, error: e.message })),
+    
+    // 2. Google Safe Browsing
+    checkGoogleSafeBrowsing([urlToAnalyze]).catch(e => ({ available: false, error: e.message })),
+    
+    // 3. PhishTank
+    checkPhishTank(urlToAnalyze).catch(e => ({ available: false, error: e.message })),
+    
+    // 4. IPQualityScore
+    scanWithIPQualityScore(urlToAnalyze).catch(e => ({ available: false, error: e.message })),
+    
+    // 5. AlienVault OTX (check domain)
+    domainToCheck ? checkWithAlienVault(domainToCheck, 'domain').catch(e => ({ available: false, error: e.message })) : Promise.resolve({ available: false })
+  ]);
+  
+  // Process VirusTotal results
+  if (vtResult.available) {
+    if (vtResult.malicious > 0) {
+      analyzer.addRisk(40, 'VIRUSTOTAL', `VirusTotal: ${vtResult.malicious} engines flagged as malicious`);
+    }
+    if (vtResult.suspicious > 0) {
+      analyzer.addRisk(20, 'VIRUSTOTAL_SUS', `VirusTotal: ${vtResult.suspicious} engines flagged as suspicious`);
+    }
+    analyzer.signals.push(`[API] VirusTotal: ${vtResult.malicious || 0} malicious, ${vtResult.suspicious || 0} suspicious`);
+  }
+  
+  // Process Google Safe Browsing results
+  if (gsbResult.available && gsbResult.threats && gsbResult.threats.length > 0) {
+    for (const threat of gsbResult.threats) {
+      analyzer.addRisk(50, 'GOOGLE_SAFE', `Google Safe Browsing: ${threat.threatType}`);
+    }
+  }
+  
+  // Process PhishTank results
+  if (ptResult.available && ptResult.isPhish) {
+    analyzer.addRisk(60, 'PHISHTANK', `PhishTank: Confirmed phishing site${ptResult.verified ? ' (verified)' : ''}`);
+  }
+  
+  // Process IPQualityScore results
+  if (ipqsResult.available) {
+    if (ipqsResult.phishing) {
+      analyzer.addRisk(55, 'IPQS_PHISH', `IPQualityScore: Detected as phishing`);
+    }
+    if (ipqsResult.malware) {
+      analyzer.addRisk(55, 'IPQS_MALWARE', `IPQualityScore: Detected as malware`);
+    }
+    if (ipqsResult.suspicious) {
+      analyzer.addRisk(25, 'IPQS_SUS', `IPQualityScore: Flagged as suspicious`);
+    }
+    if (ipqsResult.riskScore >= 75) {
+      analyzer.addRisk(35, 'IPQS_RISK', `IPQualityScore: High risk score (${ipqsResult.riskScore}/100)`);
+    } else if (ipqsResult.riskScore >= 50) {
+      analyzer.addRisk(15, 'IPQS_RISK', `IPQualityScore: Medium risk score (${ipqsResult.riskScore}/100)`);
+    }
+    if (ipqsResult.parking) {
+      analyzer.addRisk(10, 'IPQS_PARK', `IPQualityScore: Parked domain detected`);
+    }
+    analyzer.signals.push(`[API] IPQualityScore: Risk ${ipqsResult.riskScore || 0}`);
+  }
+  
+  // Process AlienVault OTX results
+  if (otxResult.available && otxResult.found && otxResult.pulseCount > 0) {
+    analyzer.addRisk(45, 'ALIENVAULT', `AlienVault OTX: Found in ${otxResult.pulseCount} threat intel pulses`);
+    if (otxResult.pulses && otxResult.pulses.length > 0) {
+      const threatNames = otxResult.pulses.slice(0, 2).map(p => p.name).join(', ');
+      analyzer.signals.push(`[API] OTX Threats: ${threatNames}`);
+    }
+  }
+  
+  // Check IP with AbuseIPDB if URL contains an IP
+  if (ipToCheck) {
+    const abuseResult = await checkWithAbuseIPDB(ipToCheck).catch(e => ({ available: false }));
+    if (abuseResult.available) {
+      if (abuseResult.abuseConfidenceScore >= 50) {
+        analyzer.addRisk(40, 'ABUSEIPDB', `AbuseIPDB: High abuse score (${abuseResult.abuseConfidenceScore}%), ${abuseResult.totalReports} reports`);
+      } else if (abuseResult.abuseConfidenceScore >= 25) {
+        analyzer.addRisk(20, 'ABUSEIPDB', `AbuseIPDB: Moderate abuse score (${abuseResult.abuseConfidenceScore}%)`);
+      }
+      if (abuseResult.isTor) {
+        analyzer.addRisk(15, 'TOR_EXIT', `AbuseIPDB: Tor exit node detected`);
+      }
+      analyzer.signals.push(`[API] AbuseIPDB: Score ${abuseResult.abuseConfidenceScore}%, ISP: ${abuseResult.isp || 'Unknown'}`);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPREHENSIVE FILE ANALYSIS (Uses magic bytes + APIs)
+// ─────────────────────────────────────────────────────────────────────────────
+async function deepFileAnalysis(attachment, analyzer) {
+  // 1. Local magic byte analysis
+  const fileResult = await analyzeFileContent(attachment);
+  
+  if (!fileResult.safe) {
+    for (const threat of fileResult.threats) {
+      analyzer.addRisk(50, 'FILE_CONTENT', threat);
+    }
+  }
+  
+  for (const warning of fileResult.warnings) {
+    analyzer.addRisk(15, 'FILE_WARNING', warning);
+  }
+  
+  if (fileResult.magicByteMatch) {
+    analyzer.signals.push(`[INFO] File signature: ${fileResult.magicByteMatch.name}`);
+  }
+  
+  // 2. Hybrid Analysis - Submit file URL for sandbox analysis
+  const haResult = await scanWithHybridAnalysis(attachment.url, attachment.name).catch(e => ({ available: false }));
+  if (haResult.available) {
+    if (haResult.verdict === 'malicious' || haResult.threatLevel >= 2) {
+      analyzer.addRisk(60, 'HYBRID_MALICIOUS', `Hybrid Analysis: File detected as malicious`);
+      if (haResult.malwareFamily) {
+        analyzer.addRisk(10, 'HYBRID_FAMILY', `Malware family: ${haResult.malwareFamily}`);
+      }
+    } else if (haResult.verdict === 'suspicious' || haResult.threatLevel === 1) {
+      analyzer.addRisk(30, 'HYBRID_SUS', `Hybrid Analysis: File flagged as suspicious`);
+    }
+    if (haResult.threatScore > 0) {
+      analyzer.signals.push(`[API] Hybrid Analysis: Threat score ${haResult.threatScore}`);
+    }
+  }
+  
+  // 3. VirusTotal file scan (by URL)
+  const vtResult = await scanWithVirusTotal(attachment.url).catch(e => ({ available: false }));
+  if (vtResult.available) {
+    if (vtResult.malicious > 0) {
+      analyzer.addRisk(45, 'VT_FILE', `VirusTotal: ${vtResult.malicious} engines flagged file`);
+    }
+    if (vtResult.suspicious > 0) {
+      analyzer.addRisk(20, 'VT_FILE_SUS', `VirusTotal: ${vtResult.suspicious} engines suspicious`);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function analyzeLink(url, analyzer) {
+  try {
+    const parsed = new URL(url);
+    const domain = parsed.hostname.toLowerCase();
+    const fullUrl = url.toLowerCase();
+    
+    // 1. Check trusted domains (reduce risk significantly)
+    if (MALICIOUS_INDICATORS.trustedDomains.some(d => domain === d || domain.endsWith('.' + d))) {
+      analyzer.reduceRisk(30, `Trusted domain: ${domain}`);
+      return;
+    }
+    
+    // 2. Homograph attack detection
+    const hasHomograph = [...domain].some(char => HOMOGRAPH_MAP[char]);
+    if (hasHomograph) {
+      analyzer.addRisk(40, 'HOMOGRAPH', `Unicode lookalike characters in domain: ${domain}`);
+    }
+    
+    // 3. Typosquatting detection
+    for (const [brand, typos] of Object.entries(BRAND_TYPOSQUATS)) {
+      for (const typo of typos) {
+        if (domain.includes(typo) && !domain.includes(brand + '.com')) {
+          analyzer.addRisk(35, 'TYPOSQUAT', `Possible ${brand} impersonation: ${domain}`);
+        }
+      }
+      // Also check if domain looks like brand but isn't the real one
+      if (domain.includes(brand) && !MALICIOUS_INDICATORS.trustedDomains.some(d => domain === d)) {
+        analyzer.addRisk(25, 'IMPERSONATION', `Contains brand name "${brand}" but not official: ${domain}`);
+      }
+    }
+    
+    // 4. URL shortener detection
+    if (MALICIOUS_INDICATORS.shorteners.some(s => domain.includes(s))) {
+      analyzer.addRisk(20, 'SHORTENER', `URL shortener hides destination: ${domain}`);
+    }
+    
+    // 5. Free hosting detection
+    if (MALICIOUS_INDICATORS.freeHosting.some(h => domain.endsWith(h))) {
+      analyzer.addRisk(15, 'FREE_HOST', `Free hosting often used for phishing: ${domain}`);
+    }
+    
+    // 6. Suspicious TLD detection
+    const tld = '.' + domain.split('.').pop();
+    if (MALICIOUS_INDICATORS.suspiciousTLDs.includes(tld)) {
+      analyzer.addRisk(15, 'SUS_TLD', `Suspicious top-level domain: ${tld}`);
+    }
+    
+    // 7. IP address as host
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(domain)) {
+      analyzer.addRisk(25, 'IP_HOST', `Direct IP address instead of domain: ${domain}`);
+    }
+    
+    // 8. Suspicious URL patterns
+    if (fullUrl.includes('login') || fullUrl.includes('signin') || fullUrl.includes('verify')) {
+      analyzer.addRisk(15, 'LOGIN_PATH', 'URL contains login/verify path');
+    }
+    if (fullUrl.includes('token') || fullUrl.includes('password') || fullUrl.includes('credential')) {
+      analyzer.addRisk(20, 'CRED_PATH', 'URL references credentials');
+    }
+    
+    // 9. Excessive subdomains (phishing tactic)
+    const subdomains = domain.split('.').length - 2;
+    if (subdomains > 3) {
+      analyzer.addRisk(10, 'SUBDOMAINS', `Excessive subdomains (${subdomains})`);
+    }
+    
+    // 10. Long domain name
+    if (domain.length > 50) {
+      analyzer.addRisk(10, 'LONG_DOMAIN', `Unusually long domain name`);
+    }
+    
+  } catch (e) {
+    analyzer.addRisk(5, 'INVALID_URL', 'Malformed URL structure');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MESSAGE CONTENT ANALYSIS (Social Engineering Detection)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function analyzeMessage(content, analyzer) {
+  const text = content.toLowerCase();
+  
+  // Check each category of social engineering patterns
+  for (const [category, patterns] of Object.entries(SOCIAL_ENGINEERING_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(content)) {
+        const points = {
+          urgency: 15,
+          authority: 20,
+          threat: 25,
+          prize: 20,
+          fear: 15,
+          demands: 10
+        }[category] || 10;
+        
+        analyzer.addRisk(points, `SE_${category.toUpperCase()}`, `Social engineering pattern: ${category}`);
+        break; // Only count each category once
+      }
+    }
+  }
+  
+  // Check for credential requests
+  if (/\b(password|token|2fa|mfa|auth|login|credential|api.?key)\b/i.test(content)) {
+    analyzer.addRisk(20, 'CRED_REQUEST', 'Message requests sensitive credentials');
+  }
+  
+  // QR code mention (common scam vector)
+  if (/\b(qr|scan.{0,10}code)\b/i.test(content)) {
+    analyzer.addRisk(15, 'QR_MENTION', 'QR code mentioned (common scam vector)');
+  }
+  
+  // Money/crypto scam indicators
+  if (/\b(send.{0,10}(btc|eth|crypto|bitcoin)|crypto.{0,10}(giveaway|double))\b/i.test(content)) {
+    analyzer.addRisk(30, 'CRYPTO_SCAM', 'Cryptocurrency scam pattern');
+  }
+  
+  // DM scam patterns
+  if (/\b(dm.{0,10}(me|for)|contact.{0,10}(telegram|whatsapp))\b/i.test(content)) {
+    analyzer.addRisk(15, 'DM_DIVERT', 'Attempting to move conversation off platform');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE ANALYSIS (Static - No Execution)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function analyzeFile(filename, filesize, analyzer) {
+  const name = filename.toLowerCase();
+  const ext = '.' + name.split('.').pop();
+  const parts = name.split('.');
+  
+  // 1. Dangerous extension check
+  if (FILE_THREATS.dangerous.includes(ext)) {
+    analyzer.addRisk(50, 'DANGEROUS_EXT', `Dangerous file type: ${ext}`);
+  }
+  
+  // 2. Macro-enabled document
+  if (FILE_THREATS.macroEnabled.includes(ext)) {
+    analyzer.addRisk(35, 'MACRO_DOC', `Macro-enabled document: ${ext}`);
+  }
+  
+  // 3. Double extension detection (e.g., photo.jpg.exe)
+  if (parts.length > 2) {
+    const secondToLast = '.' + parts[parts.length - 2];
+    if (FILE_THREATS.dangerous.includes(ext) && 
+        ['.jpg', '.png', '.gif', '.pdf', '.doc', '.txt'].includes(secondToLast)) {
+      analyzer.addRisk(45, 'DOUBLE_EXT', `Hidden extension attack: ${filename}`);
+    }
+  }
+  
+  // 4. Archive inspection needed
+  if (FILE_THREATS.archives.includes(ext)) {
+    analyzer.addRisk(10, 'ARCHIVE', `Archive file requires manual inspection: ${ext}`);
+  }
+  
+  // 5. Suspicious filenames
+  if (/\b(crack|keygen|patch|serial|hack|cheat|free|download)\b/i.test(name)) {
+    analyzer.addRisk(25, 'SUS_FILENAME', 'Suspicious filename pattern');
+  }
+  
+  // 6. Very small dangerous files (likely malicious)
+  if (filesize < 5000 && FILE_THREATS.dangerous.includes(ext)) {
+    analyzer.addRisk(20, 'TINY_EXEC', 'Suspiciously small executable');
+  }
+  
+  // 7. Very large unexpected files
+  if (filesize > 50000000) { // 50MB
+    analyzer.addRisk(10, 'LARGE_FILE', 'Unusually large file');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN THREAT ANALYSIS FUNCTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function analyzeThreat(message) {
+  const analyzer = new ThreatAnalyzer();
+  
+  // Extract links
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+  const links = message.content.match(urlRegex) || [];
+  
+  // PHASE 1: Fast local analysis (instant)
+  for (const link of links) {
+    analyzeLink(link, analyzer);
+  }
+  
+  // Analyze message content for social engineering
+  analyzeMessage(message.content, analyzer);
+  
+  // Analyze attachments (basic)
+  if (message.attachments && message.attachments.size > 0) {
+    for (const [, attachment] of message.attachments) {
+      analyzeFile(attachment.name, attachment.size, analyzer);
+    }
+  }
+  
+  // PHASE 2: Deep API analysis (if APIs available and initial score warrants it)
+  // Only do deep analysis if we found something suspicious OR there are links/files
+  const needsDeepAnalysis = analyzer.riskScore > 10 || links.length > 0 || (message.attachments && message.attachments.size > 0);
+  
+  if (needsDeepAnalysis) {
+    // Deep link analysis with external APIs
+    for (const link of links) {
+      try {
+        await deepLinkAnalysis(link, analyzer);
+      } catch (e) {
+        console.error('Deep link analysis error:', e.message);
+      }
+    }
+    
+    // Deep file analysis (download and inspect)
+    if (message.attachments && message.attachments.size > 0) {
+      for (const [, attachment] of message.attachments) {
+        try {
+          await deepFileAnalysis(attachment, analyzer);
+        } catch (e) {
+          console.error('Deep file analysis error:', e.message);
+        }
+      }
+    }
+  }
+  
+  return analyzer.getResult();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// THREAT RESPONSE ACTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleThreatResponse(message, analysis, guild) {
+  const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+  
+  // Build detailed log embed
+  const logEmbed = new EmbedBuilder()
+    .setTitle(`🔒 THREAT ANALYSIS: ${analysis.level.toUpperCase()}`)
+    .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Risk Score:** ${analysis.score}/100`)
+    .addFields(
+      { name: '📝 Message', value: message.content.slice(0, 500) || 'No text', inline: false },
+      { name: '📊 Analysis', value: analysis.summary.slice(0, 1024) || 'No findings', inline: false },
+      { name: '⚡ Action', value: analysis.action, inline: true },
+      { name: '🎯 Level', value: analysis.level, inline: true }
+    )
+    .setColor(
+      analysis.level === 'critical' ? 0xFF0000 :
+      analysis.level === 'high' ? 0xFF6600 :
+      analysis.level === 'medium' ? 0xFFAA00 : 0x00FF00
+    )
+    .setTimestamp();
+  
+  // Add attachment info if present
+  if (message.attachments.size > 0) {
+    const attachList = [...message.attachments.values()]
+      .map(a => `${a.name} (${Math.round(a.size/1024)}KB)`)
+      .join('\n');
+    logEmbed.addFields({ name: '📎 Attachments', value: attachList, inline: false });
+  }
+  
+  // Log all detections
+  if (logChannel && analysis.score >= RISK_THRESHOLDS.LOW) {
+    const pingLevel = analysis.level === 'critical' ? '@here **CRITICAL THREAT**' : '';
+    await logChannel.send({ content: pingLevel, embeds: [logEmbed] });
+  }
+  
+  return analysis;
+}
+
+// Legacy compatibility - keep old functions working
+const SCAM_PATTERNS = Object.values(SOCIAL_ENGINEERING_PATTERNS).flat();
+const SUSPICIOUS_DOMAINS = [...MALICIOUS_INDICATORS.shorteners, ...MALICIOUS_INDICATORS.freeHosting];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LINK SCANNER & SECURITY (Legacy + Enhanced)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function scanLink(url) {
@@ -497,7 +2067,371 @@ async function initDatabase() {
     )
   `);
   
-  console.log('[DB] All tables ready');
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ELITE FEATURE TABLES
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // User notes (persistent across tickets)
+  await pool.query(`
+    CREATE TABLE user_notes (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      note TEXT NOT NULL,
+      added_by TEXT NOT NULL,
+      added_by_name TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Canned responses/snippets
+  await pool.query(`
+    CREATE TABLE snippets (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      content TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      uses INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Staff away status
+  await pool.query(`
+    CREATE TABLE staff_status (
+      user_id TEXT PRIMARY KEY,
+      status TEXT DEFAULT 'available',
+      away_message TEXT,
+      away_until TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Ticket feedback/ratings
+  await pool.query(`
+    CREATE TABLE ticket_feedback (
+      id SERIAL PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      user_id TEXT NOT NULL,
+      rating INT NOT NULL,
+      comment TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Read receipts
+  await pool.query(`
+    CREATE TABLE read_receipts (
+      id SERIAL PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      message_id TEXT NOT NULL,
+      read_by TEXT NOT NULL,
+      read_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Ticket views (who viewed when)
+  await pool.query(`
+    CREATE TABLE ticket_views (
+      id SERIAL PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      viewer_id TEXT NOT NULL,
+      viewer_name TEXT NOT NULL,
+      viewed_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Linked tickets
+  await pool.query(`
+    CREATE TABLE ticket_links (
+      id SERIAL PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      linked_ticket_id INT NOT NULL,
+      linked_by TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // User sentiment history
+  await pool.query(`
+    CREATE TABLE user_sentiment (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      ticket_id INT NOT NULL,
+      sentiment TEXT NOT NULL,
+      score INT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Staff analytics
+  await pool.query(`
+    CREATE TABLE staff_analytics (
+      id SERIAL PRIMARY KEY,
+      staff_id TEXT NOT NULL,
+      ticket_id INT NOT NULL,
+      action TEXT NOT NULL,
+      response_time_seconds INT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Scheduled messages
+  await pool.query(`
+    CREATE TABLE scheduled_messages (
+      id SERIAL PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      content TEXT NOT NULL,
+      scheduled_by TEXT NOT NULL,
+      send_at TIMESTAMP NOT NULL,
+      sent BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  console.log('[DB] All tables ready (including elite features)');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ELITE FEATURE SYSTEMS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Track active typing indicators
+const activeTyping = new Map(); // ticketId -> { staff: bool, user: bool }
+
+// Track ticket queue for position
+async function getQueuePosition(ticketId) {
+  const r = await pool.query(`
+    SELECT COUNT(*) as pos FROM modmail_tickets 
+    WHERE status = 'open' AND claimed_by IS NULL AND id < $1
+  `, [ticketId]);
+  return parseInt(r.rows[0].pos) + 1;
+}
+
+// Get online staff count
+async function getOnlineStaffCount(guild) {
+  let onlineCount = 0;
+  const members = await guild.members.fetch();
+  members.forEach(m => {
+    if (isStaff(m) && m.presence?.status !== 'offline' && m.presence?.status !== 'invisible') {
+      onlineCount++;
+    }
+  });
+  return onlineCount;
+}
+
+// Check if any staff is away
+async function getAvailableStaff() {
+  const r = await pool.query(`
+    SELECT user_id FROM staff_status 
+    WHERE status = 'available' OR away_until < NOW()
+  `);
+  return r.rows.map(row => row.user_id);
+}
+
+// Get staff away message
+async function getStaffStatus(staffId) {
+  const r = await pool.query(`SELECT * FROM staff_status WHERE user_id = $1`, [staffId]);
+  if (r.rows.length === 0) return { status: 'available' };
+  const status = r.rows[0];
+  if (status.away_until && new Date(status.away_until) < new Date()) {
+    await pool.query(`UPDATE staff_status SET status = 'available', away_message = NULL, away_until = NULL WHERE user_id = $1`, [staffId]);
+    return { status: 'available' };
+  }
+  return status;
+}
+
+// Set staff status
+async function setStaffStatus(staffId, status, message = null, until = null) {
+  await pool.query(`
+    INSERT INTO staff_status (user_id, status, away_message, away_until, updated_at)
+    VALUES ($1, $2, $3, $4, NOW())
+    ON CONFLICT (user_id) DO UPDATE SET status = $2, away_message = $3, away_until = $4, updated_at = NOW()
+  `, [staffId, status, message, until]);
+}
+
+// Get user notes
+async function getUserNotes(userId) {
+  const r = await pool.query(`SELECT * FROM user_notes WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
+  return r.rows;
+}
+
+// Add user note
+async function addUserNote(userId, note, addedBy, addedByName) {
+  await pool.query(`
+    INSERT INTO user_notes (user_id, note, added_by, added_by_name)
+    VALUES ($1, $2, $3, $4)
+  `, [userId, note, addedBy, addedByName]);
+}
+
+// Get snippet
+async function getSnippet(name) {
+  const r = await pool.query(`SELECT * FROM snippets WHERE LOWER(name) = LOWER($1)`, [name]);
+  if (r.rows.length > 0) {
+    await pool.query(`UPDATE snippets SET uses = uses + 1 WHERE LOWER(name) = LOWER($1)`, [name]);
+    return r.rows[0];
+  }
+  return null;
+}
+
+// Save snippet
+async function saveSnippet(name, content, createdBy) {
+  await pool.query(`
+    INSERT INTO snippets (name, content, created_by)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (name) DO UPDATE SET content = $2
+  `, [name, content, createdBy]);
+}
+
+// Record ticket view
+async function recordTicketView(ticketId, viewerId, viewerName) {
+  // Check if already viewed recently (within 5 min)
+  const r = await pool.query(`
+    SELECT 1 FROM ticket_views 
+    WHERE ticket_id = $1 AND viewer_id = $2 AND viewed_at > NOW() - INTERVAL '5 minutes'
+  `, [ticketId, viewerId]);
+  if (r.rows.length === 0) {
+    await pool.query(`
+      INSERT INTO ticket_views (ticket_id, viewer_id, viewer_name)
+      VALUES ($1, $2, $3)
+    `, [ticketId, viewerId, viewerName]);
+    return true; // New view
+  }
+  return false; // Already viewed recently
+}
+
+// Get user's ticket history count
+async function getUserTicketHistory(userId) {
+  const r = await pool.query(`
+    SELECT COUNT(*) as total, 
+           COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed,
+           COUNT(CASE WHEN status = 'open' THEN 1 END) as open
+    FROM modmail_tickets WHERE user_id = $1
+  `, [userId]);
+  return r.rows[0];
+}
+
+// Get linked tickets
+async function getLinkedTickets(ticketId) {
+  const r = await pool.query(`
+    SELECT t.* FROM modmail_tickets t
+    JOIN ticket_links l ON (l.linked_ticket_id = t.id OR l.ticket_id = t.id)
+    WHERE (l.ticket_id = $1 OR l.linked_ticket_id = $1) AND t.id != $1
+  `, [ticketId]);
+  return r.rows;
+}
+
+// Link tickets
+async function linkTickets(ticketId, linkedTicketId, linkedBy) {
+  await pool.query(`
+    INSERT INTO ticket_links (ticket_id, linked_ticket_id, linked_by)
+    VALUES ($1, $2, $3)
+  `, [ticketId, linkedTicketId, linkedBy]);
+}
+
+// Record sentiment
+async function recordSentiment(userId, ticketId, sentiment, score) {
+  await pool.query(`
+    INSERT INTO user_sentiment (user_id, ticket_id, sentiment, score)
+    VALUES ($1, $2, $3, $4)
+  `, [userId, ticketId, sentiment, score]);
+}
+
+// Get user sentiment history
+async function getUserSentimentHistory(userId) {
+  const r = await pool.query(`
+    SELECT sentiment, COUNT(*) as count FROM user_sentiment 
+    WHERE user_id = $1 
+    GROUP BY sentiment 
+    ORDER BY count DESC
+  `, [userId]);
+  return r.rows;
+}
+
+// Record staff analytics
+async function recordStaffAction(staffId, ticketId, action, responseTimeSeconds = null) {
+  await pool.query(`
+    INSERT INTO staff_analytics (staff_id, ticket_id, action, response_time_seconds)
+    VALUES ($1, $2, $3, $4)
+  `, [staffId, ticketId, action, responseTimeSeconds]);
+}
+
+// Get staff stats
+async function getStaffStats(staffId) {
+  const r = await pool.query(`
+    SELECT 
+      COUNT(*) as total_actions,
+      COUNT(CASE WHEN action = 'reply' THEN 1 END) as replies,
+      COUNT(CASE WHEN action = 'close' THEN 1 END) as closes,
+      COUNT(CASE WHEN action = 'claim' THEN 1 END) as claims,
+      ROUND(AVG(response_time_seconds)) as avg_response_time
+    FROM staff_analytics WHERE staff_id = $1
+  `, [staffId]);
+  return r.rows[0];
+}
+
+// Get overall analytics
+async function getOverallAnalytics() {
+  const r = await pool.query(`
+    SELECT 
+      (SELECT COUNT(*) FROM modmail_tickets) as total_tickets,
+      (SELECT COUNT(*) FROM modmail_tickets WHERE status = 'open') as open_tickets,
+      (SELECT COUNT(*) FROM modmail_tickets WHERE created_at > NOW() - INTERVAL '24 hours') as tickets_today,
+      (SELECT COUNT(*) FROM modmail_tickets WHERE created_at > NOW() - INTERVAL '7 days') as tickets_week,
+      (SELECT ROUND(AVG(response_time_seconds)) FROM staff_analytics WHERE action = 'reply') as avg_response_time,
+      (SELECT ROUND(AVG(rating)::numeric, 1) FROM ticket_feedback) as avg_rating
+  `);
+  return r.rows[0];
+}
+
+// Schedule a message
+async function scheduleMessage(ticketId, content, scheduledBy, sendAt) {
+  await pool.query(`
+    INSERT INTO scheduled_messages (ticket_id, content, scheduled_by, send_at)
+    VALUES ($1, $2, $3, $4)
+  `, [ticketId, content, scheduledBy, sendAt]);
+}
+
+// Get pending scheduled messages
+async function getPendingScheduledMessages() {
+  const r = await pool.query(`
+    SELECT * FROM scheduled_messages 
+    WHERE sent = FALSE AND send_at <= NOW()
+  `);
+  return r.rows;
+}
+
+// Mark scheduled message as sent
+async function markScheduledMessageSent(id) {
+  await pool.query(`UPDATE scheduled_messages SET sent = TRUE WHERE id = $1`, [id]);
+}
+
+// Save feedback
+async function saveFeedback(ticketId, userId, rating, comment = null) {
+  await pool.query(`
+    INSERT INTO ticket_feedback (ticket_id, user_id, rating, comment)
+    VALUES ($1, $2, $3, $4)
+  `, [ticketId, userId, rating, comment]);
+}
+
+// Format time ago
+function timeAgo(date) {
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+// Format duration
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds} seconds`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} hour${hours > 1 ? 's' : ''} ${minutes % 60}m`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -594,7 +2528,12 @@ async function createTicket(user, guild, message, extraData = {}) {
     VALUES ($1, $2, $3, $4, false)
   `, [ticket.id, user.id, user.tag, message]);
   
-  // Build ticket embed
+  // Get user's history and notes for context
+  const history = await getUserTicketHistory(user.id);
+  const notes = await getUserNotes(user.id);
+  const queuePos = await getQueuePosition(ticket.id);
+  
+  // Build ticket embed with elite info
   const embed = new EmbedBuilder()
     .setTitle(`📨 Ticket #${ticketNum}`)
     .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}`)
@@ -603,13 +2542,42 @@ async function createTicket(user, guild, message, extraData = {}) {
     .setThumbnail(user.displayAvatarURL())
     .setTimestamp();
   
+  // Add history info
+  if (history.total > 0) {
+    embed.addFields({
+      name: '📊 User History',
+      value: `**${history.total}** previous tickets (${history.closed} closed)`,
+      inline: true
+    });
+  } else {
+    embed.addFields({ name: '📊 User History', value: '🆕 First time contacting', inline: true });
+  }
+  
+  // Add queue position
+  embed.addFields({ name: '🔢 Queue Position', value: `#${queuePos}`, inline: true });
+  
+  // Add notes if any
+  if (notes.length > 0) {
+    const notesStr = notes.slice(0, 3).map(n => `• ${n.note}`).join('\n');
+    embed.addFields({ name: '📋 Staff Notes', value: notesStr, inline: false });
+  }
+  
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
     new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-    new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
+    new ButtonBuilder().setCustomId('priority_menu').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡'),
+    new ButtonBuilder().setCustomId('view_notes').setLabel('Notes').setStyle(ButtonStyle.Secondary).setEmoji('📋'),
+    new ButtonBuilder().setCustomId('view_history').setLabel('History').setStyle(ButtonStyle.Secondary).setEmoji('📜')
   );
   
-  await channel.send({ content: '@here New ticket!', embeds: [embed], components: [row] });
+  // Check for online staff
+  const onlineStaff = await getOnlineStaffCount(guild);
+  let pingContent = '@here New ticket!';
+  if (onlineStaff === 0) {
+    pingContent = '⚠️ @here New ticket! (No staff appear to be online)';
+  }
+  
+  await channel.send({ content: pingContent, embeds: [embed], components: [row] });
   
   return ticket;
 }
@@ -631,171 +2599,30 @@ client.on(Events.MessageCreate, async (message) => {
     if (!guild) return;
     
     // ═══════════════════════════════════════════════════════════════
-    // SECURITY SCANNING - BLOCK DANGEROUS CONTENT
+    // SOC-LEVEL THREAT ANALYSIS
     // ═══════════════════════════════════════════════════════════════
     
-    // Check for suspicious file attachments
-    const DANGEROUS_EXTENSIONS = [
-      '.exe', '.bat', '.cmd', '.scr', '.pif', '.com', '.vbs', '.vbe', 
-      '.js', '.jse', '.ws', '.wsf', '.msc', '.msi', '.msp', '.hta',
-      '.cpl', '.jar', '.ps1', '.psm1', '.dll', '.sys', '.drv',
-      '.reg', '.inf', '.scf', '.lnk', '.url'
-    ];
+    const threatAnalysis = await analyzeThreat(message);
     
-    const SUSPICIOUS_EXTENSIONS = [
-      '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.img',
-      '.doc', '.docm', '.xls', '.xlsm', '.ppt', '.pptm', // Macro-enabled
-      '.pdf', '.txt', '.rtf'
-    ];
-    
-    let fileThreats = [];
-    let hasDangerousFile = false;
-    
-    if (message.attachments.size > 0) {
-      for (const [, attachment] of message.attachments) {
-        const fileName = attachment.name.toLowerCase();
-        const ext = '.' + fileName.split('.').pop();
-        
-        // Check for dangerous extensions
-        if (DANGEROUS_EXTENSIONS.includes(ext)) {
-          hasDangerousFile = true;
-          fileThreats.push(`🚨 DANGEROUS FILE: ${attachment.name} (${ext} files can contain malware)`);
-        }
-        // Check for suspicious extensions
-        else if (SUSPICIOUS_EXTENSIONS.includes(ext)) {
-          fileThreats.push(`⚠️ Suspicious file: ${attachment.name}`);
-        }
-        
-        // Check for double extensions (e.g., image.jpg.exe)
-        const parts = fileName.split('.');
-        if (parts.length > 2) {
-          const lastExt = '.' + parts[parts.length - 1];
-          if (DANGEROUS_EXTENSIONS.includes(lastExt)) {
-            hasDangerousFile = true;
-            fileThreats.push(`🚨 HIDDEN EXTENSION: ${attachment.name} (disguised dangerous file)`);
-          }
-        }
-        
-        // Check file size (very small executables are suspicious)
-        if (attachment.size < 1000 && DANGEROUS_EXTENSIONS.includes(ext)) {
-          fileThreats.push(`🚨 Suspiciously small dangerous file: ${attachment.name}`);
-        }
-      }
-    }
-    
-    // Block dangerous files immediately
-    if (hasDangerousFile) {
-      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
-      if (logChannel) {
-        const alertEmbed = new EmbedBuilder()
-          .setTitle('🚨 DANGEROUS FILE BLOCKED')
-          .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
-          .addFields(
-            { name: '📝 Message', value: message.content.slice(0, 1024) || 'No text', inline: false },
-            { name: '📎 Files', value: [...message.attachments.values()].map(a => `${a.name} (${Math.round(a.size/1024)}KB)`).join('\n').slice(0, 1024), inline: false },
-            { name: '⚠️ Threats', value: fileThreats.join('\n').slice(0, 1024), inline: false }
-          )
-          .setColor(CONFIG.COLORS.danger)
-          .setTimestamp();
-        await logChannel.send({ content: '@here **DANGEROUS FILE BLOCKED**', embeds: [alertEmbed] });
-      }
+    // Handle based on threat level
+    if (threatAnalysis.action === 'BLOCK' || threatAnalysis.action === 'QUARANTINE') {
+      // Log the threat
+      await handleThreatResponse(message, threatAnalysis, guild);
       
-      return message.reply({
-        embeds: [new EmbedBuilder()
-          .setTitle('🚫 File Blocked')
-          .setDescription('Your message was blocked because it contains a potentially dangerous file type.\n\nExecutable files, scripts, and similar attachments are not allowed.\n\nIf you need to share a file, please describe what you need help with instead.')
-          .setColor(CONFIG.COLORS.danger)
-        ]
-      });
-    }
-    
-    // Check for threats in text
-    const threats = detectThreats(message.content);
-    if (threats.length > 0) {
-      const criticalThreats = threats.filter(t => t.severity === 'critical');
-      if (criticalThreats.length > 0) {
-        const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
-        if (logChannel) {
-          const alertEmbed = new EmbedBuilder()
-            .setTitle('🚨 CRITICAL THREAT DETECTED')
-            .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Message:** ${message.content.slice(0, 500)}`)
-            .addFields({ name: 'Threats', value: criticalThreats.map(t => `• ${t.type}: ${t.severity}`).join('\n') })
-            .setColor(CONFIG.COLORS.danger)
-            .setTimestamp();
-          await logChannel.send({ content: '@here', embeds: [alertEmbed] });
-        }
-        return message.reply('⚠️ Your message contains content that violates our policies. This has been reported to staff.');
-      }
-    }
-    
-    // Check for scam patterns in message text
-    const scamThreats = detectScamPatterns(message.content);
-    
-    // Scan links
-    const links = extractLinks(message.content);
-    const linkResults = [];
-    let blockedForScam = false;
-    
-    for (const link of links) {
-      const result = await scanLink(link);
-      linkResults.push({ url: link, ...result });
-      
-      // Log scan
-      await pool.query(`
-        INSERT INTO link_scans (url, user_id, is_safe, threats)
-        VALUES ($1, $2, $3, $4)
-      `, [link, message.author.id, result.safe, result.threats]);
-      
-      // BLOCK if dangerous link detected
-      if (!result.safe) {
-        blockedForScam = true;
-      }
-    }
-    
-    // If scam/phishing detected - BLOCK and alert staff
-    if (blockedForScam || scamThreats.length > 0) {
-      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
-      if (logChannel) {
-        const alertEmbed = new EmbedBuilder()
-          .setTitle('🚨 SCAM/PHISHING BLOCKED IN DM')
-          .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
-          .addFields(
-            { name: '📝 Message', value: message.content.slice(0, 1024) || 'N/A', inline: false },
-            { name: '🔗 Links', value: links.join('\n').slice(0, 1024) || 'None', inline: false },
-            { name: '⚠️ Reasons', value: [
-              ...scamThreats,
-              ...linkResults.filter(r => !r.safe).flatMap(r => r.threats)
-            ].join('\n').slice(0, 1024) || 'Pattern match', inline: false }
-          )
-          .setColor(CONFIG.COLORS.danger)
-          .setTimestamp();
-        await logChannel.send({ content: '@here **SCAM ATTEMPT BLOCKED**', embeds: [alertEmbed] });
-      }
-      
+      // Block the message
       return message.reply({
         embeds: [new EmbedBuilder()
           .setTitle('🚫 Message Blocked')
-          .setDescription('Your message was blocked because it contains a suspicious or dangerous link.\n\nIf you believe this is an error, contact staff through another method.')
+          .setDescription(`Your message was blocked by our security system.\n\n**Risk Level:** ${threatAnalysis.level.toUpperCase()}\n**Score:** ${threatAnalysis.score}/100\n\nIf you believe this is an error, please rephrase your message or contact staff through another method.`)
           .setColor(CONFIG.COLORS.danger)
+          .setFooter({ text: 'Security powered by SOC-Level Detection' })
         ]
       });
     }
     
-    // Alert staff about suspicious (but not blocked) files
-    if (fileThreats.length > 0) {
-      const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
-      if (logChannel) {
-        const alertEmbed = new EmbedBuilder()
-          .setTitle('⚠️ SUSPICIOUS FILE ATTACHMENT')
-          .setDescription(`**User:** ${message.author.tag} (${message.author.id})\n**Note:** File was allowed but flagged for review`)
-          .addFields(
-            { name: '📎 Files', value: [...message.attachments.values()].map(a => `${a.name} (${Math.round(a.size/1024)}KB)`).join('\n').slice(0, 1024), inline: false },
-            { name: '⚠️ Concerns', value: fileThreats.join('\n').slice(0, 1024), inline: false }
-          )
-          .setColor(CONFIG.COLORS.warning)
-          .setTimestamp();
-        await logChannel.send({ embeds: [alertEmbed] });
-      }
+    // Log medium/low threats but allow
+    if (threatAnalysis.action === 'FLAG' || threatAnalysis.action === 'WARN') {
+      await handleThreatResponse(message, threatAnalysis, guild);
     }
     
     // ═══════════════════════════════════════════════════════════════
@@ -813,12 +2640,21 @@ client.on(Events.MessageCreate, async (message) => {
           VALUES ($1, $2, $3, $4, false)
         `, [ticket.id, message.author.id, message.author.tag, message.content]);
         
-        // Send message to ticket channel
+        // Send message to ticket channel with threat info if applicable
         const embed = new EmbedBuilder()
           .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
           .setDescription(message.content)
-          .setColor(CONFIG.COLORS.info)
+          .setColor(threatAnalysis.score > 0 ? CONFIG.COLORS.warning : CONFIG.COLORS.info)
           .setTimestamp();
+        
+        // Add threat warning if flagged
+        if (threatAnalysis.score >= RISK_THRESHOLDS.LOW) {
+          embed.addFields({
+            name: `⚠️ Security Flag (Score: ${threatAnalysis.score})`,
+            value: threatAnalysis.findings.slice(0, 3).map(f => f.detail).join('\n').slice(0, 500) || 'Flagged for review',
+            inline: false
+          });
+        }
         
         await channel.send({ embeds: [embed] });
         
@@ -899,15 +2735,21 @@ client.on(Events.MessageCreate, async (message) => {
     try {
       const user = await client.users.fetch(ticket.user_id);
       
-      // Send as Burner Phone - show bot's name and avatar, not staff
+      // Send as Burner Phone - clear identification of who this is
       const embed = new EmbedBuilder()
         .setAuthor({ 
-          name: 'The Unpatched Method Team', 
+          name: 'The Unpatched Method Staff', 
           iconURL: client.user.displayAvatarURL() 
         })
+        .setTitle('📬 Staff Message')
         .setDescription(translatedContent)
+        .addFields({
+          name: '❓ What is this?',
+          value: 'This is the official support bot for **The Unpatched Method** Discord server. A staff member is responding to your ticket.',
+          inline: false
+        })
         .setColor(CONFIG.COLORS.primary)
-        .setFooter({ text: 'Reply to this message to respond' })
+        .setFooter({ text: 'The Unpatched Method • Reply to this DM to respond to staff' })
         .setTimestamp();
       
       await user.send({ embeds: [embed] });
@@ -987,10 +2829,38 @@ client.on(Events.MessageCreate, async (message) => {
       await pool.query(`UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), closed_by = $1, close_reason = $2 WHERE id = $3`,
         [message.author.id, reason, ticket.id]);
       
+      // Record staff action for analytics
+      await recordStaffAction(message.author.id, ticket.id, 'close');
+      
       try {
         const user = await client.users.fetch(ticket.user_id);
         
-        await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}\n\n*This conversation will be deleted shortly.*`).setColor(CONFIG.COLORS.error)] });
+        // Send close message
+        await user.send({ embeds: [new EmbedBuilder()
+          .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+          .setTitle('🔒 Ticket Closed')
+          .setDescription(`**Reason:** ${reason}\n\nThank you for contacting The Unpatched Method support. If you need help again, just DM this bot!`)
+          .setColor(CONFIG.COLORS.error)
+          .setFooter({ text: 'The Unpatched Method • Support' })
+        ] });
+        
+        // Send feedback request
+        const feedbackRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`feedback_1_${ticket.id}`).setLabel('1').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
+          new ButtonBuilder().setCustomId(`feedback_2_${ticket.id}`).setLabel('2').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
+          new ButtonBuilder().setCustomId(`feedback_3_${ticket.id}`).setLabel('3').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
+          new ButtonBuilder().setCustomId(`feedback_4_${ticket.id}`).setLabel('4').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
+          new ButtonBuilder().setCustomId(`feedback_5_${ticket.id}`).setLabel('5').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
+        );
+        
+        await user.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('⭐ Rate Your Experience')
+            .setDescription('How was your support experience? Your feedback helps us improve!')
+            .setColor(CONFIG.COLORS.primary)
+          ],
+          components: [feedbackRow]
+        });
         
         await message.channel.send('🔥 Burning messages...');
         
@@ -998,9 +2868,11 @@ client.on(Events.MessageCreate, async (message) => {
         try {
           const dmChannel = await user.createDM();
           const dmMessages = await dmChannel.messages.fetch({ limit: 100 });
-          const botMessages = dmMessages.filter(m => m.author.id === client.user.id);
+          const botMessages = dmMessages.filter(m => m.author.id === client.user.id && !m.components?.length); // Don't delete feedback msg
           
           for (const [, msg] of botMessages) {
+            // Don't delete the feedback request
+            if (msg.embeds?.[0]?.title === '⭐ Rate Your Experience') continue;
             await msg.delete().catch(() => {});
             await new Promise(r => setTimeout(r, 500));
           }
@@ -1046,7 +2918,13 @@ client.on(Events.MessageCreate, async (message) => {
         const user = await client.users.fetch(ticket.user_id);
         
         // Send closing message FIRST (before kick)
-        await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription(`Reason: ${reason}\n\n*This conversation will be deleted shortly.*`).setColor(CONFIG.COLORS.error)] });
+        await user.send({ embeds: [new EmbedBuilder()
+          .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+          .setTitle('🔒 Ticket Closed')
+          .setDescription(`**Reason:** ${reason}\n\n*This conversation will be deleted shortly.*`)
+          .setColor(CONFIG.COLORS.error)
+          .setFooter({ text: 'The Unpatched Method • Support' })
+        ] });
         
         // Delete bot's messages from user's DMs (burner style)
         try {
@@ -1112,6 +2990,7 @@ client.on(Events.MessageCreate, async (message) => {
     
     // ?setupmodmail
     if (cmd === 'setupmodmail' && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      // Create category
       let cat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL');
       if (!cat) {
         cat = await message.guild.channels.create({
@@ -1121,15 +3000,18 @@ client.on(Events.MessageCreate, async (message) => {
         });
       }
       
+      // Create modmail-logs channel
       let log = message.guild.channels.cache.find(c => c.name === 'modmail-logs');
       if (!log) {
         log = await message.guild.channels.create({
           name: 'modmail-logs',
           type: ChannelType.GuildText,
-          parent: cat.id
+          parent: cat.id,
+          topic: 'All modmail transcripts, security alerts, and threat detections'
         });
       }
       
+      // Create staff-dm channel
       let staffDm = message.guild.channels.cache.find(c => c.name === 'staff-dm');
       if (!staffDm) {
         staffDm = await message.guild.channels.create({
@@ -1139,7 +3021,6 @@ client.on(Events.MessageCreate, async (message) => {
           topic: 'Use ?dm @user message to contact members through the bot'
         });
         
-        // Send instructions
         const instructionEmbed = new EmbedBuilder()
           .setTitle('📬 Staff DM Channel')
           .setDescription('Use this channel to DM server members through the bot.\n\n**Command:**\n`?dm @user Your message here`\n\n**What happens:**\n• User receives a DM from Burner Phone\n• A ticket is created to track the conversation\n• User can reply and it comes here')
@@ -1147,193 +3028,625 @@ client.on(Events.MessageCreate, async (message) => {
         await staffDm.send({ embeds: [instructionEmbed] });
       }
       
-      // Create guide channel
+      // Create modmail-guide channel
       let guide = message.guild.channels.cache.find(c => c.name === 'modmail-guide');
       if (!guide) {
         guide = await message.guild.channels.create({
           name: 'modmail-guide',
           type: ChannelType.GuildText,
           parent: cat.id,
-          topic: 'How to use the Burner Phone ULTIMATE modmail system'
+          topic: 'Complete guide to Burner Phone ELITE modmail + SOC security'
         });
         
-        // Send the guide
-        const guideEmbed1 = new EmbedBuilder()
-          .setTitle('📱 BURNER PHONE ULTIMATE - STAFF GUIDE')
-          .setDescription(`This is your **secure modmail system** with advanced AI features.
-
-**Features:**
-🔒 Anonymous staff-to-member communication
-🔗 Automatic link scanning & scam detection
-🌐 Auto-translation for non-English users
-🎭 AI mood detection & auto-escalation
-📊 User reputation tracking
-⚖️ AI-powered ban appeal system
-🔥 Self-destructing messages`)
-          .setColor(CONFIG.COLORS.primary);
+        // ═══════════════════════════════════════════════════════════════
+        // GUIDE EMBEDS
+        // ═══════════════════════════════════════════════════════════════
         
-        const guideEmbed2 = new EmbedBuilder()
-          .setTitle('📥 WHEN A USER DMS THE BOT')
-          .setDescription(`
-**What happens:**
-1. User must confirm they understand the rules first
-2. Their message is scanned for:
-   • 🔗 Dangerous links (VirusTotal scan)
-   • 🚨 Scam patterns (fake nitro, phishing)
-   • ⚠️ Threats (auto-reported)
-3. AI detects their mood & language
-4. Ticket created with all this intel
-5. Just type to reply - they get anonymous DM
+        const intro = new EmbedBuilder()
+          .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
+          .setDescription(`**Enterprise-grade modmail + SOC-level security system**
+          
+This bot protects your server with the same security tech used by Fortune 500 companies.
 
-**They never see your name!**
-          `)
+**🎫 MODMAIL FEATURES:**
+• Anonymous staff ↔ user communication
+• Typing indicators (both ways)
+• "Staff viewing" notifications
+• Queue position tracking
+• Persistent user notes
+• Canned responses/snippets
+• Staff away status
+• Auto-close inactive tickets
+• Post-close feedback ratings
+• Full analytics dashboard
+
+**🔒 SECURITY FEATURES:**
+• 7 threat intelligence APIs
+• Real-time phishing detection
+• Malware file scanning
+• Social engineering detection
+• Risk scoring system`)
+          .setColor(CONFIG.COLORS.primary)
+          .setThumbnail(message.guild.iconURL());
+        
+        const howItWorks = new EmbedBuilder()
+          .setTitle('📥 HOW MODMAIL WORKS')
+          .setDescription(`**When a user DMs the bot:**
+
+1️⃣ User sends DM → Security scan runs
+2️⃣ If safe → Ticket created in this category
+3️⃣ You see: message, mood, reputation, history
+4️⃣ Just type in the ticket channel to reply
+5️⃣ User gets DM from "The Unpatched Method Staff"
+
+**User sees:**
+• Clear identification this is official support
+• "Staff is viewing your ticket" notification
+• "Staff is typing..." indicator
+• Green ✅ when their message is delivered
+
+**They NEVER see your username!**`)
           .setColor(CONFIG.COLORS.info);
         
-        const guideEmbed3 = new EmbedBuilder()
-          .setTitle('🔗 LINK SCANNING')
-          .setDescription(`
-**Every link is automatically scanned:**
-✅ Safe links show green checkmark
-🚨 Dangerous links show red alert
-
-**Scans include:**
-• Known phishing domains
-• Fake Discord/Steam sites
-• URL shorteners (flagged as suspicious)
-• VirusTotal database check
-
-**DO NOT click suspicious links!**
-          `)
-          .setColor(CONFIG.COLORS.warning);
-        
-        const guideEmbed4 = new EmbedBuilder()
-          .setTitle('🌐 AUTO-TRANSLATION')
-          .setDescription(`
-**Non-English messages are auto-translated:**
-• Original message shown
-• English translation below
-• Your replies are translated back to their language
-
-**Language shown in ticket header**
-          `)
-          .setColor(CONFIG.COLORS.info);
-        
-        const guideEmbed5 = new EmbedBuilder()
-          .setTitle('🎭 MOOD & REPUTATION')
-          .setDescription(`
-**AI Mood Detection:**
-😡 Angry | 😤 Frustrated | 😢 Upset | 😐 Neutral | 😊 Friendly
-
-**Auto-Escalation:** Angry/critical messages ping staff immediately
-
-**User Reputation:**
-⭐ Trusted (80+) - Good history
-😐 Neutral (50-79) - Normal
-⚠️ Caution (20-49) - Some issues
-🚨 Problematic (<20) - Frequent problems
-
-**Use +Rep / -Rep buttons** to adjust scores
-          `)
-          .setColor(CONFIG.COLORS.success);
-        
-        const guideEmbed6 = new EmbedBuilder()
-          .setTitle('⌨️ COMMANDS')
+        const eliteFeatures = new EmbedBuilder()
+          .setTitle('✨ ELITE FEATURES')
           .addFields(
-            { name: '💬 In Ticket Channels', value: `
-\`?close [reason]\` - Close ticket & burn messages
-\`?closeandkick [reason]\` - Close, burn, AND kick user
-\`?claim\` - Mark ticket as yours
-\`+Rep / -Rep buttons\` - Adjust user reputation
-            `, inline: false },
-            { name: '📤 In #staff-dm', value: `
-\`?dm @user message\` - DM user (shows preview first)
-            `, inline: false },
-            { name: '📋 Anywhere', value: `
-\`?tickets\` - View all open tickets
-\`?blacklist @user\` - Block from modmail
-\`?unblacklist @user\` - Unblock user
-            `, inline: false }
+            { name: '📝 User Notes', value: '`?note @user Important info`\nPersists across ALL tickets forever', inline: true },
+            { name: '💬 Snippets', value: '`?snippet add greet Welcome!`\n`?snippet use greet`', inline: true },
+            { name: '🌙 Away Status', value: '`?away 2h In a meeting`\n`?back` to return', inline: true },
+            { name: '📊 Analytics', value: '`?stats` - Your stats\n`?analytics` - Overall', inline: true },
+            { name: '📜 History', value: '`?history @user`\nSee all past tickets', inline: true },
+            { name: '⏰ Schedule', value: '`?schedule 2h Follow up msg`\nAuto-sends later', inline: true },
+            { name: '🔄 Transfer', value: '`?transfer @staff`\nHand off ticket', inline: true },
+            { name: '⚡ Priority', value: '`?priority urgent`\nChannel color changes', inline: true },
+            { name: '🔗 Link Tickets', value: '`?link #ticket-0001`\nConnect related issues', inline: true }
           )
           .setColor(CONFIG.COLORS.success);
         
-        const guideEmbed7 = new EmbedBuilder()
-          .setTitle('⚖️ BAN APPEAL SYSTEM')
-          .setDescription(`
-**When someone is banned:**
-1. They get DM with appeal instructions
-2. They reply with \`APPEAL: [explanation]\`
-3. AI reviews their appeal
-4. You get notification with AI recommendation
-5. Click ✅ Approve or ❌ Deny
+        const commands1 = new EmbedBuilder()
+          .setTitle('⌨️ COMMANDS - BASIC')
+          .addFields(
+            { name: '💬 In Ticket Channels', value: `
+\`?close [reason]\` - Close & burn messages
+\`?closeandkick [reason]\` - Close + kick user
+\`?claim\` - Mark ticket as yours
+\`?priority low/med/high/urgent\` - Set urgency
+Just type normally to reply to user
+            `, inline: false },
+            { name: '📤 In #staff-dm', value: `
+\`?dm @user message\` - DM any user
+            `, inline: false },
+            { name: '📋 Anywhere (Staff)', value: `
+\`?tickets\` - View all open tickets
+\`?blacklist @user [reason]\` - Block from modmail
+\`?unblacklist @user\` - Unblock user
+\`?modmailguide\` - Quick command reference
+            `, inline: false }
+          )
+          .setColor(CONFIG.COLORS.info);
+        
+        const commands2 = new EmbedBuilder()
+          .setTitle('⌨️ COMMANDS - ELITE')
+          .addFields(
+            { name: '📝 Notes & Snippets', value: `
+\`?note @user note text\` - Add permanent note
+\`?notes @user\` - View all notes + history
+\`?snippet add name content\` - Save response
+\`?snippet use name\` - Send saved response
+\`?snippets\` - List all snippets
+            `, inline: false },
+            { name: '📊 Analytics & Status', value: `
+\`?stats\` - Your personal stats
+\`?analytics\` - Server-wide analytics
+\`?away 2h message\` - Set away status
+\`?back\` - Return from away
+            `, inline: false },
+            { name: '🔧 Advanced', value: `
+\`?history @user\` - User's ticket history
+\`?transfer @staff\` - Transfer ticket
+\`?schedule 1h message\` - Delayed message
+\`?link #channel\` - Link related tickets
+            `, inline: false }
+          )
+          .setColor(CONFIG.COLORS.info);
+        
+        const security1 = new EmbedBuilder()
+          .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
+          .setDescription(`**7 Threat Intelligence APIs:**
 
-**AI checks for:**
-• Sincerity of apology
-• Understanding of rules
-• Red flags (excuses, lies)
-• Positive factors
-          `)
+🦠 **VirusTotal** - 70+ antivirus engines
+🛡️ **IPQualityScore** - Fraud/phishing detection
+🚨 **AbuseIPDB** - IP reputation database
+👽 **AlienVault OTX** - Threat intelligence
+🧪 **Hybrid Analysis** - Sandbox file analysis
+🔒 **Google Safe Browsing** - Phishing database
+🔗 **URLScan.io** - Deep URL analysis
+
+**Every link and file is scanned automatically!**`)
           .setColor(CONFIG.COLORS.warning);
         
-        const guideEmbed8 = new EmbedBuilder()
-          .setTitle('🔥 BURNER STYLE')
-          .setDescription(`
-**When you close a ticket:**
-• Transcript saved to logs
-• User notified of closure
-• ALL bot messages **DELETED** from their DMs
-• Ticket channel deleted
-• Only their own messages remain
+        const security2 = new EmbedBuilder()
+          .setTitle('🔗 LINK DETECTION')
+          .setDescription(`**What gets detected:**
 
-**Always close BEFORE kicking!**
-Use \`?closeandkick\` to do both safely.
-          `)
-          .setColor(CONFIG.COLORS.error);
+🎭 **Typosquatting** - dlscord.com, disc0rd.gift
+🔤 **Homograph Attacks** - Cyrillic lookalike chars
+🔗 **URL Shorteners** - Expanded and analyzed
+🌐 **Fake Domains** - Discord/Steam impersonation
+📍 **IP Hosting** - Direct IP instead of domain
+🚫 **Known Malware** - From threat databases
+
+**Risk Score System:**
+• 0-19: ✅ Safe (allowed)
+• 20-39: ⚠️ Warning (allowed, logged)
+• 40-59: 🟠 Flagged (allowed, staff alerted)
+• 60-79: 🔴 Quarantine (blocked)
+• 80+: 🚨 Critical (blocked, @here alert)`)
+          .setColor(CONFIG.COLORS.warning);
         
-        const guideEmbed9 = new EmbedBuilder()
-          .setTitle('⚠️ SECURITY ALERTS')
-          .setDescription(`
-**Critical threats are auto-reported:**
-• Death threats
-• Doxxing attempts
-• Swatting mentions
+        const security3 = new EmbedBuilder()
+          .setTitle('📁 FILE SCANNING')
+          .setDescription(`**Dangerous Files (BLOCKED):**
+.exe, .bat, .cmd, .scr, .vbs, .ps1, .dll, .jar, .msi + 20 more
 
-**Scam patterns flagged:**
-• "Free Nitro" links
-• Fake Discord domains
-• Phishing attempts
+**Deep Analysis:**
+• Magic byte verification (catches photo.jpg.exe)
+• PDF JavaScript detection
+• Archive content inspection
+• Hybrid Analysis sandbox scan
+• VirusTotal file scan
 
-**Trust the system - don't click suspicious links!**
-          `)
-          .setColor(CONFIG.COLORS.danger)
-          .setFooter({ text: 'Burner Phone ULTIMATE • The Unpatched Method • Stay Safe' });
+**Macro Documents (FLAGGED):**
+.docm, .xlsm, .pptm - Allowed but staff alerted`)
+          .setColor(CONFIG.COLORS.danger);
         
-        await guide.send({ embeds: [guideEmbed1, guideEmbed2, guideEmbed3, guideEmbed4, guideEmbed5] });
-        await guide.send({ embeds: [guideEmbed6, guideEmbed7, guideEmbed8, guideEmbed9] });
+        const security4 = new EmbedBuilder()
+          .setTitle('🧠 SOCIAL ENGINEERING DETECTION')
+          .setDescription(`**Patterns Detected:**
+
+⏰ **Urgency** - "Act now!", "Limited time!"
+👔 **Authority** - "Discord Team", "Official Staff"
+😱 **Fear** - "Account terminated", "Hacked"
+🎁 **Prize Scams** - "You won!", "Free Nitro"
+📋 **Demands** - "Click here", "Verify now"
+💰 **Crypto Scams** - "Send BTC", "Double your money"
+
+**All detected patterns add to risk score!**`)
+          .setColor(CONFIG.COLORS.danger);
+        
+        const autoClose = new EmbedBuilder()
+          .setTitle('🔁 AUTO-CLOSE SYSTEM')
+          .setDescription(`**Inactive Ticket Handling:**
+
+⏰ **48 hours no activity:**
+→ User gets warning: "Reply or ticket closes"
+
+⏰ **24 hours after warning:**
+→ Ticket auto-closes
+→ User notified
+→ Logged for records
+
+**This keeps your ticket queue clean!**`)
+          .setColor(CONFIG.COLORS.info);
+        
+        const feedback = new EmbedBuilder()
+          .setTitle('⭐ FEEDBACK SYSTEM')
+          .setDescription(`**After every ticket closes:**
+
+User receives: "Rate your experience ⭐⭐⭐⭐⭐"
+
+**Ratings tracked in:**
+• \`?analytics\` - Average rating shown
+• Used to improve support quality
+
+**Encourages good service!**`)
+          .setColor(CONFIG.COLORS.success);
+        
+        const buttons = new EmbedBuilder()
+          .setTitle('🔘 TICKET BUTTONS')
+          .setDescription(`**Every ticket has quick-action buttons:**
+
+✋ **Claim** - Mark as yours
+🔒 **Close** - Close ticket
+⚡ **Priority** - Change urgency level
+📋 **Notes** - View user's notes
+📜 **History** - User's past tickets
+👍👎 **Rep** - Adjust user reputation
+
+**One-click actions for fast response!**`)
+          .setColor(CONFIG.COLORS.primary);
+        
+        const tips = new EmbedBuilder()
+          .setTitle('💡 PRO TIPS')
+          .setDescription(`
+**1. Use snippets for common responses:**
+\`?snippet add rules Please read #rules\`
+
+**2. Add notes for problem users:**
+\`?note @user Frequently asks same question\`
+
+**3. Set away when busy:**
+\`?away 1h Lunch break\`
+
+**4. Check analytics weekly:**
+\`?analytics\` shows response times
+
+**5. Trust the security system:**
+If it blocks something, it's probably bad!
+
+**6. Always close before kicking:**
+\`?closeandkick reason\` does both safely
+`)
+          .setColor(CONFIG.COLORS.success)
+          .setFooter({ text: 'Burner Phone ELITE • The Unpatched Method • Enterprise Security' });
+        
+        // Send all embeds
+        await guide.send({ embeds: [intro, howItWorks, eliteFeatures] });
+        await guide.send({ embeds: [commands1, commands2] });
+        await guide.send({ embeds: [security1, security2] });
+        await guide.send({ embeds: [security3, security4] });
+        await guide.send({ embeds: [autoClose, feedback, buttons, tips] });
       }
       
-      await message.reply(`✅ Modmail ULTIMATE ready!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n💬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
+      // Update the log channel ID constant in memory
+      // Note: The MODMAIL_LOG_CHANNEL constant should match your actual log channel
+      
+      await message.reply({
+        embeds: [new EmbedBuilder()
+          .setTitle('✅ Burner Phone ELITE Ready!')
+          .setDescription(`**Channels Created:**
+📁 Category: ${cat}
+📋 Logs: ${log}
+💬 Staff DM: ${staffDm}
+📖 Guide: ${guide}
+
+**Next Steps:**
+1. Read the guide in ${guide}
+2. Make sure the log channel ID matches in bot config
+3. Test by DMing the bot yourself!
+
+**Current Log Channel ID:** \`${MODMAIL_LOG_CHANNEL}\`
+**Created Log Channel ID:** \`${log.id}\`
+
+${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t match! Update MODMAIL_LOG_CHANNEL in code.' : '✅ Log channel ID matches!'}`)
+          .setColor(CONFIG.COLORS.success)
+        ]
+      });
     }
     
     // ?modmailguide
     if (cmd === 'modmailguide' && isStaff(message.member)) {
       const guide = new EmbedBuilder()
-        .setTitle('📖 BURNER PHONE - STAFF GUIDE')
-        .setDescription('How to use the modmail system')
+        .setTitle('📖 BURNER PHONE ELITE - STAFF GUIDE')
+        .setDescription('Premium modmail system with elite features')
         .addFields(
-          { name: '📨 How It Works', value: 'User DMs me → Ticket created → You reply in ticket channel → User gets DM' },
-          { name: '💬 Commands', value: `
+          { name: '📨 Basic Commands', value: `
 \`?dm @user message\` - DM any user
 \`?close [reason]\` - Close ticket
 \`?claim\` - Claim ticket
 \`?tickets\` - View open tickets
-\`?blacklist @user\` - Block user
-\`?unblacklist @user\` - Unblock user
           ` },
-          { name: '🔘 Buttons', value: '✋ Claim - Mark as yours\n🔒 Close - Close ticket\n⚡ Priority - Change urgency' }
+          { name: '✨ Elite Commands', value: `
+\`?note @user note\` - Add persistent note to user
+\`?notes @user\` - View user's notes
+\`?snippet add name content\` - Save a canned response
+\`?snippet use name\` - Use a saved response
+\`?snippets\` - List all snippets
+\`?away [time] [message]\` - Set away status
+\`?back\` - Return from away
+\`?stats\` - View your stats
+\`?analytics\` - Overall analytics
+\`?history @user\` - User's ticket history
+\`?link #ticket\` - Link related tickets
+\`?schedule 1h message\` - Schedule a follow-up
+\`?transfer @staff\` - Transfer ticket
+\`?anon\` - Toggle anonymous mode
+\`?priority low/med/high/urgent\` - Set ticket priority
+          ` },
+          { name: '🔘 Buttons', value: '✋ Claim\n🔒 Close\n⚡ Priority\n👤 View Notes\n📊 History' }
         )
         .setColor(CONFIG.COLORS.primary);
       
       await message.reply({ embeds: [guide] });
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // ELITE COMMANDS
+    // ═══════════════════════════════════════════════════════════════
+    
+    // ?note @user note - Add persistent user note
+    if (cmd === 'note' && isStaff(message.member)) {
+      const user = message.mentions.users.first();
+      const note = args.slice(1).join(' ');
+      if (!user || !note) return message.reply('Usage: `?note @user Your note here`');
+      
+      await addUserNote(user.id, note, message.author.id, message.author.tag);
+      await message.reply(`📝 Note added for ${user.tag}: "${note}"`);
+    }
+    
+    // ?notes @user - View user notes
+    if (cmd === 'notes' && isStaff(message.member)) {
+      const user = message.mentions.users.first();
+      if (!user) return message.reply('Usage: `?notes @user`');
+      
+      const notes = await getUserNotes(user.id);
+      const history = await getUserTicketHistory(user.id);
+      const sentiment = await getUserSentimentHistory(user.id);
+      
+      const embed = new EmbedBuilder()
+        .setTitle(`📋 User Profile: ${user.tag}`)
+        .setThumbnail(user.displayAvatarURL())
+        .setColor(CONFIG.COLORS.info);
+      
+      // Ticket history
+      embed.addFields({
+        name: '📊 Ticket History',
+        value: `Total: **${history.total}** | Open: **${history.open}** | Closed: **${history.closed}**`,
+        inline: false
+      });
+      
+      // Sentiment
+      if (sentiment.length > 0) {
+        const sentimentStr = sentiment.map(s => `${s.sentiment}: ${s.count}`).join(', ');
+        embed.addFields({ name: '🎭 Typical Mood', value: sentimentStr, inline: false });
+      }
+      
+      // Notes
+      if (notes.length > 0) {
+        const notesStr = notes.slice(0, 5).map(n => 
+          `• ${n.note} - *${n.added_by_name}, ${timeAgo(n.created_at)}*`
+        ).join('\n');
+        embed.addFields({ name: '📝 Notes', value: notesStr, inline: false });
+      } else {
+        embed.addFields({ name: '📝 Notes', value: 'No notes yet', inline: false });
+      }
+      
+      await message.reply({ embeds: [embed] });
+    }
+    
+    // ?snippet add name content - Save snippet
+    if (cmd === 'snippet' && isStaff(message.member)) {
+      const subCmd = args[0]?.toLowerCase();
+      
+      if (subCmd === 'add') {
+        const name = args[1];
+        const content = args.slice(2).join(' ');
+        if (!name || !content) return message.reply('Usage: `?snippet add name Your response here`');
+        
+        await saveSnippet(name, content, message.author.id);
+        await message.reply(`✅ Snippet **${name}** saved!`);
+      }
+      else if (subCmd === 'use') {
+        const name = args[1];
+        if (!name) return message.reply('Usage: `?snippet use name`');
+        
+        const snippet = await getSnippet(name);
+        if (!snippet) return message.reply(`❌ Snippet "${name}" not found.`);
+        
+        // If in ticket channel, send to user
+        const ticket = await getTicketByChannel(message.channel.id);
+        if (ticket) {
+          const user = await client.users.fetch(ticket.user_id);
+          const embed = new EmbedBuilder()
+            .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+            .setTitle('📬 Staff Message')
+            .setDescription(snippet.content)
+            .addFields({
+              name: '❓ What is this?',
+              value: 'This is the official support bot for **The Unpatched Method** Discord server.',
+              inline: false
+            })
+            .setColor(CONFIG.COLORS.primary)
+            .setFooter({ text: 'The Unpatched Method • Reply to respond' })
+            .setTimestamp();
+          
+          await user.send({ embeds: [embed] });
+          await message.react('📨');
+          
+          await pool.query(`
+            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+            VALUES ($1, $2, $3, $4, true)
+          `, [ticket.id, message.author.id, message.author.tag, snippet.content]);
+        } else {
+          await message.reply(snippet.content);
+        }
+      }
+      else if (subCmd === 'delete') {
+        const name = args[1];
+        if (!name) return message.reply('Usage: `?snippet delete name`');
+        await pool.query(`DELETE FROM snippets WHERE LOWER(name) = LOWER($1)`, [name]);
+        await message.reply(`🗑️ Snippet **${name}** deleted.`);
+      }
+    }
+    
+    // ?snippets - List all snippets
+    if (cmd === 'snippets' && isStaff(message.member)) {
+      const r = await pool.query(`SELECT name, uses FROM snippets ORDER BY uses DESC`);
+      if (r.rows.length === 0) return message.reply('No snippets saved yet. Use `?snippet add name content` to create one.');
+      
+      const list = r.rows.map(s => `\`${s.name}\` (used ${s.uses}x)`).join('\n');
+      const embed = new EmbedBuilder()
+        .setTitle('📝 Saved Snippets')
+        .setDescription(list)
+        .setColor(CONFIG.COLORS.info)
+        .setFooter({ text: 'Use: ?snippet use name' });
+      
+      await message.reply({ embeds: [embed] });
+    }
+    
+    // ?away [time] [message] - Set away status
+    if (cmd === 'away' && isStaff(message.member)) {
+      const timeArg = args[0];
+      const awayMessage = args.slice(1).join(' ') || 'Currently away';
+      
+      let untilDate = null;
+      if (timeArg) {
+        const match = timeArg.match(/^(\d+)(m|h|d)$/);
+        if (match) {
+          const amount = parseInt(match[1]);
+          const unit = match[2];
+          untilDate = new Date();
+          if (unit === 'm') untilDate.setMinutes(untilDate.getMinutes() + amount);
+          if (unit === 'h') untilDate.setHours(untilDate.getHours() + amount);
+          if (unit === 'd') untilDate.setDate(untilDate.getDate() + amount);
+        }
+      }
+      
+      await setStaffStatus(message.author.id, 'away', awayMessage, untilDate);
+      await message.reply(`🌙 You are now away${untilDate ? ` until ${untilDate.toLocaleString()}` : ''}.\nMessage: "${awayMessage}"`);
+    }
+    
+    // ?back - Return from away
+    if (cmd === 'back' && isStaff(message.member)) {
+      await setStaffStatus(message.author.id, 'available', null, null);
+      await message.reply('✅ Welcome back! You are now available.');
+    }
+    
+    // ?stats - Personal stats
+    if (cmd === 'stats' && isStaff(message.member)) {
+      const stats = await getStaffStats(message.author.id);
+      
+      const embed = new EmbedBuilder()
+        .setTitle(`📊 Your Stats`)
+        .setThumbnail(message.author.displayAvatarURL())
+        .addFields(
+          { name: '💬 Replies Sent', value: String(stats.replies || 0), inline: true },
+          { name: '🔒 Tickets Closed', value: String(stats.closes || 0), inline: true },
+          { name: '✋ Tickets Claimed', value: String(stats.claims || 0), inline: true },
+          { name: '⏱️ Avg Response Time', value: stats.avg_response_time ? formatDuration(stats.avg_response_time) : 'N/A', inline: true }
+        )
+        .setColor(CONFIG.COLORS.primary);
+      
+      await message.reply({ embeds: [embed] });
+    }
+    
+    // ?analytics - Overall analytics
+    if (cmd === 'analytics' && isStaff(message.member)) {
+      const analytics = await getOverallAnalytics();
+      
+      const embed = new EmbedBuilder()
+        .setTitle('📈 Modmail Analytics')
+        .addFields(
+          { name: '📬 Total Tickets', value: String(analytics.total_tickets || 0), inline: true },
+          { name: '📂 Currently Open', value: String(analytics.open_tickets || 0), inline: true },
+          { name: '📅 Today', value: String(analytics.tickets_today || 0), inline: true },
+          { name: '📆 This Week', value: String(analytics.tickets_week || 0), inline: true },
+          { name: '⏱️ Avg Response', value: analytics.avg_response_time ? formatDuration(analytics.avg_response_time) : 'N/A', inline: true },
+          { name: '⭐ Avg Rating', value: analytics.avg_rating ? `${analytics.avg_rating}/5` : 'N/A', inline: true }
+        )
+        .setColor(CONFIG.COLORS.primary)
+        .setTimestamp();
+      
+      await message.reply({ embeds: [embed] });
+    }
+    
+    // ?history @user - User ticket history
+    if (cmd === 'history' && isStaff(message.member)) {
+      const user = message.mentions.users.first();
+      if (!user) return message.reply('Usage: `?history @user`');
+      
+      const r = await pool.query(`
+        SELECT * FROM modmail_tickets 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT 10
+      `, [user.id]);
+      
+      if (r.rows.length === 0) return message.reply(`${user.tag} has no ticket history.`);
+      
+      const list = r.rows.map(t => 
+        `**#${t.ticket_number}** - ${t.status} - ${timeAgo(t.created_at)}${t.close_reason ? ` (${t.close_reason.slice(0, 30)})` : ''}`
+      ).join('\n');
+      
+      const embed = new EmbedBuilder()
+        .setTitle(`📜 Ticket History: ${user.tag}`)
+        .setDescription(list)
+        .setThumbnail(user.displayAvatarURL())
+        .setColor(CONFIG.COLORS.info);
+      
+      await message.reply({ embeds: [embed] });
+    }
+    
+    // ?link #channel - Link tickets
+    if (cmd === 'link' && isStaff(message.member)) {
+      const ticket = await getTicketByChannel(message.channel.id);
+      if (!ticket) return message.reply('Use this in a ticket channel.');
+      
+      const linkedChannel = message.mentions.channels.first();
+      if (!linkedChannel) return message.reply('Usage: `?link #ticket-channel`');
+      
+      const linkedTicket = await getTicketByChannel(linkedChannel.id);
+      if (!linkedTicket) return message.reply('That channel is not a ticket.');
+      
+      await linkTickets(ticket.id, linkedTicket.id, message.author.id);
+      await message.reply(`🔗 Linked to ticket #${linkedTicket.ticket_number}`);
+    }
+    
+    // ?schedule 1h message - Schedule follow-up
+    if (cmd === 'schedule' && isStaff(message.member)) {
+      const ticket = await getTicketByChannel(message.channel.id);
+      if (!ticket) return message.reply('Use this in a ticket channel.');
+      
+      const timeArg = args[0];
+      const content = args.slice(1).join(' ');
+      if (!timeArg || !content) return message.reply('Usage: `?schedule 1h Your follow-up message`');
+      
+      const match = timeArg.match(/^(\d+)(m|h|d)$/);
+      if (!match) return message.reply('Invalid time format. Use: 30m, 2h, 1d');
+      
+      const amount = parseInt(match[1]);
+      const unit = match[2];
+      const sendAt = new Date();
+      if (unit === 'm') sendAt.setMinutes(sendAt.getMinutes() + amount);
+      if (unit === 'h') sendAt.setHours(sendAt.getHours() + amount);
+      if (unit === 'd') sendAt.setDate(sendAt.getDate() + amount);
+      
+      await scheduleMessage(ticket.id, content, message.author.id, sendAt);
+      await message.reply(`⏰ Message scheduled for ${sendAt.toLocaleString()}`);
+    }
+    
+    // ?transfer @staff - Transfer ticket
+    if (cmd === 'transfer' && isStaff(message.member)) {
+      const ticket = await getTicketByChannel(message.channel.id);
+      if (!ticket) return message.reply('Use this in a ticket channel.');
+      
+      const newStaff = message.mentions.members.first();
+      if (!newStaff) return message.reply('Usage: `?transfer @staff`');
+      if (!isStaff(newStaff)) return message.reply('That user is not staff.');
+      
+      await pool.query(`UPDATE modmail_tickets SET claimed_by = $1 WHERE id = $2`, [newStaff.id, ticket.id]);
+      await message.channel.send(`🔄 Ticket transferred from ${message.author} to ${newStaff}`);
+      
+      // Notify the user
+      const user = await client.users.fetch(ticket.user_id);
+      await user.send({
+        embeds: [new EmbedBuilder()
+          .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+          .setTitle('🔄 Ticket Transferred')
+          .setDescription('Your ticket has been transferred to another staff member for better assistance.')
+          .setColor(CONFIG.COLORS.info)
+          .setFooter({ text: 'The Unpatched Method • Support' })
+        ]
+      }).catch(() => {});
+    }
+    
+    // ?priority low/med/high/urgent - Set priority
+    if (cmd === 'priority' && isStaff(message.member)) {
+      const ticket = await getTicketByChannel(message.channel.id);
+      if (!ticket) return message.reply('Use this in a ticket channel.');
+      
+      const level = args[0]?.toLowerCase();
+      const priorities = { low: '🟢', med: '🟡', high: '🟠', urgent: '🔴' };
+      if (!priorities[level]) return message.reply('Usage: `?priority low/med/high/urgent`');
+      
+      await pool.query(`UPDATE modmail_tickets SET priority = $1 WHERE id = $2`, [level, ticket.id]);
+      
+      // Update channel name
+      const emoji = priorities[level];
+      const newName = `${emoji}-ticket-${ticket.ticket_number.toString().padStart(4, '0')}`;
+      await message.channel.setName(newName).catch(() => {});
+      
+      await message.reply(`⚡ Priority set to **${level.toUpperCase()}** ${emoji}`);
     }
   }
 });
@@ -1359,10 +3672,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const user = await client.users.fetch(ticket.user_id);
       await user.send({
         embeds: [new EmbedBuilder()
+          .setAuthor({ 
+            name: 'The Unpatched Method Staff', 
+            iconURL: client.user.displayAvatarURL() 
+          })
           .setTitle('👀 Ticket Received')
-          .setDescription('A staff member is now reviewing your message. Please wait for a response.')
+          .setDescription('A staff member is now reviewing your message. Please wait for a response.\n\nYou can continue to send messages here and they will be added to your ticket.')
+          .addFields({
+            name: '❓ What is this?',
+            value: 'This is the official support bot for **The Unpatched Method** Discord server. Do not block this bot or you won\'t receive staff responses.',
+            inline: false
+          })
           .setColor(CONFIG.COLORS.success)
-          .setFooter({ text: 'The Unpatched Method • Support' })
+          .setFooter({ text: 'The Unpatched Method • Reply here to respond to staff' })
         ]
       });
     } catch (e) {}
@@ -1395,7 +3717,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     
     try {
       const user = await client.users.fetch(ticket.user_id);
-      await user.send({ embeds: [new EmbedBuilder().setTitle('🔒 Ticket Closed').setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*').setColor(CONFIG.COLORS.error)] });
+      await user.send({ embeds: [new EmbedBuilder()
+        .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+        .setTitle('🔒 Ticket Closed')
+        .setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*\n\nThank you for contacting The Unpatched Method support. If you need help again, just DM this bot!')
+        .setColor(CONFIG.COLORS.error)
+        .setFooter({ text: 'The Unpatched Method • Support' })
+      ] });
       
       await interaction.channel.send('🔥 Burning messages...');
       
@@ -1546,15 +3874,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
         VALUES ($1, $2, $3, $4, true)
       `, [ticket.id, interaction.user.id, interaction.user.tag, content]);
       
-      // DM the user - show as Burner Phone, not staff
+      // DM the user - clear identification of who this is
       const dmEmbed = new EmbedBuilder()
         .setAuthor({ 
-          name: 'The Unpatched Method Team', 
+          name: 'The Unpatched Method Staff', 
           iconURL: client.user.displayAvatarURL() 
         })
+        .setTitle('📬 Staff Message')
         .setDescription(content)
+        .addFields({
+          name: '❓ What is this?',
+          value: 'This is the official support bot for **The Unpatched Method** Discord server. A staff member is reaching out to you.',
+          inline: false
+        })
         .setColor(CONFIG.COLORS.primary)
-        .setFooter({ text: 'Reply to this message to respond' })
+        .setFooter({ text: 'The Unpatched Method • Reply to this DM to respond to staff' })
         .setTimestamp();
       
       await user.send({ embeds: [dmEmbed] });
@@ -1925,17 +4259,343 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.once(Events.ClientReady, async () => {
   console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║      BURNER PHONE - ULTIMATE SECURITY SYSTEM              ║');
-  console.log('║      AI • Translation • Link Scanning • Appeals           ║');
+  console.log('║      BURNER PHONE - ELITE PREMIUM MODMAIL SYSTEM          ║');
+  console.log('║      ✨ Typing • 📖 Read Receipts • 🔢 Queue • 📊 Analytics ║');
   console.log('╚════════════════════════════════════════════════════════════╝');
   console.log(`Logged in as ${client.user.tag}`);
   
   await initDatabase();
   
   client.user.setPresence({
-    activities: [{ name: 'DM me for support | 🔒 Secure', type: 3 }],
+    activities: [{ name: 'DM me for support | ✨ Elite', type: 3 }],
     status: 'online'
   });
+  
+  // ═══════════════════════════════════════════════════════════════
+  // SCHEDULED MESSAGE PROCESSOR (runs every minute)
+  // ═══════════════════════════════════════════════════════════════
+  setInterval(async () => {
+    try {
+      const scheduled = await getPendingScheduledMessages();
+      for (const msg of scheduled) {
+        const ticket = await pool.query(`SELECT * FROM modmail_tickets WHERE id = $1`, [msg.ticket_id]);
+        if (ticket.rows.length === 0 || ticket.rows[0].status !== 'open') {
+          await markScheduledMessageSent(msg.id);
+          continue;
+        }
+        
+        const ticketData = ticket.rows[0];
+        const user = await client.users.fetch(ticketData.user_id).catch(() => null);
+        if (!user) {
+          await markScheduledMessageSent(msg.id);
+          continue;
+        }
+        
+        // Send to user
+        const embed = new EmbedBuilder()
+          .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+          .setTitle('📬 Follow-up Message')
+          .setDescription(msg.content)
+          .setColor(CONFIG.COLORS.primary)
+          .setFooter({ text: 'The Unpatched Method • Reply to respond' })
+          .setTimestamp();
+        
+        await user.send({ embeds: [embed] }).catch(() => {});
+        
+        // Log in ticket channel
+        const guild = client.guilds.cache.get(ticketData.guild_id);
+        const channel = guild?.channels.cache.get(ticketData.channel_id);
+        if (channel) {
+          await channel.send(`⏰ **Scheduled message sent:** ${msg.content}`);
+        }
+        
+        await markScheduledMessageSent(msg.id);
+      }
+    } catch (e) {
+      console.error('Scheduled message error:', e);
+    }
+  }, 60000); // Every minute
+  
+  // ═══════════════════════════════════════════════════════════════
+  // AUTO-CLOSE INACTIVE TICKETS (runs every hour)
+  // ═══════════════════════════════════════════════════════════════
+  setInterval(async () => {
+    try {
+      // Find tickets with no activity in 48 hours
+      const stale = await pool.query(`
+        SELECT t.* FROM modmail_tickets t
+        WHERE t.status = 'open'
+        AND t.id NOT IN (
+          SELECT ticket_id FROM modmail_messages 
+          WHERE created_at > NOW() - INTERVAL '48 hours'
+        )
+        AND t.created_at < NOW() - INTERVAL '48 hours'
+      `);
+      
+      for (const ticket of stale.rows) {
+        const guild = client.guilds.cache.get(ticket.guild_id);
+        if (!guild) continue;
+        
+        const channel = guild.channels.cache.get(ticket.channel_id);
+        const user = await client.users.fetch(ticket.user_id).catch(() => null);
+        
+        // Send warning first (check if already warned)
+        const warned = await pool.query(`
+          SELECT 1 FROM modmail_messages 
+          WHERE ticket_id = $1 AND content LIKE '%auto-close warning%'
+        `, [ticket.id]);
+        
+        if (warned.rows.length === 0) {
+          // First warning
+          if (user) {
+            await user.send({
+              embeds: [new EmbedBuilder()
+                .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+                .setTitle('⏰ Ticket Inactive')
+                .setDescription('Your ticket has been inactive for 48 hours. It will be automatically closed in 24 hours if there is no response.\n\nReply here if you still need assistance!')
+                .setColor(CONFIG.COLORS.warning)
+                .setFooter({ text: 'The Unpatched Method • Support' })
+              ]
+            }).catch(() => {});
+          }
+          
+          if (channel) {
+            await channel.send('⏰ **Auto-close warning sent** - No activity in 48 hours. Will close in 24h if no response.');
+          }
+          
+          await pool.query(`
+            INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
+            VALUES ($1, 'SYSTEM', 'System', '[auto-close warning sent]', true)
+          `, [ticket.id]);
+        }
+      }
+      
+      // Actually close tickets warned 24+ hours ago
+      const toClose = await pool.query(`
+        SELECT t.* FROM modmail_tickets t
+        WHERE t.status = 'open'
+        AND t.id IN (
+          SELECT ticket_id FROM modmail_messages 
+          WHERE content LIKE '%auto-close warning%'
+          AND created_at < NOW() - INTERVAL '24 hours'
+        )
+        AND t.id NOT IN (
+          SELECT ticket_id FROM modmail_messages 
+          WHERE created_at > NOW() - INTERVAL '24 hours'
+          AND content NOT LIKE '%auto-close warning%'
+        )
+      `);
+      
+      for (const ticket of toClose.rows) {
+        const guild = client.guilds.cache.get(ticket.guild_id);
+        if (!guild) continue;
+        
+        const channel = guild.channels.cache.get(ticket.channel_id);
+        const user = await client.users.fetch(ticket.user_id).catch(() => null);
+        
+        // Close the ticket
+        await pool.query(`
+          UPDATE modmail_tickets SET status = 'closed', closed_at = NOW(), close_reason = 'Auto-closed due to inactivity'
+          WHERE id = $1
+        `, [ticket.id]);
+        
+        if (user) {
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+              .setTitle('🔒 Ticket Auto-Closed')
+              .setDescription('Your ticket was automatically closed due to inactivity.\n\nIf you still need help, just send a new message!')
+              .setColor(CONFIG.COLORS.error)
+              .setFooter({ text: 'The Unpatched Method • Support' })
+            ]
+          }).catch(() => {});
+        }
+        
+        if (channel) {
+          await channel.send('🔒 **Ticket auto-closed** due to inactivity.');
+          setTimeout(() => channel.delete().catch(() => {}), 5000);
+        }
+      }
+    } catch (e) {
+      console.error('Auto-close error:', e);
+    }
+  }, 3600000); // Every hour
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPING INDICATORS (Both ways)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+client.on(Events.TypingStart, async (typing) => {
+  try {
+    // User typing in DMs → Show in ticket channel
+    if (typing.channel.type === ChannelType.DM) {
+      const ticket = await getOpenTicket(typing.user.id);
+      if (!ticket) return;
+      
+      const guild = client.guilds.cache.get(ticket.guild_id);
+      const channel = guild?.channels.cache.get(ticket.channel_id);
+      if (channel) {
+        // Send typing indicator to ticket channel
+        await channel.sendTyping();
+      }
+    }
+    
+    // Staff typing in ticket → Show to user
+    if (typing.channel.name?.startsWith('ticket-') || typing.channel.name?.includes('-ticket-')) {
+      const ticket = await getTicketByChannel(typing.channel.id);
+      if (!ticket) return;
+      
+      // Only trigger for staff
+      const member = typing.member;
+      if (!member || !isStaff(member)) return;
+      
+      const user = await client.users.fetch(ticket.user_id).catch(() => null);
+      if (user) {
+        const dmChannel = await user.createDM();
+        await dmChannel.sendTyping();
+      }
+    }
+  } catch (e) {
+    // Silently fail - typing indicators aren't critical
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAFF VIEWING NOTIFICATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Track when staff opens a ticket channel (via message fetch)
+client.on(Events.MessageCreate, async (message) => {
+  // When a staff member sends ANY message in a ticket channel (even just viewing triggers this sometimes)
+  if (message.channel.name?.startsWith('ticket-') || message.channel.name?.includes('-ticket-')) {
+    if (message.author.bot) return;
+    
+    const ticket = await getTicketByChannel(message.channel.id);
+    if (!ticket) return;
+    
+    if (isStaff(message.member)) {
+      const isNewView = await recordTicketView(ticket.id, message.author.id, message.author.tag);
+      
+      // Only notify on first view
+      if (isNewView && !ticket.claimed_by) {
+        const user = await client.users.fetch(ticket.user_id).catch(() => null);
+        if (user) {
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+              .setDescription('👀 A staff member is viewing your ticket...')
+              .setColor(CONFIG.COLORS.info)
+              .setFooter({ text: 'The Unpatched Method • Support' })
+            ]
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEEDBACK BUTTONS HANDLER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isButton()) return;
+  
+  // Handle feedback ratings
+  if (interaction.customId.startsWith('feedback_')) {
+    const [, rating, ticketId] = interaction.customId.split('_');
+    
+    await saveFeedback(parseInt(ticketId), interaction.user.id, parseInt(rating));
+    
+    const stars = '⭐'.repeat(parseInt(rating));
+    await interaction.update({
+      content: `Thank you for your feedback! ${stars}\n\nYour rating helps us improve our support.`,
+      embeds: [],
+      components: []
+    });
+  }
+  
+  // View notes button
+  if (interaction.customId === 'view_notes') {
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (!ticket) return;
+    
+    const notes = await getUserNotes(ticket.user_id);
+    const user = await client.users.fetch(ticket.user_id).catch(() => null);
+    
+    if (notes.length === 0) {
+      return interaction.reply({ content: `No notes for this user. Add one with \`?note @user note\``, ephemeral: true });
+    }
+    
+    const notesStr = notes.map(n => `• **${n.note}**\n  *- ${n.added_by_name}, ${timeAgo(n.created_at)}*`).join('\n\n');
+    
+    const embed = new EmbedBuilder()
+      .setTitle(`📋 Notes for ${user?.tag || 'User'}`)
+      .setDescription(notesStr)
+      .setColor(CONFIG.COLORS.info);
+    
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+  
+  // View history button
+  if (interaction.customId === 'view_history') {
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (!ticket) return;
+    
+    const user = await client.users.fetch(ticket.user_id).catch(() => null);
+    const r = await pool.query(`
+      SELECT * FROM modmail_tickets 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 10
+    `, [ticket.user_id]);
+    
+    if (r.rows.length <= 1) {
+      return interaction.reply({ content: 'This is the user\'s first ticket!', ephemeral: true });
+    }
+    
+    const list = r.rows.map(t => 
+      `**#${t.ticket_number}** - ${t.status === 'open' ? '📂' : '🔒'} ${t.status} - ${timeAgo(t.created_at)}${t.close_reason ? `\n  └ *${t.close_reason.slice(0, 40)}*` : ''}`
+    ).join('\n');
+    
+    const embed = new EmbedBuilder()
+      .setTitle(`📜 Ticket History: ${user?.tag || 'User'}`)
+      .setDescription(list)
+      .setColor(CONFIG.COLORS.info);
+    
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+  
+  // Priority menu button
+  if (interaction.customId === 'priority_menu') {
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('set_priority_low').setLabel('🟢 Low').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('set_priority_med').setLabel('🟡 Medium').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('set_priority_high').setLabel('🟠 High').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('set_priority_urgent').setLabel('🔴 Urgent').setStyle(ButtonStyle.Danger)
+    );
+    
+    await interaction.reply({ content: 'Select priority level:', components: [row], ephemeral: true });
+  }
+  
+  // Set priority buttons
+  if (interaction.customId.startsWith('set_priority_')) {
+    const level = interaction.customId.replace('set_priority_', '');
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (!ticket) return;
+    
+    const priorities = { low: '🟢', med: '🟡', high: '🟠', urgent: '🔴' };
+    const emoji = priorities[level];
+    
+    await pool.query(`UPDATE modmail_tickets SET priority = $1 WHERE id = $2`, [level, ticket.id]);
+    
+    // Update channel name
+    const newName = `${emoji}-ticket-${ticket.ticket_number.toString().padStart(4, '0')}`;
+    await interaction.channel.setName(newName).catch(() => {});
+    
+    await interaction.update({ content: `⚡ Priority set to **${level.toUpperCase()}** ${emoji}`, components: [] });
+  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
