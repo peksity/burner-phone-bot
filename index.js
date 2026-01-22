@@ -3241,16 +3241,119 @@ client.on(Events.MessageCreate, async (message) => {
       await message.reply(`✅ ${user.tag} unblacklisted.`);
     }
     
-    // ?setupmodmail
-    if (cmd === 'setupmodmail' && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      // Create category
+    // ?setupmodmail - Currently limited to specific user for beta testing
+    const BETA_TESTER_ID = '1262049236376092728'; // Your friend's ID
+    if (cmd === 'setupmodmail') {
+      // Check if user is beta tester OR admin of The Unpatched Method
+      const isOwner = message.author.id === '1212055397737046159'; // Your ID (Joshua)
+      const isBetaTester = message.author.id === BETA_TESTER_ID;
+      const isUnpatchedServer = message.guild.id === CONFIG.GUILD_ID;
+      
+      if (!isOwner && !isBetaTester && !isUnpatchedServer) {
+        return message.reply('🔒 This bot is currently in private beta. Contact the developer for access.');
+      }
+      
+      if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        return message.reply('❌ You need Administrator permission to run setup.');
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // THE UNPATCHED METHOD SERVER - Keep original setup (no changes)
+      // ═══════════════════════════════════════════════════════════════
+      if (isUnpatchedServer) {
+        // Original setup - just create channels with hardcoded settings
+        let cat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL');
+        if (!cat) {
+          cat = await message.guild.channels.create({
+            name: '📨 MODMAIL',
+            type: ChannelType.GuildCategory,
+            permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
+          });
+        }
+        
+        let log = message.guild.channels.cache.find(c => c.name === 'modmail-logs');
+        if (!log) {
+          log = await message.guild.channels.create({
+            name: 'modmail-logs',
+            type: ChannelType.GuildText,
+            parent: cat.id,
+            topic: 'All modmail transcripts and ticket logs'
+          });
+        }
+        
+        let staffDm = message.guild.channels.cache.find(c => c.name === 'staff-dm');
+        if (!staffDm) {
+          staffDm = await message.guild.channels.create({
+            name: 'staff-dm',
+            type: ChannelType.GuildText,
+            parent: cat.id,
+            topic: 'Use ?dm @user message to contact members'
+          });
+        }
+        
+        return message.reply(`✅ Modmail setup complete!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n📬 Staff DM: ${staffDm}`);
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // BETA TESTER SETUP - Interactive setup for other servers
+      // ═══════════════════════════════════════════════════════════════
+      
+      // Step 1: Ask for mod role
+      const askEmbed = new EmbedBuilder()
+        .setTitle('📨 Modmail Setup')
+        .setDescription(`**Which role should have access to modmail tickets?**
+
+Please mention the role (e.g., @Moderator or @Staff)
+
+This role will:
+• See the modmail category
+• View and respond to tickets
+• Have access to all modmail commands
+
+Everyone else will NOT see the modmail channels.`)
+        .setColor(CONFIG.COLORS.primary)
+        .setFooter({ text: 'Type the role mention or "cancel" to abort' });
+      
+      await message.channel.send({ embeds: [askEmbed] });
+      
+      // Wait for role mention
+      const filter = m => m.author.id === message.author.id;
+      const collected = await message.channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch(() => null);
+      
+      if (!collected || collected.first().content.toLowerCase() === 'cancel') {
+        return message.channel.send('❌ Setup cancelled.');
+      }
+      
+      const response = collected.first();
+      const modRole = response.mentions.roles.first() || message.guild.roles.cache.find(r => r.name.toLowerCase() === response.content.toLowerCase());
+      
+      if (!modRole) {
+        return message.channel.send('❌ No valid role found. Please run `?setupmodmail` again and mention a role like @Moderator');
+      }
+      
+      await message.channel.send(`✅ Setting up modmail with **${modRole.name}** as the staff role...`);
+      
+      // Create category - hidden from everyone, visible to mod role and bot
       let cat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL');
       if (!cat) {
         cat = await message.guild.channels.create({
           name: '📨 MODMAIL',
           type: ChannelType.GuildCategory,
-          permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
+          permissionOverwrites: [
+            { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, // Hide from @everyone
+            { id: modRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] }, // Allow mod role
+            { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] } // Allow bot
+          ]
         });
+        await message.channel.send('✅ Created **📨 MODMAIL** category (hidden from everyone except staff)');
+      } else {
+        // Update existing category permissions
+        await cat.permissionOverwrites.set([
+          { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: modRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] },
+          { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] }
+        ]);
+        await message.channel.send('✅ Updated **📨 MODMAIL** category permissions');
       }
       
       // Create modmail-logs channel
@@ -3262,6 +3365,19 @@ client.on(Events.MessageCreate, async (message) => {
           parent: cat.id,
           topic: 'All modmail transcripts, security alerts, and threat detections'
         });
+        await message.channel.send('✅ Created **#modmail-logs** channel');
+      }
+      
+      // Create security-logs channel
+      let securityLog = message.guild.channels.cache.find(c => c.name === 'security-logs');
+      if (!securityLog) {
+        securityLog = await message.guild.channels.create({
+          name: 'security-logs',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'Security threat detections, blocked messages, and suspicious activity'
+        });
+        await message.channel.send('✅ Created **#security-logs** channel');
       }
       
       // Create staff-dm channel
@@ -3279,6 +3395,7 @@ client.on(Events.MessageCreate, async (message) => {
           .setDescription('Use this channel to DM server members through the bot.\n\n**Command:**\n`?dm @user Your message here`\n\n**What happens:**\n• User receives a DM from Burner Phone\n• A ticket is created to track the conversation\n• User can reply and it comes here')
           .setColor(CONFIG.COLORS.primary);
         await staffDm.send({ embeds: [instructionEmbed] });
+        await message.channel.send('✅ Created **#staff-dm** channel');
       }
       
       // Create modmail-guide channel
