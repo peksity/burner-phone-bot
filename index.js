@@ -2677,14 +2677,14 @@ client.on(Events.MessageCreate, async (message) => {
           whatItDoes += `• Associated with known malware campaigns\n`;
           whatItDoes += `• Used in documented cyber attacks\n\n`;
         }
-        if (f.code === 'FAKE_DISCORD' || f.code.includes('DISCORD')) {
+        if (f.code === 'FAKE_DISCORD' || (f.code && f.code.includes('DISCORD'))) {
           threatBreakdown += `💜 **FAKE DISCORD LINK**\n`;
           threatBreakdown += `This is NOT a real Discord link - it's a phishing site.\n`;
           whatItDoes += `• Steals your Discord token (full account access)\n`;
           whatItDoes += `• Can steal your Nitro, servers, and payment info\n`;
           whatItDoes += `• Spreads to your friends via DMs\n\n`;
         }
-        if (f.code === 'FAKE_STEAM' || f.code.includes('STEAM')) {
+        if (f.code === 'FAKE_STEAM' || (f.code && f.code.includes('STEAM'))) {
           threatBreakdown += `🎮 **FAKE STEAM LINK**\n`;
           threatBreakdown += `This is NOT a real Steam link - it's a phishing site.\n`;
           whatItDoes += `• Steals your Steam account and inventory\n`;
