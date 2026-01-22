@@ -127,6 +127,10 @@ const CONFIG = {
   COLORS: { primary: 0xFF6B35, success: 0x00FF00, error: 0xFF0000, warning: 0xFFAA00, info: 0x0099FF, danger: 0xFF0000 }
 };
 
+// Channel IDs
+const MODMAIL_LOG_CHANNEL = '1463728261128388639';
+const SECURITY_LOG_CHANNEL = '1463995707651522622';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SOC-LEVEL SECURITY SYSTEM - ENTERPRISE GRADE THREAT DETECTION
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2432,9 +2436,6 @@ function isStaff(member) {
   return member.roles.cache.some(r => ['staff','mod','admin','moderator','mastermind'].some(n => r.name.toLowerCase().includes(n)));
 }
 
-const MODMAIL_LOG_CHANNEL = '1463728261128388639';
-const SECURITY_LOG_CHANNEL = '1463995707651522622';
-
 async function logToModmail(guild, ticket, closedBy, reason, kicked = false) {
   try {
     const logChannel = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
@@ -2588,45 +2589,213 @@ client.on(Events.MessageCreate, async (message) => {
       // Log the threat to security channel
       await handleThreatResponse(message, threatAnalysis, guild);
       
-      // Build explanation of what they tried to send
-      let threatExplanation = '';
+      // Extract what they actually sent
+      const urlRegex = /(https?:\/\/[^\s]+)/gi;
+      const links = message.content.match(urlRegex) || [];
+      const files = [...message.attachments.values()];
+      
+      // Build DETAILED explanation
+      let whatYouSent = '';
+      if (links.length > 0) {
+        whatYouSent += `**🔗 Link(s) You Sent:**\n`;
+        for (const link of links) {
+          whatYouSent += `\`${link}\`\n`;
+        }
+        whatYouSent += '\n';
+      }
+      if (files.length > 0) {
+        whatYouSent += `**📎 File(s) You Sent:**\n`;
+        for (const file of files) {
+          whatYouSent += `\`${file.name}\` (${Math.round(file.size/1024)}KB)\n`;
+        }
+        whatYouSent += '\n';
+      }
+      
+      // Build threat explanation based on ALL findings
+      let threatBreakdown = '';
+      let whatItDoes = '';
+      
       for (const f of threatAnalysis.findings || []) {
-        if (f.code === 'TYPOSQUAT') threatExplanation += '• **Fake Website Detected:** The link mimics a legitimate site (like "discrod" instead of "discord"). This is a phishing tactic to steal credentials.\n';
-        if (f.code === 'HOMOGRAPH') threatExplanation += '• **Homograph Attack:** The link uses lookalike characters (like Cyrillic "а" vs Latin "a") to create a fake domain that looks identical to a real one.\n';
-        if (f.code === 'VIRUSTOTAL') threatExplanation += '• **Malware Detected:** Multiple antivirus engines flagged this as malicious. It may contain viruses, trojans, or ransomware.\n';
-        if (f.code === 'PHISHTANK') threatExplanation += '• **Confirmed Phishing:** This link is in a database of known phishing sites designed to steal your login info.\n';
-        if (f.code === 'GOOGLE_SAFE') threatExplanation += '• **Google Blacklisted:** Google has identified this as a dangerous website (malware, phishing, or scam).\n';
-        if (f.code === 'DANGEROUS_EXT') threatExplanation += '• **Dangerous File:** Executable files (.exe, .bat, .scr) can run malicious code on your computer.\n';
-        if (f.code === 'SE_URGENCY' || f.code === 'SE_THREAT') threatExplanation += '• **Social Engineering:** Your message uses manipulation tactics (urgency, threats) commonly used in scams.\n';
-        if (f.code === 'IPQS_PHISH' || f.code === 'IPQS_MALWARE') threatExplanation += '• **Fraud Detection:** This link has a high fraud score and is likely a scam or malware.\n';
+        // Detection explanations
+        if (f.code === 'TYPOSQUAT') {
+          threatBreakdown += `🎭 **TYPOSQUATTING DETECTED**\n`;
+          threatBreakdown += `The domain in your link is designed to look like a legitimate website but with slight misspellings.\n`;
+          whatItDoes += `• Tricks you into entering your real login credentials on a fake site\n`;
+          whatItDoes += `• Steals your username, password, and 2FA codes\n`;
+          whatItDoes += `• Can steal payment information if you enter it\n\n`;
+        }
+        if (f.code === 'HOMOGRAPH') {
+          threatBreakdown += `🔤 **HOMOGRAPH ATTACK DETECTED**\n`;
+          threatBreakdown += `The link uses Unicode characters that LOOK identical to real letters but are different (е vs e, а vs a).\n`;
+          whatItDoes += `• Creates a visually identical fake domain\n`;
+          whatItDoes += `• Even careful users can't spot the difference\n`;
+          whatItDoes += `• Used for sophisticated credential theft\n\n`;
+        }
+        if (f.code === 'VIRUSTOTAL' || f.code === 'VIRUSTOTAL_SUS') {
+          threatBreakdown += `🦠 **ANTIVIRUS ENGINES FLAGGED THIS**\n`;
+          threatBreakdown += `Multiple security vendors have identified this as malicious.\n`;
+          whatItDoes += `• May contain trojans that give hackers remote access to your PC\n`;
+          whatItDoes += `• Could install ransomware that encrypts all your files\n`;
+          whatItDoes += `• Might steal saved passwords, cookies, and crypto wallets\n\n`;
+        }
+        if (f.code === 'PHISHTANK') {
+          threatBreakdown += `🎣 **CONFIRMED PHISHING SITE**\n`;
+          threatBreakdown += `This exact URL is in a database of known phishing sites reported by security researchers.\n`;
+          whatItDoes += `• 100% confirmed to be a scam site\n`;
+          whatItDoes += `• Designed specifically to steal credentials\n`;
+          whatItDoes += `• May have already stolen data from other victims\n\n`;
+        }
+        if (f.code === 'GOOGLE_SAFE') {
+          threatBreakdown += `🔴 **GOOGLE BLACKLISTED**\n`;
+          threatBreakdown += `Google's Safe Browsing system has flagged this as dangerous.\n`;
+          whatItDoes += `• Blocked by Chrome, Firefox, and Safari browsers\n`;
+          whatItDoes += `• Identified as malware, phishing, or unwanted software\n\n`;
+        }
+        if (f.code === 'DANGEROUS_EXT') {
+          threatBreakdown += `⚠️ **DANGEROUS FILE TYPE**\n`;
+          threatBreakdown += `This file type can execute code on your computer.\n`;
+          whatItDoes += `• .exe/.bat/.scr files run programs when opened\n`;
+          whatItDoes += `• Can install malware, keyloggers, or backdoors\n`;
+          whatItDoes += `• May give hackers full control of your system\n\n`;
+        }
+        if (f.code === 'SE_URGENCY' || f.code === 'SE_THREAT' || f.code === 'SE_AUTHORITY') {
+          threatBreakdown += `🧠 **SOCIAL ENGINEERING DETECTED**\n`;
+          threatBreakdown += `Your message uses psychological manipulation tactics.\n`;
+          whatItDoes += `• Creates false urgency to make victims act without thinking\n`;
+          whatItDoes += `• Uses fear/threats to bypass rational decision-making\n`;
+          whatItDoes += `• Classic scam technique used by criminals\n\n`;
+        }
+        if (f.code === 'IPQS_PHISH' || f.code === 'IPQS_MALWARE') {
+          threatBreakdown += `📊 **FRAUD DETECTION FLAGGED**\n`;
+          threatBreakdown += `IPQualityScore identified this as a scam/malware.\n`;
+          whatItDoes += `• High probability of credential theft\n`;
+          whatItDoes += `• Domain matches patterns used by scammers\n\n`;
+        }
+        if (f.code === 'ALIENVAULT') {
+          threatBreakdown += `👽 **THREAT INTELLIGENCE MATCH**\n`;
+          threatBreakdown += `Found in AlienVault OTX threat intelligence feeds.\n`;
+          whatItDoes += `• Associated with known malware campaigns\n`;
+          whatItDoes += `• Used in documented cyber attacks\n\n`;
+        }
+        if (f.code === 'FAKE_DISCORD' || f.code.includes('DISCORD')) {
+          threatBreakdown += `💜 **FAKE DISCORD LINK**\n`;
+          threatBreakdown += `This is NOT a real Discord link - it's a phishing site.\n`;
+          whatItDoes += `• Steals your Discord token (full account access)\n`;
+          whatItDoes += `• Can steal your Nitro, servers, and payment info\n`;
+          whatItDoes += `• Spreads to your friends via DMs\n\n`;
+        }
+        if (f.code === 'FAKE_STEAM' || f.code.includes('STEAM')) {
+          threatBreakdown += `🎮 **FAKE STEAM LINK**\n`;
+          threatBreakdown += `This is NOT a real Steam link - it's a phishing site.\n`;
+          whatItDoes += `• Steals your Steam account and inventory\n`;
+          whatItDoes += `• Can steal CS2 skins, games, and wallet balance\n`;
+          whatItDoes += `• May access linked payment methods\n\n`;
+        }
+        if (f.code === 'SHORTENED') {
+          threatBreakdown += `🔗 **URL SHORTENER DETECTED**\n`;
+          threatBreakdown += `The link was shortened to hide its real destination.\n`;
+          whatItDoes += `• Legitimate services don't hide their URLs\n`;
+          whatItDoes += `• Used to bypass security filters\n\n`;
+        }
+        if (f.code === 'FILE_CONTENT' || f.code === 'MAGIC_MISMATCH') {
+          threatBreakdown += `📄 **FILE CONTENT MISMATCH**\n`;
+          threatBreakdown += `The file's actual content doesn't match its extension.\n`;
+          whatItDoes += `• File is disguised as something safe\n`;
+          whatItDoes += `• Actually contains executable code\n`;
+          whatItDoes += `• Classic malware delivery technique\n\n`;
+        }
       }
       
       // Remove duplicates
-      threatExplanation = [...new Set(threatExplanation.split('\n'))].join('\n');
+      threatBreakdown = [...new Set(threatBreakdown.split('\n'))].filter(l => l.trim()).join('\n');
+      whatItDoes = [...new Set(whatItDoes.split('\n'))].filter(l => l.trim()).join('\n');
       
-      // Tell the user EXACTLY what they tried to send and why it's blocked
-      return message.reply({
-        embeds: [new EmbedBuilder()
-          .setTitle('🚫 Threat Detected - Message Blocked')
-          .setDescription(`**We know what you're trying to do.**
-
-Your message contained malicious content that our security system detected and blocked.
-
-**Risk Level:** \`${threatAnalysis.level.toUpperCase()}\`
-**Risk Score:** \`${threatAnalysis.score}/100\`
-
-**What We Found:**
-${threatExplanation || 'Multiple security flags triggered.'}
-
-**What This Means:**
-${threatAnalysis.action === 'BLOCK' ? 'Your message was completely blocked and will not be seen by staff.' : 'Your message was flagged for review.'}
-
-⚠️ **Warning:** Attempting to send scam links, phishing, malware, or other malicious content will result in an immediate ban. This incident has been logged.`)
-          .setColor(0xFF0000)
-          .setFooter({ text: 'Security powered by 7 threat intelligence APIs • This incident has been logged' })
-          .setTimestamp()
-        ]
+      // API results summary for user
+      let apiSummary = '';
+      if (threatAnalysis.apiResults) {
+        const apis = threatAnalysis.apiResults;
+        let apisChecked = [];
+        let threats = [];
+        
+        if (apis.virustotal?.available) {
+          apisChecked.push('VirusTotal');
+          if (apis.virustotal.malicious > 0) threats.push(`${apis.virustotal.malicious} antivirus engines flagged malicious`);
+        }
+        if (apis.googleSafeBrowsing?.available) {
+          apisChecked.push('Google Safe Browsing');
+          if (apis.googleSafeBrowsing.threats?.length) threats.push('Google blacklisted');
+        }
+        if (apis.phishtank?.available) {
+          apisChecked.push('PhishTank');
+          if (apis.phishtank.isPhish) threats.push('Confirmed phishing');
+        }
+        if (apis.ipqualityscore?.available) {
+          apisChecked.push('IPQualityScore');
+          if (apis.ipqualityscore.fraudScore > 75 || apis.ipqualityscore.phishing) threats.push('High fraud score');
+        }
+        if (apis.alienvault?.available) {
+          apisChecked.push('AlienVault OTX');
+          if (apis.alienvault.pulseCount > 0) threats.push(`Found in ${apis.alienvault.pulseCount} threat feeds`);
+        }
+        
+        if (apisChecked.length > 0) {
+          apiSummary = `\n**🔬 APIs Checked:** ${apisChecked.join(', ')}\n`;
+          if (threats.length > 0) {
+            apiSummary += `**🚨 Threats Found:** ${threats.join(' • ')}\n`;
+          }
+        }
+      }
+      
+      // Build the final message to user
+      const userEmbed = new EmbedBuilder()
+        .setTitle('🚫 THREAT DETECTED - MESSAGE BLOCKED')
+        .setColor(0xFF0000)
+        .setTimestamp();
+      
+      let description = `**We analyzed your message and detected malicious content.**\n\n`;
+      description += `**Risk Level:** \`${threatAnalysis.level.toUpperCase()}\`\n`;
+      description += `**Risk Score:** \`${threatAnalysis.score}/100\`\n\n`;
+      
+      if (whatYouSent) {
+        description += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        description += whatYouSent;
+      }
+      
+      userEmbed.setDescription(description);
+      
+      if (threatBreakdown) {
+        userEmbed.addFields({
+          name: '🔍 What We Detected',
+          value: threatBreakdown.slice(0, 1024),
+          inline: false
+        });
+      }
+      
+      if (whatItDoes) {
+        userEmbed.addFields({
+          name: '⚠️ What This Does To Victims',
+          value: whatItDoes.slice(0, 1024),
+          inline: false
+        });
+      }
+      
+      if (apiSummary) {
+        userEmbed.addFields({
+          name: '🔬 Security Scan Results',
+          value: apiSummary.slice(0, 1024),
+          inline: false
+        });
+      }
+      
+      userEmbed.addFields({
+        name: '⛔ Consequence',
+        value: `Your message was **BLOCKED** and will not be delivered.\n\n**This incident has been logged.** Attempting to send scams, phishing, or malware will result in an **immediate permanent ban**.`,
+        inline: false
       });
+      
+      userEmbed.setFooter({ text: 'Security powered by 7 threat intelligence APIs • All incidents are logged and reviewed' });
+      
+      return message.reply({ embeds: [userEmbed] });
     }
     
     // Log medium/low threats but allow the message
