@@ -99,7 +99,10 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildBans
+    GatewayIntentBits.GuildBans,
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.DirectMessageTyping,
+    GatewayIntentBits.GuildMessageTyping
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User]
 });
@@ -120,7 +123,7 @@ const CONFIG = {
   PREFIX: '?',
   GUILD_ID: '1446317951757062256',
   VERIFIED_ROLE_ID: '1453304594317836423',
-  ROLES_CHANNEL_ID: '1453304724681134163',
+  ROLES_CHANNEL_ID: '1453304716967678022',
   COLORS: { primary: 0xFF6B35, success: 0x00FF00, error: 0xFF0000, warning: 0xFFAA00, info: 0x0099FF, danger: 0xFF0000 }
 };
 
@@ -851,229 +854,6 @@ async function checkPhishTank(url) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IPQUALITYSCORE API (URL & IP Risk Scoring)
-// ─────────────────────────────────────────────────────────────────────────────
-async function checkIPQualityScore(url) {
-  const apiKey = process.env.IPQUALITYSCORE_API_KEY;
-  if (!apiKey) return { riskScore: 0, suspicious: false, phishing: false, malware: false, available: false };
-  
-  try {
-    const encodedUrl = encodeURIComponent(url);
-    const response = await fetch(`https://ipqualityscore.com/api/json/url/${apiKey}/${encodedUrl}`, {
-      method: 'GET'
-    });
-    
-    if (!response.ok) {
-      return { riskScore: 0, available: false, error: 'API request failed' };
-    }
-    
-    const data = await response.json();
-    
-    return {
-      riskScore: data.risk_score || 0,
-      suspicious: data.suspicious || false,
-      phishing: data.phishing || false,
-      malware: data.malware || false,
-      spamming: data.spamming || false,
-      adult: data.adult || false,
-      parking: data.parking || false,
-      domainAge: data.domain_age?.human || 'Unknown',
-      category: data.category || 'Unknown',
-      available: true
-    };
-  } catch (e) {
-    return { riskScore: 0, available: false, error: e.message };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ABUSEIPDB API (IP Reputation - for IPs in URLs)
-// ─────────────────────────────────────────────────────────────────────────────
-async function checkAbuseIPDB(ip) {
-  const apiKey = process.env.ABUSEIPDB_API_KEY;
-  if (!apiKey) return { abuseScore: 0, totalReports: 0, available: false };
-  
-  try {
-    const response = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${ip}&maxAgeInDays=90`, {
-      method: 'GET',
-      headers: {
-        'Key': apiKey,
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      return { abuseScore: 0, totalReports: 0, available: false, error: 'API request failed' };
-    }
-    
-    const data = await response.json();
-    
-    return {
-      abuseScore: data.data?.abuseConfidenceScore || 0,
-      totalReports: data.data?.totalReports || 0,
-      countryCode: data.data?.countryCode || 'Unknown',
-      isp: data.data?.isp || 'Unknown',
-      domain: data.data?.domain || 'Unknown',
-      isTor: data.data?.isTor || false,
-      isWhitelisted: data.data?.isWhitelisted || false,
-      available: true
-    };
-  } catch (e) {
-    return { abuseScore: 0, totalReports: 0, available: false, error: e.message };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ALIENVAULT OTX API (Open Threat Exchange - Threat Intelligence)
-// ─────────────────────────────────────────────────────────────────────────────
-async function checkAlienVaultOTX(indicator, type = 'url') {
-  const apiKey = process.env.ALIENVAULT_OTX_KEY;
-  if (!apiKey) return { pulseCount: 0, malicious: false, available: false };
-  
-  try {
-    // Type can be: url, domain, ip, hostname
-    let endpoint;
-    if (type === 'url') {
-      endpoint = `https://otx.alienvault.com/api/v1/indicators/url/${encodeURIComponent(indicator)}/general`;
-    } else if (type === 'domain') {
-      endpoint = `https://otx.alienvault.com/api/v1/indicators/domain/${indicator}/general`;
-    } else if (type === 'ip') {
-      endpoint = `https://otx.alienvault.com/api/v1/indicators/IPv4/${indicator}/general`;
-    } else {
-      endpoint = `https://otx.alienvault.com/api/v1/indicators/hostname/${indicator}/general`;
-    }
-    
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'X-OTX-API-KEY': apiKey
-      }
-    });
-    
-    if (!response.ok) {
-      return { pulseCount: 0, malicious: false, available: false, error: 'API request failed' };
-    }
-    
-    const data = await response.json();
-    
-    return {
-      pulseCount: data.pulse_info?.count || 0,
-      malicious: (data.pulse_info?.count || 0) > 0,
-      pulses: data.pulse_info?.pulses?.slice(0, 5) || [],
-      reputation: data.reputation || 0,
-      sections: data.sections || [],
-      available: true
-    };
-  } catch (e) {
-    return { pulseCount: 0, malicious: false, available: false, error: e.message };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HYBRID ANALYSIS API (Sandbox File Analysis)
-// ─────────────────────────────────────────────────────────────────────────────
-async function checkHybridAnalysis(hash) {
-  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
-  if (!apiKey) return { verdict: null, threatScore: 0, available: false };
-  
-  try {
-    // Search for existing analysis by hash
-    const response = await fetch('https://www.hybrid-analysis.com/api/v2/search/hash', {
-      method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Falcon Sandbox'
-      },
-      body: `hash=${hash}`
-    });
-    
-    if (!response.ok) {
-      return { verdict: null, threatScore: 0, available: false, error: 'API request failed' };
-    }
-    
-    const data = await response.json();
-    
-    if (data && data.length > 0) {
-      const result = data[0];
-      return {
-        verdict: result.verdict || 'unknown',
-        threatScore: result.threat_score || 0,
-        vxFamily: result.vx_family || null,
-        tags: result.type_short || [],
-        available: true
-      };
-    }
-    
-    return { verdict: 'not_found', threatScore: 0, available: true };
-  } catch (e) {
-    return { verdict: null, threatScore: 0, available: false, error: e.message };
-  }
-}
-
-// Quick URL hash check with Hybrid Analysis
-async function checkHybridAnalysisUrl(url) {
-  const apiKey = process.env.HYBRID_ANALYSIS_KEY;
-  if (!apiKey) return { verdict: null, available: false };
-  
-  try {
-    const response = await fetch('https://www.hybrid-analysis.com/api/v2/quick-scan/url', {
-      method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Falcon Sandbox'
-      },
-      body: `scan_type=all&url=${encodeURIComponent(url)}`
-    });
-    
-    if (!response.ok) {
-      return { verdict: null, available: false, error: 'API request failed' };
-    }
-    
-    const data = await response.json();
-    
-    return {
-      verdict: data.verdict || 'unknown',
-      scanners: data.scanners || [],
-      available: true
-    };
-  } catch (e) {
-    return { verdict: null, available: false, error: e.message };
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EXTRACT IP FROM URL (Helper for IP-based APIs)
-// ─────────────────────────────────────────────────────────────────────────────
-function extractIPFromUrl(url) {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-    
-    // Check if hostname is an IP address
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipRegex.test(hostname)) {
-      return hostname;
-    }
-    
-    return null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Extract domain from URL
-function extractDomainFromUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname;
-  } catch (e) {
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FILE CONTENT ANALYSIS (Download and inspect)
 // ─────────────────────────────────────────────────────────────────────────────
 async function analyzeFileContent(attachment) {
@@ -1709,46 +1489,6 @@ async function scanLink(url) {
   }
   
   return results;
-}
-
-async function scanWithVirusTotal(url) {
-  const apiKey = process.env.VIRUSTOTAL_API_KEY;
-  if (!apiKey) return { malicious: 0, suspicious: 0 };
-  
-  try {
-    // Submit URL for scanning
-    const submitResponse = await fetch('https://www.virustotal.com/api/v3/urls', {
-      method: 'POST',
-      headers: {
-        'x-apikey': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `url=${encodeURIComponent(url)}`
-    });
-    
-    const submitData = await submitResponse.json();
-    const analysisId = submitData.data?.id;
-    
-    if (!analysisId) return { malicious: 0, suspicious: 0 };
-    
-    // Wait a moment then get results
-    await new Promise(r => setTimeout(r, 3000));
-    
-    const resultResponse = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
-      headers: { 'x-apikey': apiKey }
-    });
-    
-    const resultData = await resultResponse.json();
-    const stats = resultData.data?.attributes?.stats || {};
-    
-    return {
-      malicious: stats.malicious || 0,
-      suspicious: stats.suspicious || 0
-    };
-  } catch (e) {
-    console.log('VirusTotal error:', e.message);
-    return { malicious: 0, suspicious: 0 };
-  }
 }
 
 function detectScamPatterns(message) {
@@ -2454,7 +2194,7 @@ function isStaff(member) {
   return member.roles.cache.some(r => ['staff','mod','admin','moderator','mastermind'].some(n => r.name.toLowerCase().includes(n)));
 }
 
-const MODMAIL_LOG_CHANNEL = '1462325739297968279';
+const MODMAIL_LOG_CHANNEL = '1463728261128388639';
 
 async function logToModmail(guild, ticket, closedBy, reason, kicked = false) {
   try {
@@ -4423,37 +4163,67 @@ client.once(Events.ClientReady, async () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TYPING INDICATORS (Both ways)
+// STAFF VIEWING NOTIFICATION HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function notifyUserStaffViewing(ticket, staffMember) {
+  // Only notify if ticket isn't claimed yet (first interaction)
+  if (ticket.claimed_by) return false;
+  
+  // Check if we already notified recently (within 5 minutes)
+  const isNewView = await recordTicketView(ticket.id, staffMember.id, staffMember.tag || staffMember.user?.tag);
+  if (!isNewView) return false;
+  
+  try {
+    const user = await client.users.fetch(ticket.user_id);
+    await user.send({
+      embeds: [new EmbedBuilder()
+        .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
+        .setDescription('👀 A staff member is viewing your ticket...')
+        .setColor(CONFIG.COLORS.info)
+        .setFooter({ text: 'The Unpatched Method • Support' })
+      ]
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAFF VIEWING - TYPING INDICATOR TRIGGER
 // ═══════════════════════════════════════════════════════════════════════════════
 
 client.on(Events.TypingStart, async (typing) => {
   try {
-    // User typing in DMs → Show in ticket channel
-    if (typing.channel.type === ChannelType.DM) {
-      const ticket = await getOpenTicket(typing.user.id);
-      if (!ticket) return;
-      
-      const guild = client.guilds.cache.get(ticket.guild_id);
-      const channel = guild?.channels.cache.get(ticket.channel_id);
-      if (channel) {
-        // Send typing indicator to ticket channel
-        await channel.sendTyping();
-      }
-    }
-    
-    // Staff typing in ticket → Show to user
-    if (typing.channel.name?.startsWith('ticket-') || typing.channel.name?.includes('-ticket-')) {
+    // Staff typing in ticket channel → notify user staff is viewing
+    if ((typing.channel.name?.startsWith('ticket-') || typing.channel.name?.includes('-ticket-')) && !typing.user.bot) {
       const ticket = await getTicketByChannel(typing.channel.id);
       if (!ticket) return;
       
-      // Only trigger for staff
-      const member = typing.member;
-      if (!member || !isStaff(member)) return;
-      
-      const user = await client.users.fetch(ticket.user_id).catch(() => null);
-      if (user) {
-        const dmChannel = await user.createDM();
-        await dmChannel.sendTyping();
+      const member = await typing.channel.guild.members.fetch(typing.user.id).catch(() => null);
+      if (member && isStaff(member)) {
+        // Notify user that staff is viewing (only first time)
+        await notifyUserStaffViewing(ticket, typing.user);
+        
+        // Also forward typing indicator to user
+        const user = await client.users.fetch(ticket.user_id).catch(() => null);
+        if (user) {
+          const dmChannel = await user.createDM().catch(() => null);
+          if (dmChannel) await dmChannel.sendTyping().catch(() => {});
+        }
+      }
+    }
+    
+    // User typing in DM → forward to ticket channel
+    if (typing.channel.isDMBased() && !typing.user.bot) {
+      const ticket = await getOpenTicket(typing.user.id);
+      if (ticket) {
+        const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
+        if (guild) {
+          const channel = guild.channels.cache.get(ticket.channel_id);
+          if (channel) await channel.sendTyping().catch(() => {});
+        }
       }
     }
   } catch (e) {
@@ -4462,12 +4232,11 @@ client.on(Events.TypingStart, async (typing) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// STAFF VIEWING NOTIFICATION
+// STAFF VIEWING - MESSAGE TRIGGER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Track when staff opens a ticket channel (via message fetch)
+// Track when staff sends message in ticket channel
 client.on(Events.MessageCreate, async (message) => {
-  // When a staff member sends ANY message in a ticket channel (even just viewing triggers this sometimes)
   if (message.channel.name?.startsWith('ticket-') || message.channel.name?.includes('-ticket-')) {
     if (message.author.bot) return;
     
@@ -4475,22 +4244,7 @@ client.on(Events.MessageCreate, async (message) => {
     if (!ticket) return;
     
     if (isStaff(message.member)) {
-      const isNewView = await recordTicketView(ticket.id, message.author.id, message.author.tag);
-      
-      // Only notify on first view
-      if (isNewView && !ticket.claimed_by) {
-        const user = await client.users.fetch(ticket.user_id).catch(() => null);
-        if (user) {
-          await user.send({
-            embeds: [new EmbedBuilder()
-              .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-              .setDescription('👀 A staff member is viewing your ticket...')
-              .setColor(CONFIG.COLORS.info)
-              .setFooter({ text: 'The Unpatched Method • Support' })
-            ]
-          }).catch(() => {});
-        }
-      }
+      await notifyUserStaffViewing(ticket, message.author);
     }
   }
 });
@@ -4521,6 +4275,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const ticket = await getTicketByChannel(interaction.channel.id);
     if (!ticket) return;
     
+    // Notify user staff is viewing
+    await notifyUserStaffViewing(ticket, interaction.user);
+    
     const notes = await getUserNotes(ticket.user_id);
     const user = await client.users.fetch(ticket.user_id).catch(() => null);
     
@@ -4542,6 +4299,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.customId === 'view_history') {
     const ticket = await getTicketByChannel(interaction.channel.id);
     if (!ticket) return;
+    
+    // Notify user staff is viewing
+    await notifyUserStaffViewing(ticket, interaction.user);
     
     const user = await client.users.fetch(ticket.user_id).catch(() => null);
     const r = await pool.query(`
@@ -4569,6 +4329,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   
   // Priority menu button
   if (interaction.customId === 'priority_menu') {
+    const ticket = await getTicketByChannel(interaction.channel.id);
+    if (ticket) {
+      // Notify user staff is viewing
+      await notifyUserStaffViewing(ticket, interaction.user);
+    }
+    
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('set_priority_low').setLabel('🟢 Low').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId('set_priority_med').setLabel('🟡 Medium').setStyle(ButtonStyle.Primary),
