@@ -3292,7 +3292,189 @@ client.on(Events.MessageCreate, async (message) => {
           });
         }
         
-        return message.reply(`✅ Modmail setup complete!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n📬 Staff DM: ${staffDm}`);
+        // Create modmail-guide channel with all embeds
+        let guide = message.guild.channels.cache.find(c => c.name === 'modmail-guide');
+        if (!guide) {
+          guide = await message.guild.channels.create({
+            name: 'modmail-guide',
+            type: ChannelType.GuildText,
+            parent: cat.id,
+            topic: 'Complete guide to Burner Phone ELITE modmail + SOC security'
+          });
+          
+          // Post all guide embeds
+          const intro = new EmbedBuilder()
+            .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
+            .setDescription(`**Enterprise-grade modmail + SOC-level security system**
+            
+This bot protects your server with the same security tech used by Fortune 500 companies.
+
+**🎫 MODMAIL FEATURES:**
+• Anonymous staff ↔ user communication
+• Typing indicators (both ways)
+• "Staff viewing" notifications
+• Queue position tracking
+• Persistent user notes
+• Canned responses/snippets
+• Staff away status
+• Auto-close inactive tickets
+• Post-close feedback ratings
+• Full analytics dashboard
+
+**🔒 SECURITY FEATURES:**
+• 7 threat intelligence APIs
+• Real-time phishing detection
+• Malware file scanning
+• Social engineering detection
+• Risk scoring system`)
+            .setColor(CONFIG.COLORS.primary)
+            .setThumbnail(message.guild.iconURL());
+          
+          const howItWorks = new EmbedBuilder()
+            .setTitle('📥 HOW MODMAIL WORKS')
+            .setDescription(`**When a user DMs the bot:**
+
+1️⃣ User sends DM → Security scan runs
+2️⃣ If safe → Ticket created in this category
+3️⃣ You see: message, mood, reputation, history
+4️⃣ Just type in the ticket channel to reply
+5️⃣ User gets DM from "The Unpatched Method Staff"
+
+**User sees:**
+• Clear identification this is official support
+• "Staff is viewing your ticket" notification
+• "Staff is typing..." indicator
+• Green ✅ when their message is delivered
+
+**They NEVER see your username!**`)
+            .setColor(CONFIG.COLORS.info);
+          
+          const commands1 = new EmbedBuilder()
+            .setTitle('⌨️ COMMANDS - BASIC')
+            .addFields(
+              { name: '💬 In Ticket Channels', value: `
+\`?close [reason]\` - Close & save transcript
+\`?closeandkick [reason]\` - Close + kick user
+\`?claim\` - Mark ticket as yours
+\`?priority low/med/high/urgent\` - Set urgency
+Just type normally to reply to user
+              `, inline: false },
+              { name: '📤 In #staff-dm', value: `
+\`?dm @user message\` - DM any user
+              `, inline: false },
+              { name: '📋 Anywhere (Staff)', value: `
+\`?tickets\` - View all open tickets
+\`?blacklist @user [reason]\` - Block from modmail
+\`?unblacklist @user\` - Unblock user
+              `, inline: false }
+            )
+            .setColor(CONFIG.COLORS.info);
+          
+          const commands2 = new EmbedBuilder()
+            .setTitle('⌨️ COMMANDS - ELITE')
+            .addFields(
+              { name: '📝 Notes & Snippets', value: `
+\`?note @user note text\` - Add permanent note
+\`?notes @user\` - View all notes + history
+\`?snippet add name content\` - Save response
+\`?snippet use name\` - Send saved response
+\`?snippets\` - List all snippets
+              `, inline: false },
+              { name: '📊 Analytics & Status', value: `
+\`?stats\` - Your personal stats
+\`?analytics\` - Server-wide analytics
+\`?away 2h message\` - Set away status
+\`?back\` - Return from away
+              `, inline: false },
+              { name: '🔧 Advanced', value: `
+\`?history @user\` - User's ticket history
+\`?transfer @staff\` - Transfer ticket
+\`?schedule 1h message\` - Delayed message
+\`?link #channel\` - Link related tickets
+              `, inline: false }
+            )
+            .setColor(CONFIG.COLORS.info);
+          
+          const security1 = new EmbedBuilder()
+            .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
+            .setDescription(`**7 Threat Intelligence APIs:**
+
+🦠 **VirusTotal** - 70+ antivirus engines
+🛡️ **IPQualityScore** - Fraud/phishing detection
+🚨 **AbuseIPDB** - IP reputation database
+👽 **AlienVault OTX** - Threat intelligence
+🧪 **Hybrid Analysis** - Sandbox file analysis
+🔒 **Google Safe Browsing** - Phishing database
+🎣 **PhishTank** - Confirmed phishing sites
+
+**Every link and file is scanned automatically!**`)
+            .setColor(CONFIG.COLORS.warning);
+          
+          const security2 = new EmbedBuilder()
+            .setTitle('🔗 WHAT GETS DETECTED')
+            .setDescription(`**Link Threats:**
+🎭 **Typosquatting** - dlscord.com, disc0rd.gift
+🔤 **Homograph Attacks** - Cyrillic lookalike chars
+🔗 **URL Shorteners** - Expanded and analyzed
+🌐 **Fake Domains** - Discord/Steam impersonation
+📍 **IP Hosting** - Direct IP instead of domain
+🚫 **Known Malware** - From threat databases
+
+**Risk Score System:**
+• 0-19: ✅ Safe (allowed)
+• 20-39: ⚠️ Warning (allowed, logged)
+• 40-59: 🟠 Flagged (allowed, staff alerted)
+• 60-79: 🔴 Quarantine (blocked)
+• 80+: 🚨 Critical (blocked, @here alert)`)
+            .setColor(CONFIG.COLORS.warning);
+          
+          const security3 = new EmbedBuilder()
+            .setTitle('📁 FILE SCANNING')
+            .setDescription(`**Dangerous Files (BLOCKED):**
+.exe, .bat, .cmd, .scr, .vbs, .ps1, .dll, .jar, .msi + 20 more
+
+**Deep Analysis:**
+• Magic byte verification (catches photo.jpg.exe)
+• PDF JavaScript detection
+• Archive content inspection
+• VirusTotal file scan
+
+**Macro Documents (FLAGGED):**
+.docm, .xlsm, .pptm - Allowed but staff alerted`)
+            .setColor(CONFIG.COLORS.danger);
+          
+          const tips = new EmbedBuilder()
+            .setTitle('💡 PRO TIPS')
+            .setDescription(`
+**1. Use snippets for common responses:**
+\`?snippet add rules Please read #rules\`
+
+**2. Add notes for problem users:**
+\`?note @user Frequently asks same question\`
+
+**3. Set away when busy:**
+\`?away 1h Lunch break\`
+
+**4. Check analytics weekly:**
+\`?analytics\` shows response times
+
+**5. Trust the security system:**
+If it blocks something, it's probably bad!
+
+**6. Always close before kicking:**
+\`?closeandkick reason\` does both safely
+`)
+            .setColor(CONFIG.COLORS.success)
+            .setFooter({ text: 'Burner Phone ELITE • The Unpatched Method • Enterprise Security' });
+          
+          // Send all embeds
+          await guide.send({ embeds: [intro, howItWorks] });
+          await guide.send({ embeds: [commands1, commands2] });
+          await guide.send({ embeds: [security1, security2, security3] });
+          await guide.send({ embeds: [tips] });
+        }
+        
+        return message.reply(`✅ Modmail setup complete!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n📬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
       }
       
       // ═══════════════════════════════════════════════════════════════
