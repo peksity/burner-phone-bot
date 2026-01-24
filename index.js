@@ -1416,14 +1416,24 @@ async function analyzeThreat(message) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleThreatResponse(message, analysis, guild) {
-  const securityChannel = guild.channels.cache.get(SECURITY_LOG_CHANNEL);
-  const modmailLog = guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
+  // Find channels by NAME (more reliable than hardcoded IDs)
+  const securityChannel = guild.channels.cache.find(c => 
+    c.name === 'security-logs' || c.name === 'security-log' || c.name === 'threat-logs'
+  ) || guild.channels.cache.get(SECURITY_LOG_CHANNEL);
+  
+  const modmailLog = guild.channels.cache.find(c => 
+    c.name === 'modmail-logs' || c.name === 'modmail-log'
+  ) || guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
   
   // Skip if nothing significant
   if (analysis.score < RISK_THRESHOLDS.LOW) return analysis;
   
+  console.log(`[SECURITY] Threat detected - Score: ${analysis.score}, Level: ${analysis.level}`);
+  console.log(`[SECURITY] Security channel: ${securityChannel?.name || 'NOT FOUND'}`);
+  console.log(`[SECURITY] Modmail log: ${modmailLog?.name || 'NOT FOUND'}`);
+  
   // ═══════════════════════════════════════════════════════════════
-  // BUILD DETAILED SECURITY ALERT
+  // BUILD DETAILED SECURITY ALERT FOR STAFF
   // ═══════════════════════════════════════════════════════════════
   
   const threatEmoji = {
@@ -1646,10 +1656,31 @@ async function handleThreatResponse(message, analysis, guild) {
       embeds: [alertEmbed],
       components: [actionRow]
     });
+    console.log(`[SECURITY] Alert sent to #${securityChannel.name}`);
+  } else {
+    console.log('[SECURITY] WARNING: No security-logs channel found!');
+    // Try to send to modmail-logs as fallback
+    if (modmailLog) {
+      await modmailLog.send({ 
+        content: analysis.level === 'critical' ? '@here' : '',
+        embeds: [alertEmbed],
+        components: [actionRow]
+      });
+      console.log(`[SECURITY] Alert sent to fallback #${modmailLog.name}`);
+    } else {
+      // Last resort - find any staff channel
+      const staffChannel = guild.channels.cache.find(c => 
+        c.name.includes('staff') || c.name.includes('mod-log') || c.name.includes('admin')
+      );
+      if (staffChannel) {
+        await staffChannel.send({ embeds: [alertEmbed], components: [actionRow] });
+        console.log(`[SECURITY] Alert sent to fallback #${staffChannel.name}`);
+      }
+    }
   }
   
   // Also send brief to modmail log if it's a different channel
-  if (modmailLog && modmailLog.id !== SECURITY_LOG_CHANNEL) {
+  if (modmailLog && securityChannel && modmailLog.id !== securityChannel.id) {
     const briefEmbed = new EmbedBuilder()
       .setTitle(`${threatEmoji} Security Alert - ${analysis.level.toUpperCase()}`)
       .setDescription(`**User:** ${message.author.tag}\n**Score:** ${analysis.score}/100\n**Action:** ${analysis.action}`)
@@ -2746,18 +2777,15 @@ client.on(Events.MessageCreate, async (message) => {
         }
       }
       
-      // Build the final message to user
+      // Build the final message to user - NO API NAMES, just clear explanation
       const userEmbed = new EmbedBuilder()
-        .setTitle('🚫 THREAT DETECTED - MESSAGE BLOCKED')
+        .setTitle('🚫 MESSAGE BLOCKED')
         .setColor(0xFF0000)
         .setTimestamp();
       
-      let description = `**We analyzed your message and detected malicious content.**\n\n`;
-      description += `**Risk Level:** \`${threatAnalysis.level.toUpperCase()}\`\n`;
-      description += `**Risk Score:** \`${threatAnalysis.score}/100\`\n\n`;
+      let description = `Your message contained malicious content and was **not delivered**.\n\n`;
       
       if (whatYouSent) {
-        description += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         description += whatYouSent;
       }
       
@@ -2765,7 +2793,7 @@ client.on(Events.MessageCreate, async (message) => {
       
       if (threatBreakdown) {
         userEmbed.addFields({
-          name: '🔍 What We Detected',
+          name: '🔍 What We Found',
           value: threatBreakdown.slice(0, 1024),
           inline: false
         });
@@ -2773,27 +2801,19 @@ client.on(Events.MessageCreate, async (message) => {
       
       if (whatItDoes) {
         userEmbed.addFields({
-          name: '⚠️ What This Does To Victims',
+          name: '⚠️ Why This Is Dangerous',
           value: whatItDoes.slice(0, 1024),
           inline: false
         });
       }
       
-      if (apiSummary) {
-        userEmbed.addFields({
-          name: '🔬 Security Scan Results',
-          value: apiSummary.slice(0, 1024),
-          inline: false
-        });
-      }
-      
       userEmbed.addFields({
-        name: '⛔ Consequence',
-        value: `Your message was **BLOCKED** and will not be delivered.\n\n**This incident has been logged.** Attempting to send scams, phishing, or malware will result in an **immediate permanent ban**.`,
+        name: '⛔ What Happens Now',
+        value: `This incident has been **logged and reported to staff**.\n\nSending scams, phishing links, or malware will result in an **immediate permanent ban**.`,
         inline: false
       });
       
-      userEmbed.setFooter({ text: 'Security powered by 7 threat intelligence APIs • All incidents are logged and reviewed' });
+      userEmbed.setFooter({ text: 'All messages are scanned for security threats' });
       
       return message.reply({ embeds: [userEmbed] });
     }
@@ -3919,6 +3939,38 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       await message.reply({ embeds: [guide] });
     }
     
+    // ?setupverify - Post verification embed in current channel
+    if (cmd === 'setupverify' && isStaff(message.member)) {
+      const embed = new EmbedBuilder()
+        .setTitle('🔐 Verification Required')
+        .setDescription(
+          `**Welcome to The Unpatched Method!**\n\n` +
+          `Before you can access the server, you need to verify.\n\n` +
+          `This helps us keep the community safe from:\n` +
+          `• Alt accounts from banned users\n` +
+          `• Known scammers and trolls\n` +
+          `• Bot raids and spam\n\n` +
+          `**Requirements:**\n` +
+          `• Your Discord account must be at least **7 days old**\n` +
+          `• You must not be on any ban databases\n\n` +
+          `Click the button below to verify and gain access!`
+        )
+        .setColor(0xFF6B35)
+        .setFooter({ text: 'Verification is quick and automatic • Security by Burner Phone' })
+        .setTimestamp();
+
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('verify_user')
+            .setLabel('✅ Verify Me')
+            .setStyle(ButtonStyle.Success)
+        );
+
+      await message.channel.send({ embeds: [embed], components: [row] });
+      await message.delete().catch(() => {});
+    }
+    
     // ═══════════════════════════════════════════════════════════════
     // ELITE COMMANDS
     // ═══════════════════════════════════════════════════════════════
@@ -4357,6 +4409,108 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // Handle DM confirmation buttons
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isButton()) return;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // VERIFICATION BUTTON HANDLER
+  // ═══════════════════════════════════════════════════════════════
+  if (interaction.customId === 'verify_user') {
+    await interaction.deferReply({ ephemeral: true });
+    
+    const member = interaction.member;
+    const guild = interaction.guild;
+    
+    // Find verified role
+    const VERIFIED_ROLE_ID = '1453304594317836423';
+    const verifiedRole = guild.roles.cache.get(VERIFIED_ROLE_ID) || 
+                         guild.roles.cache.find(r => r.name.toLowerCase() === 'verified' || r.name.toLowerCase() === 'member');
+    
+    if (!verifiedRole) {
+      return interaction.editReply('❌ Verification role not found. Please contact staff.');
+    }
+    
+    // Check if already verified
+    if (member.roles.cache.has(verifiedRole.id)) {
+      return interaction.editReply('✅ You are already verified!');
+    }
+    
+    // Account age check (must be at least 7 days old)
+    const accountAge = Date.now() - member.user.createdTimestamp;
+    const minAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    
+    if (accountAge < minAge) {
+      const daysOld = Math.floor(accountAge / (24 * 60 * 60 * 1000));
+      
+      // Log the suspicious verification attempt
+      const securityLog = guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
+      if (securityLog) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('⚠️ VERIFICATION BLOCKED - New Account')
+          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\`\n**Account Age:** ${daysOld} days (minimum: 7)`)
+          .setColor(0xFF6600)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setTimestamp();
+        await securityLog.send({ embeds: [alertEmbed] });
+      }
+      
+      return interaction.editReply(`❌ Your account is too new (${daysOld} days old).\n\nFor security reasons, accounts must be at least **7 days old** to verify.\n\nIf you believe this is an error, please contact staff.`);
+    }
+    
+    // Check against ban databases (optional - add more checks here)
+    // For now, we'll just do basic checks
+    
+    try {
+      // Give verified role
+      await member.roles.add(verifiedRole);
+      
+      // Log successful verification
+      const securityLog = guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'join-leave');
+      if (securityLog) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('✅ User Verified')
+          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .setColor(0x00FF00)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setTimestamp();
+        await securityLog.send({ embeds: [logEmbed] });
+      }
+      
+      // Find roles channel
+      const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
+      const rolesChannelId = rolesChannel?.id || '1453304716967678022';
+      
+      // Send success message
+      await interaction.editReply({
+        content: `✅ **Verification Complete!**\n\n🎮 Now head to <#${rolesChannelId}> to pick your roles!\n\nSelect what games you play and what you want pings for.`
+      });
+      
+      // Welcome in general chat
+      const generalChannel = guild.channels.cache.get('1453304724681134163') || 
+                             guild.channels.cache.find(c => c.name === 'general-chat' || c.name === 'general');
+      
+      if (generalChannel) {
+        const welcomes = [
+          `*security systems deactivate* ${member} is now verified. Welcome to the operation. Go pick your roles in <#${rolesChannelId}>.`,
+          `${member} passed verification. *unlocks channels* Head to <#${rolesChannelId}> and tell us what you're here for.`,
+          `*stamps APPROVED* ${member} is officially in. Grab your roles in <#${rolesChannelId}> - we need to know your specialty.`,
+          `Verification complete for ${member}. Now the real question - GTA or RDO? Go to <#${rolesChannelId}> and pick your roles.`
+        ];
+        
+        const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
+        
+        const embed = new EmbedBuilder()
+          .setTitle('🎮 Get Your Roles!')
+          .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
+          .setColor(0x00FF00)
+          .setFooter({ text: 'Select roles to find the right crew!' });
+        
+        await generalChannel.send({ content: randomWelcome, embeds: [embed] });
+      }
+      
+    } catch (error) {
+      console.error('Verification error:', error);
+      return interaction.editReply('❌ Failed to verify. Please contact staff.');
+    }
+  }
   
   // Cancel DM
   if (interaction.customId === 'cancel_dm') {
