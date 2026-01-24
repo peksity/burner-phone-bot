@@ -91,6 +91,7 @@ const {
 } = require('discord.js');
 const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
+const express = require('express');
 
 const client = new Client({
   intents: [
@@ -114,6 +115,141 @@ const pool = new Pool({
 
 // AI Client
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPRESS SERVER FOR VERIFICATION WEBHOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const app = express();
+app.use(express.json());
+
+// Health check
+app.get('/health', (req, res) => res.json({ status: 'ok', bot: client.user?.tag }));
+
+// Verification callback from Unpatched Verify website
+app.post('/webhook/verification-complete', async (req, res) => {
+  const { bot_secret, discord_id, guild_id, verified, suspicious, alt_of } = req.body;
+  
+  // Verify request is from our verification server
+  if (bot_secret !== process.env.VERIFY_BOT_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const guild = client.guilds.cache.get(guild_id);
+    if (!guild) {
+      return res.status(404).json({ error: 'Guild not found' });
+    }
+    
+    const member = await guild.members.fetch(discord_id).catch(() => null);
+    if (!member) {
+      return res.status(404).json({ error: 'Member not found' });
+    }
+    
+    const securityLog = guild.channels.cache.find(c => 
+      c.name === 'security-logs' || c.name === 'modmail-logs'
+    );
+    
+    if (verified) {
+      // Give verified role
+      const VERIFIED_ROLE_ID = '1453304594317836423';
+      const verifiedRole = guild.roles.cache.get(VERIFIED_ROLE_ID) || 
+                           guild.roles.cache.find(r => r.name.toLowerCase() === 'verified');
+      
+      if (verifiedRole) {
+        await member.roles.add(verifiedRole);
+      }
+      
+      // Log verification
+      if (securityLog) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle(suspicious ? '⚠️ User Verified (Suspicious)' : '✅ User Verified')
+          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .setColor(suspicious ? 0xFFAA00 : 0x00FF00)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setTimestamp();
+        
+        if (suspicious && suspicious.possible_alt_of) {
+          logEmbed.addFields({
+            name: '⚠️ Possible Alt Detected',
+            value: `Same device as: **${suspicious.possible_alt_of}** (<@${suspicious.discord_id}>)`,
+            inline: false
+          });
+        }
+        
+        await securityLog.send({ embeds: [logEmbed] });
+      }
+      
+      // Welcome in general chat
+      const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
+      const rolesChannelId = rolesChannel?.id || '1453304716967678022';
+      
+      const generalChannel = guild.channels.cache.get('1453304724681134163') || 
+                             guild.channels.cache.find(c => c.name === 'general-chat' || c.name === 'general');
+      
+      if (generalChannel) {
+        const welcomes = [
+          `*security scan complete* ${member} is now verified. Welcome to the operation. Go pick your roles in <#${rolesChannelId}>.`,
+          `${member} passed the fingerprint check. *unlocks channels* Head to <#${rolesChannelId}> and tell us what you're here for.`,
+          `*device cleared* ${member} is officially in. Grab your roles in <#${rolesChannelId}> - we need to know your specialty.`
+        ];
+        
+        const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
+        
+        const embed = new EmbedBuilder()
+          .setTitle('🎮 Get Your Roles!')
+          .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
+          .setColor(0x00FF00)
+          .setFooter({ text: 'Select roles to find the right crew!' });
+        
+        await generalChannel.send({ content: randomWelcome, embeds: [embed] });
+      }
+      
+      // DM the user
+      try {
+        await member.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('✅ Verification Complete!')
+            .setDescription(`Welcome to **${guild.name}**!\n\n🎮 Head to <#${rolesChannelId}> to pick your roles!`)
+            .setColor(0x00FF00)
+            .setFooter({ text: 'The Unpatched Method • Secured by Unpatched Verify' })
+          ]
+        });
+      } catch (e) {}
+      
+      res.json({ success: true, message: 'User verified' });
+      
+    } else if (alt_of) {
+      // Alt detected - blocked
+      if (securityLog) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨 ALT ACCOUNT BLOCKED')
+          .setDescription(`**Attempted User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .addFields(
+            { name: '🔗 Alt of Banned User', value: `**${alt_of.discord_tag}**\n<@${alt_of.discord_id}>`, inline: false },
+            { name: '🛡️ Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
+          )
+          .setColor(0xFF0000)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setTimestamp();
+        
+        await securityLog.send({ content: '@here', embeds: [alertEmbed] });
+      }
+      
+      res.json({ success: true, message: 'Alt blocked' });
+    }
+    
+  } catch (error) {
+    console.error('Verification webhook error:', error);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// Start webhook server
+const WEBHOOK_PORT = process.env.WEBHOOK_PORT || 3001;
+app.listen(WEBHOOK_PORT, () => {
+  console.log(`[WEBHOOK] Verification webhook server running on port ${WEBHOOK_PORT}`);
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIG
@@ -3948,11 +4084,11 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
           `Before you can access the server, you need to verify.\n\n` +
           `This helps us keep the community safe from:\n` +
           `• Alt accounts from banned users\n` +
-          `• Known scammers and trolls\n` +
+          `• Brand new throwaway accounts\n` +
           `• Bot raids and spam\n\n` +
-          `**Requirements:**\n` +
-          `• Your Discord account must be at least **7 days old**\n` +
-          `• You must not be on any ban databases\n\n` +
+          `**What we check:**\n` +
+          `• Account must be at least **7 days old**\n` +
+          `• Not a known alt of a banned user\n\n` +
           `Click the button below to verify and gain access!`
         )
         .setColor(0xFF6B35)
@@ -4411,7 +4547,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isButton()) return;
   
   // ═══════════════════════════════════════════════════════════════
-  // VERIFICATION BUTTON HANDLER
+  // VERIFICATION BUTTON HANDLER - Redirects to Unpatched Verify website
   // ═══════════════════════════════════════════════════════════════
   if (interaction.customId === 'verify_user') {
     await interaction.deferReply({ ephemeral: true });
@@ -4433,14 +4569,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.editReply('✅ You are already verified!');
     }
     
-    // Account age check (must be at least 7 days old)
+    // Quick account age check (website does deeper check)
     const accountAge = Date.now() - member.user.createdTimestamp;
     const minAge = 7 * 24 * 60 * 60 * 1000; // 7 days
     
     if (accountAge < minAge) {
       const daysOld = Math.floor(accountAge / (24 * 60 * 60 * 1000));
       
-      // Log the suspicious verification attempt
       const securityLog = guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
       if (securityLog) {
         const alertEmbed = new EmbedBuilder()
@@ -4452,63 +4587,81 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await securityLog.send({ embeds: [alertEmbed] });
       }
       
-      return interaction.editReply(`❌ Your account is too new (${daysOld} days old).\n\nFor security reasons, accounts must be at least **7 days old** to verify.\n\nIf you believe this is an error, please contact staff.`);
+      return interaction.editReply(`❌ Your account is too new (${daysOld} days old).\n\nAccounts must be at least **7 days old** to verify.\n\nIf you believe this is an error, contact staff.`);
     }
     
-    // Check against ban databases (optional - add more checks here)
-    // For now, we'll just do basic checks
-    
     try {
-      // Give verified role
-      await member.roles.add(verifiedRole);
+      // Create verification session with Unpatched Verify API
+      const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://verify.unpatchedmethod.com';
+      const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
       
-      // Log successful verification
-      const securityLog = guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'join-leave');
-      if (securityLog) {
-        const logEmbed = new EmbedBuilder()
-          .setTitle('✅ User Verified')
-          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
-          .setColor(0x00FF00)
-          .setThumbnail(member.user.displayAvatarURL())
-          .setTimestamp();
-        await securityLog.send({ embeds: [logEmbed] });
+      if (!BOT_SECRET) {
+        // Fallback to direct verification if API not configured
+        console.log('[VERIFY] API not configured, using direct verification');
+        await member.roles.add(verifiedRole);
+        
+        const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
+        const rolesChannelId = rolesChannel?.id || '1453304716967678022';
+        
+        return interaction.editReply({
+          content: `✅ **Verification Complete!**\n\n🎮 Now head to <#${rolesChannelId}> to pick your roles!`
+        });
       }
       
-      // Find roles channel
-      const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
-      const rolesChannelId = rolesChannel?.id || '1453304716967678022';
-      
-      // Send success message
-      await interaction.editReply({
-        content: `✅ **Verification Complete!**\n\n🎮 Now head to <#${rolesChannelId}> to pick your roles!\n\nSelect what games you play and what you want pings for.`
+      // Call Unpatched Verify API to create session
+      const response = await fetch(`${VERIFY_API_URL}/api/internal/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discord_id: member.id,
+          discord_tag: member.user.tag,
+          guild_id: guild.id,
+          bot_secret: BOT_SECRET
+        })
       });
       
-      // Welcome in general chat
-      const generalChannel = guild.channels.cache.get('1453304724681134163') || 
-                             guild.channels.cache.find(c => c.name === 'general-chat' || c.name === 'general');
+      const data = await response.json();
       
-      if (generalChannel) {
-        const welcomes = [
-          `*security systems deactivate* ${member} is now verified. Welcome to the operation. Go pick your roles in <#${rolesChannelId}>.`,
-          `${member} passed verification. *unlocks channels* Head to <#${rolesChannelId}> and tell us what you're here for.`,
-          `*stamps APPROVED* ${member} is officially in. Grab your roles in <#${rolesChannelId}> - we need to know your specialty.`,
-          `Verification complete for ${member}. Now the real question - GTA or RDO? Go to <#${rolesChannelId}> and pick your roles.`
-        ];
-        
-        const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
-        
-        const embed = new EmbedBuilder()
-          .setTitle('🎮 Get Your Roles!')
-          .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
-          .setColor(0x00FF00)
-          .setFooter({ text: 'Select roles to find the right crew!' });
-        
-        await generalChannel.send({ content: randomWelcome, embeds: [embed] });
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create verification session');
       }
+      
+      // Send verification link to user
+      const verifyEmbed = new EmbedBuilder()
+        .setTitle('🔐 Complete Verification')
+        .setDescription(`**Click the link below to verify:**\n\n🔗 **[Click Here to Verify](${data.verify_url})**\n\nThis link expires in **10 minutes**.`)
+        .addFields(
+          { name: '📋 What happens next?', value: '1. Click the link above\n2. Complete a quick CAPTCHA\n3. You\'ll automatically get verified\n4. Return to Discord and pick your roles!' }
+        )
+        .setColor(0xFF6B35)
+        .setFooter({ text: 'Unpatched Verify • Alt Detection System' })
+        .setTimestamp();
+      
+      const verifyButton = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setLabel('🔐 Verify Now')
+            .setStyle(ButtonStyle.Link)
+            .setURL(data.verify_url)
+        );
+      
+      await interaction.editReply({ 
+        embeds: [verifyEmbed],
+        components: [verifyButton]
+      });
+      
+      // Store pending verification for callback
+      if (!client.pendingVerifications) client.pendingVerifications = new Map();
+      client.pendingVerifications.set(data.session_token, {
+        discord_id: member.id,
+        guild_id: guild.id,
+        verified_role_id: verifiedRole.id,
+        expires_at: Date.now() + 10 * 60 * 1000
+      });
       
     } catch (error) {
       console.error('Verification error:', error);
-      return interaction.editReply('❌ Failed to verify. Please contact staff.');
+      return interaction.editReply('❌ Verification system error. Please try again or contact staff.');
     }
   }
   
@@ -4824,6 +4977,53 @@ client.on(Events.GuildBanAdd, async (ban) => {
     const user = ban.user;
     const reason = ban.reason || 'No reason provided';
     
+    // ═══════════════════════════════════════════════════════════════
+    // FLAG FINGERPRINT WITH UNPATCHED VERIFY
+    // ═══════════════════════════════════════════════════════════════
+    const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://verify.unpatchedmethod.com';
+    const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
+    
+    if (BOT_SECRET) {
+      try {
+        const response = await fetch(`${VERIFY_API_URL}/api/internal/flag-ban`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            discord_id: user.id,
+            guild_id: ban.guild.id,
+            reason: reason,
+            bot_secret: BOT_SECRET
+          })
+        });
+        
+        const data = await response.json();
+        console.log(`[BAN] Fingerprint flagged for ${user.tag}: ${data.message}`);
+        
+        // Log to security channel
+        const securityLog = ban.guild.channels.cache.find(c => 
+          c.name === 'security-logs' || c.name === 'modmail-logs'
+        );
+        
+        if (securityLog) {
+          const flagEmbed = new EmbedBuilder()
+            .setTitle('🔒 Device Fingerprint Flagged')
+            .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**Reason:** ${reason}`)
+            .addFields({
+              name: '🛡️ Alt Prevention Active',
+              value: 'Any future accounts from this device will be automatically blocked from verifying.',
+              inline: false
+            })
+            .setColor(0xFF6B35)
+            .setTimestamp();
+          
+          await securityLog.send({ embeds: [flagEmbed] });
+        }
+        
+      } catch (e) {
+        console.log('[BAN] Could not flag fingerprint:', e.message);
+      }
+    }
+    
     // Send appeal information to banned user
     const appealEmbed = new EmbedBuilder()
       .setTitle('⛔ You Have Been Banned')
@@ -4845,6 +5045,8 @@ Example: \`APPEAL: I was banned for spam but I was hacked. I've secured my accou
 • Explain what happened
 • Show you understand the rules
 • Appeals are reviewed within 48 hours
+
+⚠️ **Note:** Creating alt accounts to bypass this ban will not work. Your device has been fingerprinted.
       `)
       .setColor(CONFIG.COLORS.error)
       .setFooter({ text: 'The Unpatched Method • Ban Appeal System' })
