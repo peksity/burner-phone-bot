@@ -3262,51 +3262,86 @@ client.on(Events.MessageCreate, async (message) => {
       // THE UNPATCHED METHOD SERVER - Keep original setup (no changes)
       // ═══════════════════════════════════════════════════════════════
       if (isUnpatchedServer) {
-        // Original setup - just create channels with hardcoded settings
-        let cat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL');
-        if (!cat) {
-          cat = await message.guild.channels.create({
-            name: '📨 MODMAIL',
-            type: ChannelType.GuildCategory,
-            permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
-          });
+        await message.channel.send('🔄 Setting up modmail system...');
+        
+        // Delete old category if exists and recreate fresh
+        const oldCat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+        if (oldCat) {
+          // Delete all channels in category first
+          const channelsInCat = message.guild.channels.cache.filter(c => c.parentId === oldCat.id);
+          for (const [id, channel] of channelsInCat) {
+            await channel.delete().catch(() => {});
+          }
+          await oldCat.delete().catch(() => {});
+          await message.channel.send('🗑️ Deleted old modmail category');
         }
         
-        let log = message.guild.channels.cache.find(c => c.name === 'modmail-logs');
-        if (!log) {
-          log = await message.guild.channels.create({
-            name: 'modmail-logs',
-            type: ChannelType.GuildText,
-            parent: cat.id,
-            topic: 'All modmail transcripts and ticket logs'
-          });
-        }
+        // Create fresh category
+        const cat = await message.guild.channels.create({
+          name: '📨 MODMAIL',
+          type: ChannelType.GuildCategory,
+          permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
+        });
+        await message.channel.send('✅ Created **📨 MODMAIL** category');
         
-        let staffDm = message.guild.channels.cache.find(c => c.name === 'staff-dm');
-        if (!staffDm) {
-          staffDm = await message.guild.channels.create({
-            name: 'staff-dm',
-            type: ChannelType.GuildText,
-            parent: cat.id,
-            topic: 'Use ?dm @user message to contact members'
-          });
-        }
+        // Create modmail-logs channel
+        const log = await message.guild.channels.create({
+          name: 'modmail-logs',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'All modmail transcripts and ticket logs'
+        });
+        await message.channel.send(`✅ Created **#modmail-logs** - ID: \`${log.id}\``);
+        
+        // Create security-logs channel
+        const securityLog = await message.guild.channels.create({
+          name: 'security-logs',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'Security threat detections and alerts'
+        });
+        await message.channel.send(`✅ Created **#security-logs** - ID: \`${securityLog.id}\``);
+        
+        // Create staff-dm channel with instruction embed
+        const staffDm = await message.guild.channels.create({
+          name: 'staff-dm',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'Use ?dm @user message to contact members'
+        });
+        
+        const instructionEmbed = new EmbedBuilder()
+          .setTitle('📬 Staff DM Channel')
+          .setDescription(`Use this channel to DM server members through the bot.
+
+**Command:**
+\`?dm @user Your message here\`
+
+**What happens:**
+• User receives a DM from Burner Phone
+• A ticket is created to track the conversation
+• User can reply and it comes here
+
+**Example:**
+\`?dm @JohnDoe Hey, we noticed you had a question about...\``)
+          .setColor(CONFIG.COLORS.primary)
+          .setFooter({ text: 'Messages are anonymous - user won\'t see your name' });
+        await staffDm.send({ embeds: [instructionEmbed] });
+        await message.channel.send(`✅ Created **#staff-dm** with instructions`);
         
         // Create modmail-guide channel with all embeds
-        let guide = message.guild.channels.cache.find(c => c.name === 'modmail-guide');
-        if (!guide) {
-          guide = await message.guild.channels.create({
-            name: 'modmail-guide',
-            type: ChannelType.GuildText,
-            parent: cat.id,
-            topic: 'Complete guide to Burner Phone ELITE modmail + SOC security'
-          });
+        const guide = await message.guild.channels.create({
+          name: 'modmail-guide',
+          type: ChannelType.GuildText,
+          parent: cat.id,
+          topic: 'Complete guide to Burner Phone ELITE modmail + SOC security'
+        });
+        
+        // Post all guide embeds
+        const intro = new EmbedBuilder()
+          .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
+          .setDescription(`**Enterprise-grade modmail + SOC-level security system**
           
-          // Post all guide embeds
-          const intro = new EmbedBuilder()
-            .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
-            .setDescription(`**Enterprise-grade modmail + SOC-level security system**
-            
 This bot protects your server with the same security tech used by Fortune 500 companies.
 
 **🎫 MODMAIL FEATURES:**
@@ -3327,12 +3362,12 @@ This bot protects your server with the same security tech used by Fortune 500 co
 • Malware file scanning
 • Social engineering detection
 • Risk scoring system`)
-            .setColor(CONFIG.COLORS.primary)
-            .setThumbnail(message.guild.iconURL());
-          
-          const howItWorks = new EmbedBuilder()
-            .setTitle('📥 HOW MODMAIL WORKS')
-            .setDescription(`**When a user DMs the bot:**
+          .setColor(CONFIG.COLORS.primary)
+          .setThumbnail(message.guild.iconURL());
+        
+        const howItWorks = new EmbedBuilder()
+          .setTitle('📥 HOW MODMAIL WORKS')
+          .setDescription(`**When a user DMs the bot:**
 
 1️⃣ User sends DM → Security scan runs
 2️⃣ If safe → Ticket created in this category
@@ -3347,57 +3382,45 @@ This bot protects your server with the same security tech used by Fortune 500 co
 • Green ✅ when their message is delivered
 
 **They NEVER see your username!**`)
-            .setColor(CONFIG.COLORS.info);
-          
-          const commands1 = new EmbedBuilder()
-            .setTitle('⌨️ COMMANDS - BASIC')
-            .addFields(
-              { name: '💬 In Ticket Channels', value: `
-\`?close [reason]\` - Close & save transcript
+          .setColor(CONFIG.COLORS.info);
+        
+        const commands1 = new EmbedBuilder()
+          .setTitle('⌨️ COMMANDS - BASIC')
+          .addFields(
+            { name: '💬 In Ticket Channels', value: `\`?close [reason]\` - Close & save transcript
 \`?closeandkick [reason]\` - Close + kick user
 \`?claim\` - Mark ticket as yours
 \`?priority low/med/high/urgent\` - Set urgency
-Just type normally to reply to user
-              `, inline: false },
-              { name: '📤 In #staff-dm', value: `
-\`?dm @user message\` - DM any user
-              `, inline: false },
-              { name: '📋 Anywhere (Staff)', value: `
-\`?tickets\` - View all open tickets
+Just type normally to reply to user`, inline: false },
+            { name: '📤 In #staff-dm', value: `\`?dm @user message\` - DM any user`, inline: false },
+            { name: '📋 Anywhere (Staff)', value: `\`?tickets\` - View all open tickets
 \`?blacklist @user [reason]\` - Block from modmail
-\`?unblacklist @user\` - Unblock user
-              `, inline: false }
-            )
-            .setColor(CONFIG.COLORS.info);
-          
-          const commands2 = new EmbedBuilder()
-            .setTitle('⌨️ COMMANDS - ELITE')
-            .addFields(
-              { name: '📝 Notes & Snippets', value: `
-\`?note @user note text\` - Add permanent note
+\`?unblacklist @user\` - Unblock user`, inline: false }
+          )
+          .setColor(CONFIG.COLORS.info);
+        
+        const commands2 = new EmbedBuilder()
+          .setTitle('⌨️ COMMANDS - ELITE')
+          .addFields(
+            { name: '📝 Notes & Snippets', value: `\`?note @user note text\` - Add permanent note
 \`?notes @user\` - View all notes + history
 \`?snippet add name content\` - Save response
 \`?snippet use name\` - Send saved response
-\`?snippets\` - List all snippets
-              `, inline: false },
-              { name: '📊 Analytics & Status', value: `
-\`?stats\` - Your personal stats
+\`?snippets\` - List all snippets`, inline: false },
+            { name: '📊 Analytics & Status', value: `\`?stats\` - Your personal stats
 \`?analytics\` - Server-wide analytics
 \`?away 2h message\` - Set away status
-\`?back\` - Return from away
-              `, inline: false },
-              { name: '🔧 Advanced', value: `
-\`?history @user\` - User's ticket history
+\`?back\` - Return from away`, inline: false },
+            { name: '🔧 Advanced', value: `\`?history @user\` - User's ticket history
 \`?transfer @staff\` - Transfer ticket
 \`?schedule 1h message\` - Delayed message
-\`?link #channel\` - Link related tickets
-              `, inline: false }
-            )
-            .setColor(CONFIG.COLORS.info);
-          
-          const security1 = new EmbedBuilder()
-            .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
-            .setDescription(`**7 Threat Intelligence APIs:**
+\`?link #channel\` - Link related tickets`, inline: false }
+          )
+          .setColor(CONFIG.COLORS.info);
+        
+        const security1 = new EmbedBuilder()
+          .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
+          .setDescription(`**7 Threat Intelligence APIs:**
 
 🦠 **VirusTotal** - 70+ antivirus engines
 🛡️ **IPQualityScore** - Fraud/phishing detection
@@ -3408,17 +3431,15 @@ Just type normally to reply to user
 🎣 **PhishTank** - Confirmed phishing sites
 
 **Every link and file is scanned automatically!**`)
-            .setColor(CONFIG.COLORS.warning);
-          
-          const security2 = new EmbedBuilder()
-            .setTitle('🔗 WHAT GETS DETECTED')
-            .setDescription(`**Link Threats:**
+          .setColor(CONFIG.COLORS.warning);
+        
+        const security2 = new EmbedBuilder()
+          .setTitle('🔗 WHAT GETS DETECTED')
+          .setDescription(`**Link Threats:**
 🎭 **Typosquatting** - dlscord.com, disc0rd.gift
 🔤 **Homograph Attacks** - Cyrillic lookalike chars
 🔗 **URL Shorteners** - Expanded and analyzed
 🌐 **Fake Domains** - Discord/Steam impersonation
-📍 **IP Hosting** - Direct IP instead of domain
-🚫 **Known Malware** - From threat databases
 
 **Risk Score System:**
 • 0-19: ✅ Safe (allowed)
@@ -3426,27 +3447,11 @@ Just type normally to reply to user
 • 40-59: 🟠 Flagged (allowed, staff alerted)
 • 60-79: 🔴 Quarantine (blocked)
 • 80+: 🚨 Critical (blocked, @here alert)`)
-            .setColor(CONFIG.COLORS.warning);
-          
-          const security3 = new EmbedBuilder()
-            .setTitle('📁 FILE SCANNING')
-            .setDescription(`**Dangerous Files (BLOCKED):**
-.exe, .bat, .cmd, .scr, .vbs, .ps1, .dll, .jar, .msi + 20 more
-
-**Deep Analysis:**
-• Magic byte verification (catches photo.jpg.exe)
-• PDF JavaScript detection
-• Archive content inspection
-• VirusTotal file scan
-
-**Macro Documents (FLAGGED):**
-.docm, .xlsm, .pptm - Allowed but staff alerted`)
-            .setColor(CONFIG.COLORS.danger);
-          
-          const tips = new EmbedBuilder()
-            .setTitle('💡 PRO TIPS')
-            .setDescription(`
-**1. Use snippets for common responses:**
+          .setColor(CONFIG.COLORS.warning);
+        
+        const tips = new EmbedBuilder()
+          .setTitle('💡 PRO TIPS')
+          .setDescription(`**1. Use snippets for common responses:**
 \`?snippet add rules Please read #rules\`
 
 **2. Add notes for problem users:**
@@ -3459,22 +3464,33 @@ Just type normally to reply to user
 \`?analytics\` shows response times
 
 **5. Trust the security system:**
-If it blocks something, it's probably bad!
-
-**6. Always close before kicking:**
-\`?closeandkick reason\` does both safely
-`)
-            .setColor(CONFIG.COLORS.success)
-            .setFooter({ text: 'Burner Phone ELITE • The Unpatched Method • Enterprise Security' });
-          
-          // Send all embeds
-          await guide.send({ embeds: [intro, howItWorks] });
-          await guide.send({ embeds: [commands1, commands2] });
-          await guide.send({ embeds: [security1, security2, security3] });
-          await guide.send({ embeds: [tips] });
-        }
+If it blocks something, it's probably bad!`)
+          .setColor(CONFIG.COLORS.success)
+          .setFooter({ text: 'Burner Phone ELITE • The Unpatched Method' });
         
-        return message.reply(`✅ Modmail setup complete!\n📁 Category: ${cat.name}\n📋 Logs: ${log}\n📬 Staff DM: ${staffDm}\n📖 Guide: ${guide}`);
+        await guide.send({ embeds: [intro, howItWorks] });
+        await guide.send({ embeds: [commands1, commands2] });
+        await guide.send({ embeds: [security1, security2, tips] });
+        await message.channel.send(`✅ Created **#modmail-guide** with full documentation`);
+        
+        // Final summary with channel IDs to update in code
+        const summaryEmbed = new EmbedBuilder()
+          .setTitle('✅ MODMAIL SETUP COMPLETE')
+          .setDescription(`**All channels created successfully!**
+
+⚠️ **IMPORTANT: Update these IDs in Railway environment variables or code:**`)
+          .addFields(
+            { name: '📋 MODMAIL_LOG_CHANNEL', value: `\`${log.id}\``, inline: true },
+            { name: '🔒 SECURITY_LOG_CHANNEL', value: `\`${securityLog.id}\``, inline: true },
+            { name: '\u200b', value: '\u200b', inline: true },
+            { name: '📁 Category', value: `${cat}`, inline: true },
+            { name: '📬 Staff DM', value: `${staffDm}`, inline: true },
+            { name: '📖 Guide', value: `${guide}`, inline: true }
+          )
+          .setColor(CONFIG.COLORS.success)
+          .setFooter({ text: 'Copy the IDs above and update the code, then redeploy!' });
+        
+        return message.channel.send({ embeds: [summaryEmbed] });
       }
       
       // ═══════════════════════════════════════════════════════════════
