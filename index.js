@@ -4108,10 +4108,10 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // ?softban @user reason - Kick + flag fingerprint (no IP ban)
+    // ?ban @user reason - Kick + flag fingerprint (no IP ban)
     // User can rejoin but can't verify, gets exposed as alt
     // ═══════════════════════════════════════════════════════════════
-    if (cmd === 'softban' && isStaff(message.member)) {
+    if (cmd === 'ban' && isStaff(message.member)) {
       const user = message.mentions.users.first();
       const reason = args.slice(1).join(' ') || 'No reason provided';
       
