@@ -4108,6 +4108,104 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
     }
     
     // ═══════════════════════════════════════════════════════════════
+    // ?softban @user reason - Kick + flag fingerprint (no IP ban)
+    // User can rejoin but can't verify, gets exposed as alt
+    // ═══════════════════════════════════════════════════════════════
+    if (cmd === 'softban' && isStaff(message.member)) {
+      const user = message.mentions.users.first();
+      const reason = args.slice(1).join(' ') || 'No reason provided';
+      
+      if (!user) {
+        return message.reply('Usage: `?softban @user reason`');
+      }
+      
+      const member = message.guild.members.cache.get(user.id);
+      if (!member) {
+        return message.reply('❌ User not found in server.');
+      }
+      
+      try {
+        // Flag their fingerprint with Unpatched Verify
+        const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://unpatched-verify-production.up.railway.app';
+        const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
+        
+        let fingerprintFlagged = false;
+        
+        if (BOT_SECRET) {
+          try {
+            const response = await fetch(`${VERIFY_API_URL}/api/internal/flag-ban`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                discord_id: user.id,
+                guild_id: message.guild.id,
+                reason: reason,
+                bot_secret: BOT_SECRET
+              })
+            });
+            
+            const data = await response.json();
+            fingerprintFlagged = data.message === 'Fingerprint flagged';
+            console.log(`[SOFTBAN] Fingerprint flag result for ${user.tag}: ${data.message}`);
+          } catch (e) {
+            console.log('[SOFTBAN] Could not flag fingerprint:', e.message);
+          }
+        }
+        
+        // DM the user before kicking
+        try {
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setTitle('⛔ You Have Been Removed')
+              .setDescription(`You have been removed from **The Unpatched Method**.\n\n**Reason:** ${reason}\n\n⚠️ **Warning:** Your device has been fingerprinted. If you try to rejoin on an alt account, you will be identified and blocked.`)
+              .setColor(0xFF0000)
+              .setFooter({ text: 'The Unpatched Method • Unpatched Verify' })
+              .setTimestamp()
+            ]
+          });
+        } catch (e) {}
+        
+        // Kick the user (no IP ban)
+        await member.kick(reason);
+        
+        // Log to security channel
+        const securityLog = message.guild.channels.cache.find(c => 
+          c.name === 'security-logs' || c.name === 'modmail-logs'
+        );
+        
+        if (securityLog) {
+          const logEmbed = new EmbedBuilder()
+            .setTitle('🔨 User Soft-Banned')
+            .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**Reason:** ${reason}\n**By:** ${message.author.tag}`)
+            .addFields({
+              name: '🔒 Fingerprint Status',
+              value: fingerprintFlagged 
+                ? '✅ Device fingerprint flagged - alt accounts will be blocked'
+                : '⚠️ No fingerprint on record (user never verified)',
+              inline: false
+            })
+            .setColor(0xFF6B35)
+            .setThumbnail(user.displayAvatarURL())
+            .setTimestamp();
+          
+          await securityLog.send({ embeds: [logEmbed] });
+        }
+        
+        await message.reply({
+          embeds: [new EmbedBuilder()
+            .setTitle('🔨 Soft-Ban Complete')
+            .setDescription(`**${user.tag}** has been kicked.\n\n${fingerprintFlagged ? '✅ Their device is flagged - if they rejoin on an alt, they will be exposed and blocked at verification.' : '⚠️ User had no verification record, so no fingerprint was flagged. If they verified before, the fingerprint is now flagged.'}`)
+            .setColor(0xFF6B35)
+          ]
+        });
+        
+      } catch (error) {
+        console.error('Softban error:', error);
+        return message.reply('❌ Failed to soft-ban user. Make sure I have kick permissions.');
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
     // ELITE COMMANDS
     // ═══════════════════════════════════════════════════════════════
     
