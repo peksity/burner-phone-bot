@@ -128,7 +128,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', bot: client.user?.tag 
 
 // Verification callback from Unpatched Verify website
 app.post('/webhook/verification-complete', async (req, res) => {
-  const { bot_secret, discord_id, guild_id, verified, suspicious, alt_of } = req.body;
+  const { bot_secret, discord_id, discord_tag, guild_id, verified, suspicious, alt_of, blocked, reason, linked_to } = req.body;
   
   // Verify request is from our verification server
   if (bot_secret !== process.env.VERIFY_BOT_SECRET) {
@@ -220,7 +220,7 @@ app.post('/webhook/verification-complete', async (req, res) => {
       res.json({ success: true, message: 'User verified' });
       
     } else if (alt_of) {
-      // Alt detected - blocked
+      // Alt of BANNED user detected - blocked
       if (securityLog) {
         const alertEmbed = new EmbedBuilder()
           .setTitle('🚨 ALT ACCOUNT BLOCKED')
@@ -236,7 +236,50 @@ app.post('/webhook/verification-complete', async (req, res) => {
         await securityLog.send({ content: '@here', embeds: [alertEmbed] });
       }
       
+      // DM the user telling them we know who they are
+      try {
+        await member.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('🚫 Verification Denied')
+            .setDescription(`Your device is linked to a **banned account**: **${alt_of.discord_tag}**\n\nYou cannot verify on this device.`)
+            .setColor(0xFF0000)
+            .setFooter({ text: 'The Unpatched Method • Unpatched Verify' })
+          ]
+        });
+      } catch (e) {}
+      
       res.json({ success: true, message: 'Alt blocked' });
+      
+    } else if (blocked && reason === 'duplicate_device' && linked_to) {
+      // Duplicate device - not banned, but already has an account
+      if (securityLog) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('🚨 DUPLICATE ACCOUNT BLOCKED')
+          .setDescription(`**Attempted User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .addFields(
+            { name: '🔗 Device Already Linked To', value: `**${linked_to.discord_tag}**\n<@${linked_to.discord_id}>`, inline: false },
+            { name: '🛡️ Action', value: 'Verification DENIED - One account per device policy', inline: false }
+          )
+          .setColor(0xFF6600)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setTimestamp();
+        
+        await securityLog.send({ embeds: [alertEmbed] });
+      }
+      
+      // DM the user telling them they already have an account
+      try {
+        await member.send({
+          embeds: [new EmbedBuilder()
+            .setTitle('🚫 Verification Denied')
+            .setDescription(`This device is already linked to **${linked_to.discord_tag}**.\n\n**One account per device.** We don't allow alts.\n\nIf you believe this is an error, contact staff.`)
+            .setColor(0xFF6600)
+            .setFooter({ text: 'The Unpatched Method • Unpatched Verify' })
+          ]
+        });
+      } catch (e) {}
+      
+      res.json({ success: true, message: 'Duplicate blocked' });
     }
     
   } catch (error) {
