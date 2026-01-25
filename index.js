@@ -236,54 +236,72 @@ app.post('/webhook/verification-complete', async (req, res) => {
         await securityLog.send({ content: '@here', embeds: [alertEmbed] });
       }
       
-      // DM the user telling them we know who they are - Claude generates unique message
+      // DM the user telling them we know who they are - INTIMIDATING with dramatic separate messages
       try {
-        let messageContent;
+        let mainMessage;
         
         if (anthropic) {
           try {
             const aiResponse = await anthropic.messages.create({
               model: 'claude-sonnet-4-20250514',
-              max_tokens: 300,
+              max_tokens: 400,
               messages: [{
                 role: 'user',
-                content: `You are Burner Phone, an anonymous cybersecurity system that caught someone trying to use an alt account. Their banned account was "${alt_of.discord_tag}". 
+                content: `You are Burner Phone, a cold, intimidating anonymous security system. You caught a BANNED user trying to sneak back in on an alt. Their banned account was "${alt_of.discord_tag}".
 
-Write a short, intimidating message (2-3 paragraphs) telling them we detected them. Be creative and mix these vibes:
-- Anonymous hacker with encrypted transmissions
-- Cold, calculating security system
-- Slightly mocking their failed attempt
-- Technical flex about fingerprinting (canvas hash, WebGL, audio context, fonts, screen resolution, GPU renderer, timezone, hardware concurrency)
-- Make it clear VPNs and new accounts don't work
+Write a terrifying, intimidating message. Be ruthless. Make them feel like they're being watched by something they can't escape. Mix these vibes:
+- Anonymous hacker who sees everything
+- Cold, calculating, almost inhuman security AI
+- Mock their pathetic attempt to hide
+- Flex hard on the technical fingerprinting (canvas hash, WebGL renderer, GPU metadata, audio context, font enumeration, screen dimensions, timezone, hardware concurrency)
+- Make it clear they are PERMANENTLY marked
+- VPNs, new emails, new accounts - none of it matters
+- Their hardware betrays them
 
-Use *italics* for dramatic effect like *static crackles* or *transmission ended*. Include their username "${alt_of.discord_tag}" somewhere. Keep it under 1000 characters. No emojis.`
+Use *italics* for dramatic effect. Be creative and menacing. Include their banned username "${alt_of.discord_tag}". Make them paranoid. Keep it 2-3 paragraphs, under 900 characters. No emojis.`
               }]
             });
-            messageContent = aiResponse.content[0].text;
+            mainMessage = aiResponse.content[0].text;
           } catch (e) {
             console.log('Claude API error, using fallback:', e.message);
           }
         }
         
         // Fallback if Claude fails
-        if (!messageContent) {
-          const fallbacks = [
-            `*incoming encrypted transmission...*\n\nYeah... we know it's you, **${alt_of.discord_tag}**.\n\nDid you really think a new account would work? We've got your device fingerprint stored in our database. Canvas hash, WebGL renderer, audio context, timezone, screen resolution, installed fonts... all of it.\n\nVPN? Doesn't matter. New email? Doesn't matter. New Discord account? *Cute.*\n\nYour hardware signature is burned into our system. This device is **permanently flagged**.\n\n*transmission ended.*`,
-            `*static crackles...*\n\nWell, well, well... **${alt_of.discord_tag}** is back.\n\nNew account, same device. You know we can see that, right? Every pixel your GPU renders has a signature. Every font on your system tells a story. Your story.\n\nWe've been watching since you hit that verify button.\n\n*click.*`,
-            `*secure line established...*\n\nThis is your one and only warning, **${alt_of.discord_tag}**.\n\nWe have your device signature on file. Canvas rendering, WebGL parameters, audio fingerprint, system fonts, screen config... everything.\n\nEvery time you try to verify, we see you. Every. Single. Time.\n\nYour hardware betrays you.\n\n*line terminated.*`
-          ];
-          messageContent = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        if (!mainMessage) {
+          mainMessage = `*encrypted transmission intercepted...*\n\nWell, well... **${alt_of.discord_tag}** thought they could hide behind a fresh account.\n\nYour device fingerprint was flagged the moment you connected. Canvas rendering patterns, WebGL signatures, GPU metadata, font enumeration, audio context hashes, screen dimensions, timezone offset, hardware concurrency... every digital breadcrumb you leave creates a signature. And yours? Already in our database. Permanently.\n\nVPN? Useless. New email? Irrelevant. New Discord account? *Pathetic.* Your hardware betrayed you the second you loaded the verification page. We see everything. We forget nothing.\n\n*You are marked.*`;
         }
         
+        // Send main intimidating message
         await member.send({
           embeds: [new EmbedBuilder()
             .setTitle('📵 BURNER PHONE ALERT')
-            .setDescription(messageContent)
+            .setDescription(mainMessage)
             .setColor(0xFF0000)
             .setFooter({ text: '📵 Burner Phone • We See Everything' })
             .setTimestamp()
           ]
         });
+        
+        // Dramatic pause then send separate system messages
+        await new Promise(r => setTimeout(r, 2000));
+        
+        await member.send({
+          content: '```diff\n- ⚠ SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + alt_of.discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
+        });
+        
+        await new Promise(r => setTimeout(r, 1500));
+        
+        await member.send({
+          content: '```\n[SYSTEM] Cross-referencing device signature...\n[SYSTEM] Match found in banned registry.\n[SYSTEM] Access permanently revoked.\n[SYSTEM] All future attempts will be logged and reported.\n```'
+        });
+        
+        await new Promise(r => setTimeout(r, 2000));
+        
+        await member.send({
+          content: '*Connection terminated. Have a secure day.* 📵'
+        });
+        
       } catch (e) {}
       
       res.json({ success: true, message: 'Alt blocked' });
@@ -305,27 +323,41 @@ Use *italics* for dramatic effect like *static crackles* or *transmission ended*
         await securityLog.send({ embeds: [alertEmbed] });
       }
       
-      // DM the user telling them they already have an account - Claude generates unique message
+      // DM the user telling them they already have an account - civil but escalates
       try {
+        // Track their attempts
+        if (!client.duplicateAttempts) client.duplicateAttempts = new Map();
+        const attemptKey = `${discord_id}_${guild_id}`;
+        const attempts = (client.duplicateAttempts.get(attemptKey) || 0) + 1;
+        client.duplicateAttempts.set(attemptKey, attempts);
+        
         let messageContent;
+        let mood = 'civil'; // civil, annoyed, frustrated, done
+        
+        if (attempts === 1) mood = 'civil';
+        else if (attempts === 2) mood = 'annoyed';
+        else if (attempts === 3) mood = 'frustrated';
+        else mood = 'done';
         
         if (anthropic) {
           try {
+            const moodInstructions = {
+              civil: `Be polite and professional. Just inform them matter-of-factly that this device is already linked to another account. No hostility, just facts. Mention they should use their original account "${linked_to.discord_tag}".`,
+              annoyed: `Be slightly annoyed but still professional. They tried this before. Remind them firmly that one device = one account. Mention their original account "${linked_to.discord_tag}".`,
+              frustrated: `Be noticeably frustrated. This is their third attempt. Be more stern. Make it clear this is getting old. Reference their original account "${linked_to.discord_tag}".`,
+              done: `Be completely done with them. This is attempt #${attempts}. Be blunt and dismissive. Tell them to stop wasting everyone's time and just use "${linked_to.discord_tag}".`
+            };
+            
             const aiResponse = await anthropic.messages.create({
               model: 'claude-sonnet-4-20250514',
-              max_tokens: 300,
+              max_tokens: 250,
               messages: [{
                 role: 'user',
-                content: `You are Burner Phone, an anonymous cybersecurity system that caught someone trying to verify a second account. Their existing account is "${linked_to.discord_tag}".
+                content: `You are Burner Phone, a security system. Someone tried to verify a second account. Their existing account is "${linked_to.discord_tag}". This is attempt #${attempts}.
 
-Write a short message (2-3 paragraphs) telling them we detected the duplicate. Be creative and mix these vibes:
-- Anonymous hacker intercepting their attempt  
-- Cold security system denying access
-- Slightly condescending about their alt attempt
-- Technical about fingerprinting (canvas, WebGL, GPU, fonts, screen, audio context)
-- Clear that one device = one account policy
+${moodInstructions[mood]}
 
-Use *italics* for dramatic effect like *signal intercepted* or *connection terminated*. Include their username "${linked_to.discord_tag}" somewhere. Tell them to use their original account. Keep it under 800 characters. No emojis.`
+Write 2-3 short paragraphs. Mention fingerprinting briefly (canvas, WebGL, etc) but don't be scary or threatening - this person isn't banned, just trying to have two accounts. Keep under 600 characters. No emojis.`
               }]
             });
             messageContent = aiResponse.content[0].text;
@@ -336,20 +368,23 @@ Use *italics* for dramatic effect like *signal intercepted* or *connection termi
         
         // Fallback if Claude fails
         if (!messageContent) {
-          const fallbacks = [
-            `*incoming encrypted transmission...*\n\nNice try. But we already know you.\n\nThis device is registered to **${linked_to.discord_tag}**. Our system fingerprinted your hardware the moment you first verified.\n\nOne device. One account. No exceptions.\n\nYour GPU, your fonts, your screen, your browser quirks... they're all logged. You can't hide from silicon-level tracking.\n\nWant back in? Use your original account.\n\n*transmission ended.*`,
-            `*secure channel opened...*\n\nTwo accounts, one device? Not happening.\n\nOur records show this hardware belongs to **${linked_to.discord_tag}**. We fingerprinted it during your first verification.\n\nYou want in? Log into your original account. Alts aren't welcome here.\n\n*channel closed.*`,
-            `*encrypted ping received...*\n\nWe see what you're doing.\n\nThis device has a file in our database. It belongs to **${linked_to.discord_tag}**. You can't register twice on the same hardware.\n\nGPU signatures don't lie. Screen configs don't change. Fonts don't magically uninstall.\n\nUse. Your. Main.\n\n*ping terminated.*`
-          ];
-          messageContent = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+          if (mood === 'civil') {
+            messageContent = `Hey there. Just a heads up - this device is already registered to **${linked_to.discord_tag}**.\n\nWe use device fingerprinting to keep things fair, so one device means one account. If you need access, just use your original account.\n\nNo worries, these things happen.`;
+          } else if (mood === 'annoyed') {
+            messageContent = `We've been over this. This device belongs to **${linked_to.discord_tag}**.\n\nOne device, one account. That's the rule. Please use your original account.`;
+          } else if (mood === 'frustrated') {
+            messageContent = `This is attempt #${attempts}. The answer hasn't changed.\n\nDevice: Registered to **${linked_to.discord_tag}**.\nPolicy: One account per device.\n\nUse your main. That's it.`;
+          } else {
+            messageContent = `Attempt #${attempts}. Still no.\n\n**${linked_to.discord_tag}** - that's your account. Use it or don't. But this isn't going to work no matter how many times you try.`;
+          }
         }
         
         await member.send({
           embeds: [new EmbedBuilder()
-            .setTitle('📵 BURNER PHONE ALERT')
+            .setTitle(attempts === 1 ? '🔔 Verification Notice' : '📵 BURNER PHONE')
             .setDescription(messageContent)
-            .setColor(0xFF6600)
-            .setFooter({ text: '📵 Burner Phone • One Device, One Identity' })
+            .setColor(attempts === 1 ? 0x5865F2 : (attempts < 3 ? 0xFF6600 : 0xFF0000))
+            .setFooter({ text: attempts === 1 ? 'One Device, One Account' : `📵 Attempt #${attempts} logged` })
             .setTimestamp()
           ]
         });
