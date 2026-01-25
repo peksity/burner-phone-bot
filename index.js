@@ -4116,7 +4116,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       const reason = args.slice(1).join(' ') || 'No reason provided';
       
       if (!user) {
-        return message.reply('Usage: `?softban @user reason`');
+        return message.reply('Usage: `?ban @user reason`');
       }
       
       const member = message.guild.members.cache.get(user.id);
@@ -4193,15 +4193,83 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         await message.reply({
           embeds: [new EmbedBuilder()
-            .setTitle('🔨 Soft-Ban Complete')
-            .setDescription(`**${user.tag}** has been kicked.\n\n${fingerprintFlagged ? '✅ Their device is flagged - if they rejoin on an alt, they will be exposed and blocked at verification.' : '⚠️ User had no verification record, so no fingerprint was flagged. If they verified before, the fingerprint is now flagged.'}`)
+            .setTitle('🔨 Ban Complete')
+            .setDescription(`**${user.tag}** has been banned.\n\n${fingerprintFlagged ? '✅ Their device is flagged - if they rejoin on an alt, they will be exposed and blocked at verification.' : '⚠️ User had no verification record, so no fingerprint was flagged.'}`)
             .setColor(0xFF6B35)
           ]
         });
         
       } catch (error) {
-        console.error('Softban error:', error);
-        return message.reply('❌ Failed to soft-ban user. Make sure I have kick permissions.');
+        console.error('Ban error:', error);
+        return message.reply('❌ Failed to ban user. Make sure I have kick permissions.');
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // ?unban @user - Remove fingerprint flag so they can verify again
+    // ═══════════════════════════════════════════════════════════════
+    if (cmd === 'unban' && isStaff(message.member)) {
+      const user = message.mentions.users.first();
+      
+      if (!user) {
+        return message.reply('Usage: `?unban @user`');
+      }
+      
+      try {
+        const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://unpatched-verify-production.up.railway.app';
+        const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
+        
+        if (BOT_SECRET) {
+          const response = await fetch(`${VERIFY_API_URL}/api/internal/unflag-ban`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              discord_id: user.id,
+              guild_id: message.guild.id,
+              bot_secret: BOT_SECRET
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Log to security channel
+            const securityLog = message.guild.channels.cache.find(c => 
+              c.name === 'security-logs' || c.name === 'modmail-logs'
+            );
+            
+            if (securityLog) {
+              const logEmbed = new EmbedBuilder()
+                .setTitle('🔓 User Unbanned')
+                .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**By:** ${message.author.tag}`)
+                .addFields({
+                  name: '🔒 Fingerprint Status',
+                  value: '✅ Fingerprint flag removed - user can verify again',
+                  inline: false
+                })
+                .setColor(0x00FF00)
+                .setTimestamp();
+              
+              await securityLog.send({ embeds: [logEmbed] });
+            }
+            
+            await message.reply({
+              embeds: [new EmbedBuilder()
+                .setTitle('🔓 Unban Complete')
+                .setDescription(`**${user.tag}** has been unbanned.\n\nTheir device fingerprint flag has been removed. They can now verify again.`)
+                .setColor(0x00FF00)
+              ]
+            });
+          } else {
+            await message.reply(`⚠️ ${data.message || 'Could not unban user.'}`);
+          }
+        } else {
+          await message.reply('❌ Verify API not configured.');
+        }
+        
+      } catch (error) {
+        console.error('Unban error:', error);
+        return message.reply('❌ Failed to unban user.');
       }
     }
     
