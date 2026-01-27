@@ -123,10 +123,312 @@ const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: proces
 const app = express();
 app.use(express.json());
 
+// CORS middleware for Hostinger → Railway communication
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://theunpatchedmethod.com',
+    'http://theunpatchedmethod.com',
+    'https://www.theunpatchedmethod.com',
+    'http://localhost:3000'
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERIFICATION TOKEN STORAGE (In-Memory)
+// ═══════════════════════════════════════════════════════════════════════════════
+const verificationTokens = new Map(); // token -> { discord_id, guild_id, expires_at }
+
+// Clean up expired tokens every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of verificationTokens) {
+    if (data.expires_at < now) {
+      verificationTokens.delete(token);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Generate secure token
+function generateToken() {
+  return require('crypto').randomBytes(32).toString('hex');
+}
+
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', bot: client.user?.tag }));
 
-// Verification callback from Unpatched Verify website
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW VERIFICATION API - Called by verify.html on Hostinger
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/web-verify', async (req, res) => {
+  const { token, discord_id, guild_id, captcha_token, fingerprint, fingerprint_data } = req.body;
+  
+  console.log(`[VERIFY] Received verification request for user ${discord_id}`);
+  
+  try {
+    // 1. Validate token
+    const tokenData = verificationTokens.get(token);
+    if (!tokenData) {
+      console.log(`[VERIFY] Invalid or expired token`);
+      return res.status(400).json({ success: false, error: 'Invalid or expired token. Please click Verify again in Discord.' });
+    }
+    
+    if (tokenData.discord_id !== discord_id || tokenData.guild_id !== guild_id) {
+      console.log(`[VERIFY] Token mismatch`);
+      return res.status(400).json({ success: false, error: 'Token mismatch. Please try again.' });
+    }
+    
+    if (tokenData.expires_at < Date.now()) {
+      verificationTokens.delete(token);
+      console.log(`[VERIFY] Token expired`);
+      return res.status(400).json({ success: false, error: 'Token expired. Please click Verify again in Discord.' });
+    }
+    
+    // 2. Verify hCaptcha
+    const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET;
+    if (HCAPTCHA_SECRET && captcha_token) {
+      try {
+        const hcaptchaResponse = await fetch('https://hcaptcha.com/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `secret=${HCAPTCHA_SECRET}&response=${captcha_token}`
+        });
+        const hcaptchaResult = await hcaptchaResponse.json();
+        
+        if (!hcaptchaResult.success) {
+          console.log(`[VERIFY] hCaptcha failed:`, hcaptchaResult);
+          return res.status(400).json({ success: false, error: 'Captcha verification failed. Please try again.' });
+        }
+        console.log(`[VERIFY] hCaptcha passed`);
+      } catch (e) {
+        console.log(`[VERIFY] hCaptcha error:`, e.message);
+        // Continue anyway if hCaptcha service is down
+      }
+    }
+    
+    // 3. Check fingerprint against BANNED devices
+    const banCheck = await pool.query(
+      `SELECT * FROM fingerprint_bans WHERE fingerprint_hash = $1 AND guild_id = $2`,
+      [fingerprint, guild_id]
+    );
+    
+    if (banCheck.rows.length > 0) {
+      const bannedRecord = banCheck.rows[0];
+      console.log(`[VERIFY] BLOCKED - Alt of banned user ${bannedRecord.banned_discord_tag}`);
+      
+      // Get guild and log channel for alert
+      const guild = client.guilds.cache.get(guild_id);
+      if (guild) {
+        const securityLog = guild.channels.cache.find(c => 
+          c.name === 'security-logs' || c.name === 'modmail-logs'
+        );
+        
+        if (securityLog) {
+          const alertEmbed = new EmbedBuilder()
+            .setTitle('🚨 ALT ACCOUNT BLOCKED')
+            .setDescription(`**Attempted User ID:** \`${discord_id}\``)
+            .addFields(
+              { name: '🔗 Alt of Banned User', value: `**${bannedRecord.banned_discord_tag}**\n<@${bannedRecord.banned_discord_id}>`, inline: false },
+              { name: '📅 Original Ban Date', value: `<t:${Math.floor(new Date(bannedRecord.banned_at).getTime() / 1000)}:F>`, inline: true },
+              { name: '📝 Original Ban Reason', value: bannedRecord.reason || 'No reason recorded', inline: true },
+              { name: '🛡️ Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
+            )
+            .setColor(0xFF0000)
+            .setTimestamp();
+          
+          await securityLog.send({ content: '@here', embeds: [alertEmbed] });
+        }
+        
+        // DM the user with intimidating message
+        try {
+          const user = await client.users.fetch(discord_id);
+          
+          let intimidatingMessage = `*encrypted transmission intercepted...*\n\nWell, well... **${bannedRecord.banned_discord_tag}** thought they could hide behind a fresh account.\n\nYour device fingerprint was flagged the moment you connected. Canvas rendering patterns, WebGL signatures, GPU metadata, font enumeration, audio context hashes, screen dimensions, timezone offset, hardware concurrency... every digital breadcrumb you leave creates a signature. And yours? Already in our database. Permanently.\n\nVPN? Useless. New email? Irrelevant. New Discord account? *Pathetic.* Your hardware betrayed you the second you loaded the verification page. We see everything. We forget nothing.\n\n*You are marked.*`;
+          
+          // Try to get AI-generated message
+          if (anthropic) {
+            try {
+              const aiResponse = await anthropic.messages.create({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 400,
+                messages: [{
+                  role: 'user',
+                  content: `You are Burner Phone, a cold, intimidating anonymous security system. You caught a BANNED user trying to sneak back in on an alt. Their banned account was "${bannedRecord.banned_discord_tag}".
+
+Write a terrifying, intimidating message. Be ruthless. Make them feel like they're being watched by something they can't escape. Mix these vibes:
+- Anonymous hacker who sees everything
+- Cold, calculating, almost inhuman security AI
+- Mock their pathetic attempt to hide
+- Flex hard on the technical fingerprinting (canvas hash, WebGL renderer, GPU metadata, audio context, font enumeration, screen dimensions, timezone, hardware concurrency)
+- Make it clear they are PERMANENTLY marked
+- VPNs, new emails, new accounts - none of it matters
+- Their hardware betrays them
+
+Use *italics* for dramatic effect. Be creative and menacing. Include their banned username "${bannedRecord.banned_discord_tag}". Make them paranoid. Keep it 2-3 paragraphs, under 900 characters. No emojis.`
+                }]
+              });
+              intimidatingMessage = aiResponse.content[0].text;
+            } catch (e) {
+              console.log('[VERIFY] Claude API error, using fallback message');
+            }
+          }
+          
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setTitle('📵 BURNER PHONE ALERT')
+              .setDescription(intimidatingMessage)
+              .setColor(0xFF0000)
+              .setFooter({ text: '📵 Burner Phone • We See Everything' })
+              .setTimestamp()
+            ]
+          });
+          
+          // Dramatic follow-up messages
+          await new Promise(r => setTimeout(r, 2000));
+          await user.send({
+            content: '```diff\n- ⚠ SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + bannedRecord.banned_discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
+          });
+          
+          await new Promise(r => setTimeout(r, 1500));
+          await user.send({
+            content: '```\n[SYSTEM] Cross-referencing device signature...\n[SYSTEM] Match found in banned registry.\n[SYSTEM] Access permanently revoked.\n[SYSTEM] All future attempts will be logged and reported.\n```'
+          });
+          
+        } catch (e) {
+          console.log('[VERIFY] Could not DM user:', e.message);
+        }
+      }
+      
+      // Delete the token
+      verificationTokens.delete(token);
+      
+      return res.json({ 
+        success: false, 
+        blocked: true,
+        error: 'This device belongs to a banned user. Your attempt has been logged.',
+        alt_of: bannedRecord.banned_discord_tag
+      });
+    }
+    
+    // 4. Check fingerprint against existing verified users (duplicate device)
+    const duplicateCheck = await pool.query(
+      `SELECT * FROM device_fingerprints WHERE fingerprint_hash = $1 AND guild_id = $2 AND discord_id != $3`,
+      [fingerprint, guild_id, discord_id]
+    );
+    
+    if (duplicateCheck.rows.length > 0) {
+      const existingRecord = duplicateCheck.rows[0];
+      console.log(`[VERIFY] BLOCKED - Duplicate device, already linked to ${existingRecord.discord_tag}`);
+      
+      // Delete the token
+      verificationTokens.delete(token);
+      
+      return res.json({ 
+        success: false, 
+        blocked: true,
+        error: `This device is already linked to another account: ${existingRecord.discord_tag}. One account per device policy.`,
+        linked_to: existingRecord.discord_tag
+      });
+    }
+    
+    // 5. All checks passed - Store fingerprint and assign role
+    const guild = client.guilds.cache.get(guild_id);
+    if (!guild) {
+      return res.status(400).json({ success: false, error: 'Guild not found' });
+    }
+    
+    const member = await guild.members.fetch(discord_id).catch(() => null);
+    if (!member) {
+      return res.status(400).json({ success: false, error: 'Member not found in guild' });
+    }
+    
+    // Store fingerprint
+    await pool.query(`
+      INSERT INTO device_fingerprints (discord_id, discord_tag, guild_id, fingerprint_hash, fingerprint_data)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (discord_id, guild_id) DO UPDATE SET 
+        fingerprint_hash = $4, 
+        fingerprint_data = $5,
+        verified_at = NOW()
+    `, [discord_id, member.user.tag, guild_id, fingerprint, fingerprint_data]);
+    
+    console.log(`[VERIFY] Fingerprint stored for ${member.user.tag}`);
+    
+    // Assign verified role
+    const VERIFIED_ROLE_ID = '1453304594317836423';
+    const verifiedRole = guild.roles.cache.get(VERIFIED_ROLE_ID) || 
+                         guild.roles.cache.find(r => r.name.toLowerCase() === 'verified');
+    
+    if (verifiedRole) {
+      await member.roles.add(verifiedRole);
+      console.log(`[VERIFY] Verified role assigned to ${member.user.tag}`);
+    }
+    
+    // Log to security channel
+    const securityLog = guild.channels.cache.find(c => 
+      c.name === 'security-logs' || c.name === 'modmail-logs'
+    );
+    
+    if (securityLog) {
+      const logEmbed = new EmbedBuilder()
+        .setTitle('✅ User Verified')
+        .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+        .addFields({ name: '🔒 Device Fingerprint', value: 'Stored successfully', inline: true })
+        .setColor(0x00FF00)
+        .setThumbnail(member.user.displayAvatarURL())
+        .setTimestamp();
+      
+      await securityLog.send({ embeds: [logEmbed] });
+    }
+    
+    // Welcome in general chat
+    const generalChannel = guild.channels.cache.get('1453304724681134163') || 
+                           guild.channels.cache.find(c => c.name === 'general-chat' || c.name === 'general');
+    
+    const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
+    const rolesChannelId = rolesChannel?.id || '1453304716967678022';
+    
+    if (generalChannel) {
+      const welcomes = [
+        `*security scan complete* ${member} is now verified. Welcome to the operation. Go pick your roles in <#${rolesChannelId}>.`,
+        `${member} passed the fingerprint check. *unlocks channels* Head to <#${rolesChannelId}> and tell us what you're here for.`,
+        `*device cleared* ${member} is officially in. Grab your roles in <#${rolesChannelId}> - we need to know your specialty.`
+      ];
+      
+      const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🎮 Get Your Roles!')
+        .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
+        .setColor(0x00FF00)
+        .setFooter({ text: 'Select roles to find the right crew!' });
+      
+      await generalChannel.send({ content: randomWelcome, embeds: [embed] });
+    }
+    
+    // Delete the used token
+    verificationTokens.delete(token);
+    
+    console.log(`[VERIFY] SUCCESS - ${member.user.tag} verified`);
+    
+    return res.json({ success: true, message: 'Verification complete!' });
+    
+  } catch (error) {
+    console.error('[VERIFY] Error:', error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Legacy webhook (kept for backwards compatibility)
 app.post('/webhook/verification-complete', async (req, res) => {
   const { bot_secret, discord_id, discord_tag, guild_id, verified, suspicious, alt_of, blocked, reason, linked_to } = req.body;
   
@@ -399,10 +701,10 @@ Write 2-3 short paragraphs. Mention fingerprinting briefly (canvas, WebGL, etc) 
   }
 });
 
-// Start webhook server
-const WEBHOOK_PORT = process.env.WEBHOOK_PORT || 3001;
-app.listen(WEBHOOK_PORT, () => {
-  console.log(`[WEBHOOK] Verification webhook server running on port ${WEBHOOK_PORT}`);
+// Start webhook server - Railway provides PORT env variable
+const PORT = process.env.PORT || process.env.WEBHOOK_PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`[SERVER] Burner Phone API server running on port ${PORT}`);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4279,31 +4581,33 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       }
       
       try {
-        // Flag their fingerprint with Unpatched Verify
-        const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://unpatched-verify-production.up.railway.app';
-        const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
-        
         let fingerprintFlagged = false;
         
-        if (BOT_SECRET) {
-          try {
-            const response = await fetch(`${VERIFY_API_URL}/api/internal/flag-ban`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                discord_id: user.id,
-                guild_id: message.guild.id,
-                reason: reason,
-                bot_secret: BOT_SECRET
-              })
-            });
-            
-            const data = await response.json();
-            fingerprintFlagged = data.message === 'Fingerprint flagged';
-            console.log(`[SOFTBAN] Fingerprint flag result for ${user.tag}: ${data.message}`);
-          } catch (e) {
-            console.log('[SOFTBAN] Could not flag fingerprint:', e.message);
-          }
+        // Get user's fingerprint from device_fingerprints table
+        const fingerprintResult = await pool.query(
+          `SELECT * FROM device_fingerprints WHERE discord_id = $1 AND guild_id = $2`,
+          [user.id, message.guild.id]
+        );
+        
+        if (fingerprintResult.rows.length > 0) {
+          const userFingerprint = fingerprintResult.rows[0];
+          
+          // Copy fingerprint to fingerprint_bans table
+          await pool.query(`
+            INSERT INTO fingerprint_bans (fingerprint_hash, banned_discord_id, banned_discord_tag, guild_id, reason, banned_by)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (fingerprint_hash, guild_id) DO UPDATE SET
+              banned_discord_id = $2,
+              banned_discord_tag = $3,
+              reason = $5,
+              banned_by = $6,
+              banned_at = NOW()
+          `, [userFingerprint.fingerprint_hash, user.id, user.tag, message.guild.id, reason, message.author.id]);
+          
+          fingerprintFlagged = true;
+          console.log(`[BAN] Fingerprint flagged for ${user.tag}`);
+        } else {
+          console.log(`[BAN] No fingerprint record for ${user.tag}`);
         }
         
         // DM the user before kicking
@@ -4313,7 +4617,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
               .setTitle('⛔ You Have Been Removed')
               .setDescription(`You have been removed from **The Unpatched Method**.\n\n**Reason:** ${reason}\n\n⚠️ **Warning:** Your device has been fingerprinted. If you try to rejoin on an alt account, you will be identified and blocked.`)
               .setColor(0xFF0000)
-              .setFooter({ text: 'The Unpatched Method • Unpatched Verify' })
+              .setFooter({ text: 'The Unpatched Method • Burner Phone Security' })
               .setTimestamp()
             ]
           });
@@ -4329,7 +4633,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         if (securityLog) {
           const logEmbed = new EmbedBuilder()
-            .setTitle('🔨 User Soft-Banned')
+            .setTitle('🔨 User Banned')
             .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**Reason:** ${reason}\n**By:** ${message.author.tag}`)
             .addFields({
               name: '🔒 Fingerprint Status',
@@ -4370,56 +4674,59 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       }
       
       try {
-        const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://unpatched-verify-production.up.railway.app';
-        const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
+        // Get the user's fingerprint first
+        const fingerprintResult = await pool.query(
+          `SELECT fingerprint_hash FROM device_fingerprints WHERE discord_id = $1 AND guild_id = $2`,
+          [user.id, message.guild.id]
+        );
         
-        if (BOT_SECRET) {
-          const response = await fetch(`${VERIFY_API_URL}/api/internal/unflag-ban`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              discord_id: user.id,
-              guild_id: message.guild.id,
-              bot_secret: BOT_SECRET
-            })
-          });
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            // Log to security channel
-            const securityLog = message.guild.channels.cache.find(c => 
-              c.name === 'security-logs' || c.name === 'modmail-logs'
-            );
-            
-            if (securityLog) {
-              const logEmbed = new EmbedBuilder()
-                .setTitle('🔓 User Unbanned')
-                .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**By:** ${message.author.tag}`)
-                .addFields({
-                  name: '🔒 Fingerprint Status',
-                  value: '✅ Fingerprint flag removed - user can verify again',
-                  inline: false
-                })
-                .setColor(0x00FF00)
-                .setTimestamp();
-              
-              await securityLog.send({ embeds: [logEmbed] });
-            }
-            
-            await message.reply({
-              embeds: [new EmbedBuilder()
-                .setTitle('🔓 Unban Complete')
-                .setDescription(`**${user.tag}** has been unbanned.\n\nTheir device fingerprint flag has been removed. They can now verify again.`)
-                .setColor(0x00FF00)
-              ]
-            });
-          } else {
-            await message.reply(`⚠️ ${data.message || 'Could not unban user.'}`);
-          }
-        } else {
-          await message.reply('❌ Verify API not configured.');
+        let removed = false;
+        
+        if (fingerprintResult.rows.length > 0) {
+          // Remove from fingerprint_bans by fingerprint hash
+          const deleteResult = await pool.query(
+            `DELETE FROM fingerprint_bans WHERE fingerprint_hash = $1 AND guild_id = $2 RETURNING *`,
+            [fingerprintResult.rows[0].fingerprint_hash, message.guild.id]
+          );
+          removed = deleteResult.rows.length > 0;
         }
+        
+        // Also try to remove by discord_id directly
+        const deleteById = await pool.query(
+          `DELETE FROM fingerprint_bans WHERE banned_discord_id = $1 AND guild_id = $2 RETURNING *`,
+          [user.id, message.guild.id]
+        );
+        if (deleteById.rows.length > 0) removed = true;
+        
+        // Log to security channel
+        const securityLog = message.guild.channels.cache.find(c => 
+          c.name === 'security-logs' || c.name === 'modmail-logs'
+        );
+        
+        if (securityLog) {
+          const logEmbed = new EmbedBuilder()
+            .setTitle('🔓 User Unbanned')
+            .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**By:** ${message.author.tag}`)
+            .addFields({
+              name: '🔒 Fingerprint Status',
+              value: removed 
+                ? '✅ Fingerprint flag removed - user can verify again'
+                : '⚠️ No fingerprint ban record found (user may not have been banned or never verified)',
+              inline: false
+            })
+            .setColor(0x00FF00)
+            .setTimestamp();
+          
+          await securityLog.send({ embeds: [logEmbed] });
+        }
+        
+        await message.reply({
+          embeds: [new EmbedBuilder()
+            .setTitle('🔓 Unban Complete')
+            .setDescription(`**${user.tag}** has been unbanned.\n\n${removed ? 'Their device fingerprint flag has been removed. They can now verify again.' : '⚠️ No fingerprint ban record was found. They may not have been banned, or never verified.'}`)
+            .setColor(0x00FF00)
+          ]
+        });
         
       } catch (error) {
         console.error('Unban error:', error);
@@ -4867,7 +5174,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isButton()) return;
   
   // ═══════════════════════════════════════════════════════════════
-  // VERIFICATION BUTTON HANDLER - Redirects to Unpatched Verify website
+  // VERIFICATION BUTTON HANDLER - Generates token and redirects to theunpatchedmethod.com
   // ═══════════════════════════════════════════════════════════════
   if (interaction.customId === 'verify_user') {
     await interaction.deferReply({ ephemeral: true });
@@ -4889,7 +5196,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return interaction.editReply('✅ You are already verified!');
     }
     
-    // Quick account age check (website does deeper check)
+    // Quick account age check
     const accountAge = Date.now() - member.user.createdTimestamp;
     const minAge = 7 * 24 * 60 * 60 * 1000; // 7 days
     
@@ -4911,50 +5218,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     
     try {
-      // Create verification session with Unpatched Verify API
-      const VERIFY_API_URL = process.env.VERIFY_API_URL || 'https://verify.unpatchedmethod.com';
-      const BOT_SECRET = process.env.VERIFY_BOT_SECRET;
+      // Generate local verification token
+      const token = generateToken();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       
-      if (!BOT_SECRET) {
-        // Fallback to direct verification if API not configured
-        console.log('[VERIFY] API not configured, using direct verification');
-        await member.roles.add(verifiedRole);
-        
-        const rolesChannel = guild.channels.cache.find(c => c.name === 'roles' || c.name === 'get-roles');
-        const rolesChannelId = rolesChannel?.id || '1453304716967678022';
-        
-        return interaction.editReply({
-          content: `✅ **Verification Complete!**\n\n🎮 Now head to <#${rolesChannelId}> to pick your roles!`
-        });
-      }
-      
-      // Call Unpatched Verify API to create session
-      const response = await fetch(`${VERIFY_API_URL}/api/internal/create-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          discord_id: member.id,
-          discord_tag: member.user.tag,
-          guild_id: guild.id,
-          bot_secret: BOT_SECRET
-        })
+      // Store token
+      verificationTokens.set(token, {
+        discord_id: member.id,
+        guild_id: guild.id,
+        expires_at: expiresAt
       });
       
-      const data = await response.json();
+      console.log(`[VERIFY] Generated token for ${member.user.tag}`);
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create verification session');
-      }
+      // Build verification URL
+      const verifyUrl = `https://theunpatchedmethod.com/verify.html?token=${token}&user=${member.id}&guild=${guild.id}`;
       
       // Send verification link to user
       const verifyEmbed = new EmbedBuilder()
         .setTitle('🔐 Complete Verification')
-        .setDescription(`**Click the link below to verify:**\n\n🔗 **[Click Here to Verify](${data.verify_url})**\n\nThis link expires in **10 minutes**.`)
+        .setDescription(`**Click the link below to verify:**\n\n🔗 **[Click Here to Verify](${verifyUrl})**\n\nThis link expires in **10 minutes**.`)
         .addFields(
           { name: '📋 What happens next?', value: '1. Click the link above\n2. Complete a quick CAPTCHA\n3. You\'ll automatically get verified\n4. Return to Discord and pick your roles!' }
         )
         .setColor(0xFF6B35)
-        .setFooter({ text: 'Unpatched Verify • Alt Detection System' })
+        .setFooter({ text: 'Burner Phone • Alt Detection System' })
         .setTimestamp();
       
       const verifyButton = new ActionRowBuilder()
@@ -4962,21 +5250,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
           new ButtonBuilder()
             .setLabel('🔐 Verify Now')
             .setStyle(ButtonStyle.Link)
-            .setURL(data.verify_url)
+            .setURL(verifyUrl)
         );
       
       await interaction.editReply({ 
         embeds: [verifyEmbed],
         components: [verifyButton]
-      });
-      
-      // Store pending verification for callback
-      if (!client.pendingVerifications) client.pendingVerifications = new Map();
-      client.pendingVerifications.set(data.session_token, {
-        discord_id: member.id,
-        guild_id: guild.id,
-        verified_role_id: verifiedRole.id,
-        expires_at: Date.now() + 10 * 60 * 1000
       });
       
     } catch (error) {
