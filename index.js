@@ -92,37 +92,7 @@ const {
 const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
 const express = require('express');
-const cors = require('cors');
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPRESS SERVER - START IMMEDIATELY FOR RAILWAY HEALTH CHECKS
-// ═══════════════════════════════════════════════════════════════════════════════
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Health check - must respond immediately
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
-});
-
-app.get('/', (req, res) => {
-  res.json({ status: 'Burner Phone API running' });
-});
-
-// Start server IMMEDIATELY
-const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVER] Burner Phone API running on port ${PORT}`);
-});
-
-server.on('error', (err) => {
-  console.error('[SERVER] Error:', err);
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// DISCORD CLIENT
-// ═══════════════════════════════════════════════════════════════════════════════
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -147,6 +117,15 @@ const pool = new Pool({
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// EXPRESS SERVER FOR VERIFICATION WEBHOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const app = express();
+const cors = require('cors');
+app.use(cors());
+app.use(express.json());
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // VERIFICATION TOKEN STORAGE (In-Memory)
 // ═══════════════════════════════════════════════════════════════════════════════
 const verificationTokens = new Map(); // token -> { discord_id, guild_id, expires_at }
@@ -165,6 +144,16 @@ setInterval(() => {
 function generateToken() {
   return require('crypto').randomBytes(32).toString('hex');
 }
+
+// Health check - simple, no dependencies
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+app.get('/', (req, res) => res.status(200).json({ status: 'Burner Phone API' }));
+
+// Start server immediately for Railway health checks
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[SERVER] Burner Phone API running on port ${PORT}`);
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NEW VERIFICATION API - Called by verify.html on Hostinger
