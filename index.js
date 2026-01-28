@@ -122,7 +122,12 @@ const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: proces
 
 const app = express();
 const cors = require('cors');
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+app.options('*', cors());
 app.use(express.json());
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -685,7 +690,7 @@ Write 2-3 short paragraphs. Mention fingerprinting briefly (canvas, WebGL, etc) 
 
 // Start webhook server - Railway provides PORT env variable
 const PORT = process.env.PORT || process.env.WEBHOOK_PORT || 3001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[SERVER] Burner Phone API server running on port ${PORT}`);
 });
 
@@ -6239,4 +6244,4 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);// force update
+client.login(process.env.DISCORD_TOKEN);
