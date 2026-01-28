@@ -685,7 +685,7 @@ Write 2-3 short paragraphs. Mention fingerprinting briefly (canvas, WebGL, etc) 
 
 // Start webhook server - Railway provides PORT env variable
 const PORT = process.env.PORT || process.env.WEBHOOK_PORT || 3001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[SERVER] Burner Phone API server running on port ${PORT}`);
 });
 
