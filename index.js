@@ -121,27 +121,9 @@ const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: proces
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const app = express();
+const cors = require('cors');
+app.use(cors());
 app.use(express.json());
-
-// CORS middleware for Hostinger → Railway communication
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    'https://theunpatchedmethod.com',
-    'http://theunpatchedmethod.com',
-    'https://www.theunpatchedmethod.com',
-    'http://localhost:3000'
-  ];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VERIFICATION TOKEN STORAGE (In-Memory)
