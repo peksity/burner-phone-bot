@@ -343,7 +343,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           dmMessage = {
             embeds: [new EmbedBuilder()
               .setTitle('📵 Verification Notice')
-              .setDescription(`Hey there! It looks like this device is already linked to another account (**${existingRecord.discord_tag}**).\n\nWe have a **one account per device** policy to keep our community secure and fair for everyone.\n\nIf you believe this is an error, please contact our staff team for assistance.`)
+              .setDescription(`Hey there! It looks like this device is already linked to another account (**${existingRecord.discord_tag}**).\n\nWe have a **one account per device** policy to keep our community secure and fair for everyone.\n\nIf you believe this is an error, **reply to this DM** and our staff team will assist you.`)
               .setColor(0xFFA500)
               .setFooter({ text: '📵 Burner Phone • Security System' })
               .setTimestamp()
