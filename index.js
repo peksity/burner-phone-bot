@@ -246,7 +246,6 @@ app.post('/api/web-verify', async (req, res) => {
         } else {
           console.log(`[VERIFY] Could not find security-logs channel`);
         }
-        }
         
         // DM the user with intimidating message
         try {
