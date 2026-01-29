@@ -516,6 +516,217 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STAFF API ENDPOINTS - For staff.html dashboard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Simple API key check (for now, can be enhanced later)
+const STAFF_API_KEY = process.env.STAFF_API_KEY || 'unpatched-staff-2024';
+
+function checkStaffAuth(req, res, next) {
+  const apiKey = req.headers['x-api-key'] || req.query.key;
+  if (apiKey !== STAFF_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// GET /api/staff/stats - Dashboard stats
+app.get('/api/staff/stats', checkStaffAuth, async (req, res) => {
+  try {
+    const guildId = req.query.guild_id || '1446317951757062256';
+    
+    const verifiedCount = await pool.query(
+      'SELECT COUNT(*) FROM device_fingerprints WHERE guild_id = $1',
+      [guildId]
+    );
+    
+    const bannedCount = await pool.query(
+      'SELECT COUNT(*) FROM fingerprint_bans WHERE guild_id = $1',
+      [guildId]
+    );
+    
+    const recentVerifications = await pool.query(
+      'SELECT COUNT(*) FROM device_fingerprints WHERE guild_id = $1 AND verified_at > NOW() - INTERVAL \'24 hours\'',
+      [guildId]
+    );
+    
+    res.json({
+      verified_users: parseInt(verifiedCount.rows[0].count),
+      banned_fingerprints: parseInt(bannedCount.rows[0].count),
+      verifications_24h: parseInt(recentVerifications.rows[0].count)
+    });
+  } catch (error) {
+    console.error('[STAFF API] Stats error:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+// GET /api/staff/logs - Recent verification logs
+app.get('/api/staff/logs', checkStaffAuth, async (req, res) => {
+  try {
+    const guildId = req.query.guild_id || '1446317951757062256';
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    
+    const logs = await pool.query(`
+      SELECT discord_id, discord_tag, fingerprint_hash, verified_at
+      FROM device_fingerprints 
+      WHERE guild_id = $1 
+      ORDER BY verified_at DESC 
+      LIMIT $2
+    `, [guildId, limit]);
+    
+    res.json({ logs: logs.rows });
+  } catch (error) {
+    console.error('[STAFF API] Logs error:', error);
+    res.status(500).json({ error: 'Failed to get logs' });
+  }
+});
+
+// GET /api/staff/bans - All banned fingerprints
+app.get('/api/staff/bans', checkStaffAuth, async (req, res) => {
+  try {
+    const guildId = req.query.guild_id || '1446317951757062256';
+    
+    const bans = await pool.query(`
+      SELECT id, fingerprint_hash, banned_discord_id, banned_discord_tag, reason, banned_by, banned_at
+      FROM fingerprint_bans 
+      WHERE guild_id = $1 
+      ORDER BY banned_at DESC
+    `, [guildId]);
+    
+    res.json({ bans: bans.rows });
+  } catch (error) {
+    console.error('[STAFF API] Bans error:', error);
+    res.status(500).json({ error: 'Failed to get bans' });
+  }
+});
+
+// GET /api/staff/user/:query - Lookup user by ID or tag
+app.get('/api/staff/user/:query', checkStaffAuth, async (req, res) => {
+  try {
+    const query = req.params.query;
+    const guildId = req.query.guild_id || '1446317951757062256';
+    
+    // Check device_fingerprints
+    const fingerprint = await pool.query(`
+      SELECT * FROM device_fingerprints 
+      WHERE (discord_id = $1 OR discord_tag ILIKE $2) AND guild_id = $3
+    `, [query, `%${query}%`, guildId]);
+    
+    // Check if banned
+    const ban = await pool.query(`
+      SELECT * FROM fingerprint_bans 
+      WHERE (banned_discord_id = $1 OR banned_discord_tag ILIKE $2) AND guild_id = $3
+    `, [query, `%${query}%`, guildId]);
+    
+    // Find linked accounts (same fingerprint)
+    let linkedAccounts = [];
+    if (fingerprint.rows.length > 0) {
+      const fpHash = fingerprint.rows[0].fingerprint_hash;
+      const linked = await pool.query(`
+        SELECT discord_id, discord_tag, verified_at FROM device_fingerprints 
+        WHERE fingerprint_hash = $1 AND guild_id = $2 AND discord_id != $3
+      `, [fpHash, guildId, fingerprint.rows[0].discord_id]);
+      linkedAccounts = linked.rows;
+    }
+    
+    res.json({
+      user: fingerprint.rows[0] || null,
+      is_banned: ban.rows.length > 0,
+      ban_info: ban.rows[0] || null,
+      linked_accounts: linkedAccounts
+    });
+  } catch (error) {
+    console.error('[STAFF API] User lookup error:', error);
+    res.status(500).json({ error: 'Failed to lookup user' });
+  }
+});
+
+// POST /api/staff/ban - Ban a fingerprint via web
+app.post('/api/staff/ban', checkStaffAuth, async (req, res) => {
+  try {
+    const { discord_id, reason, banned_by } = req.body;
+    const guildId = req.body.guild_id || '1446317951757062256';
+    
+    if (!discord_id) {
+      return res.status(400).json({ error: 'discord_id required' });
+    }
+    
+    // Get user's fingerprint
+    const fingerprint = await pool.query(
+      'SELECT * FROM device_fingerprints WHERE discord_id = $1 AND guild_id = $2',
+      [discord_id, guildId]
+    );
+    
+    if (fingerprint.rows.length === 0) {
+      return res.status(404).json({ error: 'User has no fingerprint on record' });
+    }
+    
+    const fp = fingerprint.rows[0];
+    
+    // Add to bans
+    await pool.query(`
+      INSERT INTO fingerprint_bans (fingerprint_hash, banned_discord_id, banned_discord_tag, guild_id, reason, banned_by)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (fingerprint_hash, guild_id) DO UPDATE SET
+        reason = $5,
+        banned_by = $6,
+        banned_at = NOW()
+    `, [fp.fingerprint_hash, discord_id, fp.discord_tag, guildId, reason || 'Banned via web dashboard', banned_by || 'Staff']);
+    
+    console.log(`[STAFF API] Banned ${fp.discord_tag} via web`);
+    
+    res.json({ 
+      success: true, 
+      message: `Banned ${fp.discord_tag}`,
+      fingerprint_hash: fp.fingerprint_hash
+    });
+  } catch (error) {
+    console.error('[STAFF API] Ban error:', error);
+    res.status(500).json({ error: 'Failed to ban user' });
+  }
+});
+
+// POST /api/staff/unban - Unban a fingerprint via web
+app.post('/api/staff/unban', checkStaffAuth, async (req, res) => {
+  try {
+    const { discord_id, fingerprint_hash } = req.body;
+    const guildId = req.body.guild_id || '1446317951757062256';
+    
+    if (!discord_id && !fingerprint_hash) {
+      return res.status(400).json({ error: 'discord_id or fingerprint_hash required' });
+    }
+    
+    let result;
+    if (fingerprint_hash) {
+      result = await pool.query(
+        'DELETE FROM fingerprint_bans WHERE fingerprint_hash = $1 AND guild_id = $2 RETURNING *',
+        [fingerprint_hash, guildId]
+      );
+    } else {
+      result = await pool.query(
+        'DELETE FROM fingerprint_bans WHERE banned_discord_id = $1 AND guild_id = $2 RETURNING *',
+        [discord_id, guildId]
+      );
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No ban found for this user' });
+    }
+    
+    console.log(`[STAFF API] Unbanned ${result.rows[0].banned_discord_tag} via web`);
+    
+    res.json({ 
+      success: true, 
+      message: `Unbanned ${result.rows[0].banned_discord_tag}`
+    });
+  } catch (error) {
+    console.error('[STAFF API] Unban error:', error);
+    res.status(500).json({ error: 'Failed to unban user' });
+  }
+});
+
 // Legacy webhook (kept for backwards compatibility)
 app.post('/webhook/verification-complete', async (req, res) => {
   const { bot_secret, discord_id, discord_tag, guild_id, verified, suspicious, alt_of, blocked, reason, linked_to } = req.body;
