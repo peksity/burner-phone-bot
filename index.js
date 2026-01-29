@@ -129,6 +129,7 @@ app.use(express.json());
 // VERIFICATION TOKEN STORAGE (In-Memory)
 // ═══════════════════════════════════════════════════════════════════════════════
 const verificationTokens = new Map(); // token -> { discord_id, guild_id, expires_at }
+const duplicateAttempts = new Map(); // discord_id -> { count, last_attempt }
 
 // Clean up expired tokens every 5 minutes
 setInterval(() => {
@@ -136,6 +137,12 @@ setInterval(() => {
   for (const [token, data] of verificationTokens) {
     if (data.expires_at < now) {
       verificationTokens.delete(token);
+    }
+  }
+  // Clean up old duplicate attempts (after 24 hours)
+  for (const [id, data] of duplicateAttempts) {
+    if (now - data.last_attempt > 24 * 60 * 60 * 1000) {
+      duplicateAttempts.delete(id);
     }
   }
 }, 5 * 60 * 1000);
@@ -318,6 +325,93 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       const existingRecord = duplicateCheck.rows[0];
       console.log(`[VERIFY] BLOCKED - Duplicate device, already linked to ${existingRecord.discord_tag}`);
       
+      // Track attempt count
+      const attemptData = duplicateAttempts.get(discord_id) || { count: 0, last_attempt: 0 };
+      attemptData.count++;
+      attemptData.last_attempt = Date.now();
+      duplicateAttempts.set(discord_id, attemptData);
+      
+      console.log(`[VERIFY] Duplicate attempt #${attemptData.count} from ${discord_id}`);
+      
+      // Send escalating DM based on attempt count
+      try {
+        const user = await client.users.fetch(discord_id);
+        let dmMessage;
+        
+        if (attemptData.count === 1) {
+          // 1st attempt - Polite
+          dmMessage = {
+            embeds: [new EmbedBuilder()
+              .setTitle('📵 Verification Notice')
+              .setDescription(`Hey there! It looks like this device is already linked to another account (**${existingRecord.discord_tag}**).\n\nWe have a **one account per device** policy to keep our community secure and fair for everyone.\n\nIf you believe this is an error, please contact our staff team for assistance.`)
+              .setColor(0xFFA500)
+              .setFooter({ text: '📵 Burner Phone • Security System' })
+              .setTimestamp()
+            ]
+          };
+        } else if (attemptData.count === 2) {
+          // 2nd attempt - Annoyed
+          dmMessage = {
+            embeds: [new EmbedBuilder()
+              .setTitle('📵 Second Notice')
+              .setDescription(`We already told you - this device is registered to **${existingRecord.discord_tag}**.\n\nTrying again won't change anything. Our fingerprinting system tracks your device hardware, not your account. Creating new Discord accounts is pointless.\n\n**One device = One account.** That's the rule.`)
+              .setColor(0xFF6600)
+              .setFooter({ text: '📵 Burner Phone • We Remember Everything' })
+              .setTimestamp()
+            ]
+          };
+        } else if (attemptData.count === 3) {
+          // 3rd attempt - Frustrated
+          dmMessage = {
+            embeds: [new EmbedBuilder()
+              .setTitle('📵 Final Warning')
+              .setDescription(`*Seriously?* This is your **third attempt**.\n\nLet us be crystal clear:\n• Your device fingerprint is **permanently logged**\n• It's linked to **${existingRecord.discord_tag}**\n• No amount of new accounts will change this\n• Your canvas hash, WebGL renderer, GPU, fonts - all tracked\n\nWe're starting to wonder if you're trying to evade something. Keep this up and we might have to look closer at why you're so desperate to get a second account.`)
+              .setColor(0xFF3300)
+              .setFooter({ text: '📵 Burner Phone • Patience Wearing Thin' })
+              .setTimestamp()
+            ]
+          };
+        } else {
+          // 4th+ attempt - Done with this
+          dmMessage = {
+            embeds: [new EmbedBuilder()
+              .setTitle('📵 ENOUGH.')
+              .setDescription(`**${attemptData.count} attempts.** Really?\n\nYou're wasting your time. You're wasting *our* time. This device belongs to **${existingRecord.discord_tag}** and that's never going to change.\n\n*Every. Single. Attempt.* is being logged. Your desperation is noted. At this point, you're just making yourself look suspicious.\n\n**Stop.**`)
+              .setColor(0xFF0000)
+              .setFooter({ text: '📵 Burner Phone • All Attempts Logged' })
+              .setTimestamp()
+            ]
+          };
+          
+          // Log excessive attempts to security channel
+          const guild = client.guilds.cache.get(guild_id);
+          if (guild) {
+            const securityLog = guild.channels.cache.find(c => 
+              c.name === 'security-logs' || c.name === 'modmail-logs'
+            );
+            if (securityLog) {
+              const alertEmbed = new EmbedBuilder()
+                .setTitle('⚠️ Excessive Duplicate Attempts')
+                .setDescription(`User <@${discord_id}> has attempted to verify **${attemptData.count} times** with a device already linked to **${existingRecord.discord_tag}**.`)
+                .addFields(
+                  { name: 'Attempting User ID', value: `\`${discord_id}\``, inline: true },
+                  { name: 'Device Owner', value: `${existingRecord.discord_tag}\n<@${existingRecord.discord_id}>`, inline: true },
+                  { name: 'Attempt Count', value: `${attemptData.count}`, inline: true }
+                )
+                .setColor(0xFFAA00)
+                .setTimestamp();
+              await securityLog.send({ embeds: [alertEmbed] });
+            }
+          }
+        }
+        
+        await user.send(dmMessage);
+        console.log(`[VERIFY] Sent escalating DM (attempt #${attemptData.count}) to ${discord_id}`);
+        
+      } catch (e) {
+        console.log('[VERIFY] Could not DM user:', e.message);
+      }
+      
       // Delete the token
       verificationTokens.delete(token);
       
@@ -325,7 +419,8 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         success: false, 
         blocked: true,
         error: `This device is already linked to another account: ${existingRecord.discord_tag}. One account per device policy.`,
-        linked_to: existingRecord.discord_tag
+        linked_to: existingRecord.discord_tag,
+        attempt_count: attemptData.count
       });
     }
     
