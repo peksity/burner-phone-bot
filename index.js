@@ -224,9 +224,9 @@ app.post('/api/web-verify', async (req, res) => {
       // Get guild and log channel for alert
       const guild = client.guilds.cache.get(guild_id);
       if (guild) {
-        const securityLog = guild.channels.cache.find(c => 
-          c.name === 'security-logs' || c.name === 'modmail-logs'
-        );
+        const SECURITY_LOG_ID = '1463995707651522622';
+        const securityLog = guild.channels.cache.get(SECURITY_LOG_ID) || 
+                            guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
         
         if (securityLog) {
           const alertEmbed = new EmbedBuilder()
@@ -242,6 +242,10 @@ app.post('/api/web-verify', async (req, res) => {
             .setTimestamp();
           
           await securityLog.send({ content: '@here', embeds: [alertEmbed] });
+          console.log(`[VERIFY] Alert sent to security-logs`);
+        } else {
+          console.log(`[VERIFY] Could not find security-logs channel`);
+        }
         }
         
         // DM the user with intimidating message
@@ -382,26 +386,27 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
               .setTimestamp()
             ]
           };
-          
-          // Log excessive attempts to security channel
-          const guild = client.guilds.cache.get(guild_id);
-          if (guild) {
-            const securityLog = guild.channels.cache.find(c => 
-              c.name === 'security-logs' || c.name === 'modmail-logs'
-            );
-            if (securityLog) {
-              const alertEmbed = new EmbedBuilder()
-                .setTitle('⚠️ Excessive Duplicate Attempts')
-                .setDescription(`User <@${discord_id}> has attempted to verify **${attemptData.count} times** with a device already linked to **${existingRecord.discord_tag}**.`)
-                .addFields(
-                  { name: 'Attempting User ID', value: `\`${discord_id}\``, inline: true },
-                  { name: 'Device Owner', value: `${existingRecord.discord_tag}\n<@${existingRecord.discord_id}>`, inline: true },
-                  { name: 'Attempt Count', value: `${attemptData.count}`, inline: true }
-                )
-                .setColor(0xFFAA00)
-                .setTimestamp();
-              await securityLog.send({ embeds: [alertEmbed] });
-            }
+        }
+        
+        // Log ALL duplicate attempts to security channel
+        const guild = client.guilds.cache.get(guild_id);
+        if (guild) {
+          const SECURITY_LOG_ID = '1463995707651522622';
+          const securityLog = guild.channels.cache.get(SECURITY_LOG_ID) || 
+                              guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
+          if (securityLog) {
+            const alertEmbed = new EmbedBuilder()
+              .setTitle('🚨 DUPLICATE ACCOUNT BLOCKED')
+              .setDescription(`**Attempted User:** <@${discord_id}>\n**ID:** \`${discord_id}\``)
+              .addFields(
+                { name: '🔗 Device Already Linked To', value: `**${existingRecord.discord_tag}**\n<@${existingRecord.discord_id}>`, inline: false },
+                { name: '🛡️ Action', value: 'Verification DENIED - One account per device policy', inline: true },
+                { name: '📊 Attempt #', value: `${attemptData.count}`, inline: true }
+              )
+              .setColor(0xFF6600)
+              .setTimestamp();
+            await securityLog.send({ content: attemptData.count >= 4 ? '@here' : '', embeds: [alertEmbed] });
+            console.log(`[VERIFY] Duplicate attempt alert sent to security-logs`);
           }
         }
         
