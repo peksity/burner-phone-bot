@@ -170,6 +170,135 @@ app.post('/api/web-verify', async (req, res) => {
   
   console.log(`[VERIFY] Received verification request for user ${discord_id}`);
   
+  // Get IP from request
+  const userIP = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
+  console.log(`[VERIFY] User IP: ${userIP}`);
+  
+  // Threat intelligence data
+  let threatData = {
+    ip_address: userIP,
+    ip_risk_score: 0,
+    ip_vpn: false,
+    ip_proxy: false,
+    ip_tor: false,
+    ip_bot_score: 0,
+    ip_country: null,
+    ip_city: null,
+    ip_isp: null,
+    ip_abuse_reports: 0,
+    timezone_mismatch: false,
+    browser_timezone: fingerprint_data?.tz || fingerprint_data?.timezone,
+    ip_timezone: null,
+    is_bot: false,
+    is_headless: false,
+    user_agent: req.headers['user-agent']
+  };
+  
+  // IPQualityScore check
+  const IPQS_KEY = process.env.IPQUALITYSCORE_API_KEY;
+  if (IPQS_KEY && userIP && userIP !== 'unknown') {
+    try {
+      const ipqsResponse = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${userIP}?strictness=1&allow_public_access_points=true`);
+      const ipqs = await ipqsResponse.json();
+      
+      if (ipqs.success) {
+        threatData.ip_risk_score = ipqs.fraud_score || 0;
+        threatData.ip_vpn = ipqs.vpn || false;
+        threatData.ip_proxy = ipqs.proxy || false;
+        threatData.ip_tor = ipqs.tor || false;
+        threatData.ip_bot_score = ipqs.bot_status ? 100 : 0;
+        threatData.ip_country = ipqs.country_code || null;
+        threatData.ip_city = ipqs.city || null;
+        threatData.ip_isp = ipqs.ISP || null;
+        threatData.ip_timezone = ipqs.timezone || null;
+        
+        // Check timezone mismatch
+        if (threatData.browser_timezone && threatData.ip_timezone) {
+          threatData.timezone_mismatch = threatData.browser_timezone !== threatData.ip_timezone;
+        }
+        
+        console.log(`[VERIFY] IPQualityScore: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Proxy=${threatData.ip_proxy}`);
+      }
+    } catch (e) {
+      console.log(`[VERIFY] IPQualityScore error:`, e.message);
+    }
+  }
+  
+  // AbuseIPDB check
+  const ABUSEIPDB_KEY = process.env.ABUSEIPDB_API_KEY;
+  if (ABUSEIPDB_KEY && userIP && userIP !== 'unknown' && !userIP.startsWith('192.168') && !userIP.startsWith('10.')) {
+    try {
+      const abuseResponse = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=${userIP}`, {
+        headers: { 'Key': ABUSEIPDB_KEY, 'Accept': 'application/json' }
+      });
+      const abuse = await abuseResponse.json();
+      if (abuse.data) {
+        threatData.ip_abuse_reports = abuse.data.totalReports || 0;
+        console.log(`[VERIFY] AbuseIPDB: ${threatData.ip_abuse_reports} reports`);
+      }
+    } catch (e) {
+      console.log(`[VERIFY] AbuseIPDB error:`, e.message);
+    }
+  }
+  
+  // Bot/Automation detection from fingerprint_data
+  if (fingerprint_data) {
+    // Check for headless browser indicators
+    const ua = req.headers['user-agent'] || '';
+    threatData.is_headless = ua.includes('HeadlessChrome') || ua.includes('PhantomJS') || 
+                              !fingerprint_data.webglRenderer || fingerprint_data.webglRenderer === 'err';
+    
+    // Check for automation frameworks
+    threatData.is_bot = threatData.is_headless || 
+                         (fingerprint_data.behavior && fingerprint_data.behavior.moves < 5) ||
+                         (fingerprint_data.behavior && fingerprint_data.behavior.duration < 2000);
+    
+    if (threatData.is_bot) {
+      console.log(`[VERIFY] Bot detection triggered: headless=${threatData.is_headless}`);
+    }
+  }
+  
+  // Helper function to log verification attempt
+  async function logVerificationAttempt(result, altOfId = null, altOfTag = null) {
+    try {
+      const member = await client.guilds.cache.get(guild_id)?.members.fetch(discord_id).catch(() => null);
+      await pool.query(`
+        INSERT INTO verification_logs 
+        (discord_id, discord_tag, guild_id, result, fingerprint_hash, alt_of_discord_id, alt_of_discord_tag,
+         ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score, ip_country, ip_city, ip_isp,
+         ip_abuse_reports, timezone_mismatch, browser_timezone, ip_timezone, behavior_data, gpu_data, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+      `, [
+        discord_id,
+        member?.user?.tag || 'Unknown',
+        guild_id,
+        result,
+        fingerprint,
+        altOfId,
+        altOfTag,
+        threatData.ip_address,
+        threatData.ip_risk_score,
+        threatData.ip_vpn,
+        threatData.ip_proxy,
+        threatData.ip_tor,
+        threatData.ip_bot_score,
+        threatData.ip_country,
+        threatData.ip_city,
+        threatData.ip_isp,
+        threatData.ip_abuse_reports,
+        threatData.timezone_mismatch,
+        threatData.browser_timezone,
+        threatData.ip_timezone,
+        JSON.stringify(fingerprint_data?.behavior || {}),
+        JSON.stringify(fingerprint_data?.gpu || {}),
+        threatData.user_agent
+      ]);
+      console.log(`[VERIFY] Logged attempt: ${result}`);
+    } catch (e) {
+      console.log(`[VERIFY] Failed to log attempt:`, e.message);
+    }
+  }
+  
   try {
     // 1. Validate token
     const tokenData = verificationTokens.get(token);
@@ -310,6 +439,9 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       // Delete the token
       verificationTokens.delete(token);
       
+      // Log the blocked attempt
+      await logVerificationAttempt('blocked_alt', bannedRecord.banned_discord_id, bannedRecord.banned_discord_tag);
+      
       return res.json({ 
         success: false, 
         blocked: true,
@@ -419,6 +551,9 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       // Delete the token
       verificationTokens.delete(token);
       
+      // Log the duplicate attempt
+      await logVerificationAttempt('duplicate', existingRecord.discord_id, existingRecord.discord_tag);
+      
       return res.json({ 
         success: false, 
         blocked: true,
@@ -506,6 +641,9 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
     // Delete the used token
     verificationTokens.delete(token);
     
+    // Log the successful verification
+    await logVerificationAttempt('success', null, null);
+    
     console.log(`[VERIFY] SUCCESS - ${member.user.tag} verified`);
     
     return res.json({ success: true, message: 'Verification complete!' });
@@ -562,24 +700,92 @@ app.get('/api/staff/stats', checkStaffAuth, async (req, res) => {
   }
 });
 
-// GET /api/staff/logs - Recent verification logs
+// GET /api/staff/logs - Recent verification logs with threat intelligence
 app.get('/api/staff/logs', checkStaffAuth, async (req, res) => {
   try {
     const guildId = req.query.guild_id || '1446317951757062256';
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const filter = req.query.filter || 'all'; // all, success, blocked_alt, duplicate
     
-    const logs = await pool.query(`
-      SELECT discord_id, discord_tag, fingerprint_hash, verified_at
-      FROM device_fingerprints 
-      WHERE guild_id = $1 
-      ORDER BY verified_at DESC 
-      LIMIT $2
-    `, [guildId, limit]);
+    // Try verification_logs first (new table with full data)
+    let logs;
+    try {
+      let query = `
+        SELECT id, discord_id, discord_tag, result, fingerprint_hash, 
+               alt_of_discord_id, alt_of_discord_tag,
+               ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score,
+               ip_country, ip_city, ip_isp, ip_abuse_reports,
+               timezone_mismatch, browser_timezone, ip_timezone,
+               behavior_data, gpu_data, user_agent, created_at
+        FROM verification_logs 
+        WHERE guild_id = $1
+      `;
+      
+      if (filter !== 'all') {
+        query += ` AND result = $3`;
+      }
+      
+      query += ` ORDER BY created_at DESC LIMIT $2`;
+      
+      if (filter !== 'all') {
+        logs = await pool.query(query, [guildId, limit, filter]);
+      } else {
+        logs = await pool.query(query, [guildId, limit]);
+      }
+    } catch (e) {
+      // Fallback to old table if verification_logs doesn't exist yet
+      console.log('[STAFF API] verification_logs not found, using device_fingerprints');
+      logs = await pool.query(`
+        SELECT discord_id, discord_tag, fingerprint_hash, verified_at as created_at, 'success' as result
+        FROM device_fingerprints 
+        WHERE guild_id = $1 
+        ORDER BY verified_at DESC 
+        LIMIT $2
+      `, [guildId, limit]);
+    }
     
     res.json({ logs: logs.rows });
   } catch (error) {
     console.error('[STAFF API] Logs error:', error);
     res.status(500).json({ error: 'Failed to get logs' });
+  }
+});
+
+// GET /api/staff/threat-stats - Threat intelligence summary
+app.get('/api/staff/threat-stats', checkStaffAuth, async (req, res) => {
+  try {
+    const guildId = req.query.guild_id || '1446317951757062256';
+    
+    // Get threat stats from verification_logs
+    const stats = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE result = 'success') as successful,
+        COUNT(*) FILTER (WHERE result = 'blocked_alt') as blocked_alts,
+        COUNT(*) FILTER (WHERE result = 'duplicate') as duplicates,
+        COUNT(*) FILTER (WHERE ip_vpn = true) as vpn_users,
+        COUNT(*) FILTER (WHERE ip_proxy = true) as proxy_users,
+        COUNT(*) FILTER (WHERE ip_tor = true) as tor_users,
+        COUNT(*) FILTER (WHERE ip_risk_score >= 75) as high_risk,
+        COUNT(*) FILTER (WHERE timezone_mismatch = true) as timezone_mismatches,
+        AVG(ip_risk_score) as avg_risk_score
+      FROM verification_logs 
+      WHERE guild_id = $1 AND created_at > NOW() - INTERVAL '7 days'
+    `, [guildId]);
+    
+    // Get currently online VPN users (last 24h)
+    const recentVPN = await pool.query(`
+      SELECT COUNT(DISTINCT discord_id) as vpn_24h
+      FROM verification_logs 
+      WHERE guild_id = $1 AND ip_vpn = true AND created_at > NOW() - INTERVAL '24 hours'
+    `, [guildId]);
+    
+    res.json({ 
+      stats: stats.rows[0] || {},
+      vpn_24h: recentVPN.rows[0]?.vpn_24h || 0
+    });
+  } catch (error) {
+    console.error('[STAFF API] Threat stats error:', error);
+    res.status(500).json({ error: 'Failed to get threat stats', stats: {} });
   }
 });
 
@@ -631,11 +837,45 @@ app.get('/api/staff/user/:query', checkStaffAuth, async (req, res) => {
       linkedAccounts = linked.rows;
     }
     
+    // Get verification history with threat data
+    let verificationHistory = [];
+    try {
+      const history = await pool.query(`
+        SELECT id, result, ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor,
+               ip_country, ip_city, ip_isp, ip_abuse_reports, timezone_mismatch,
+               browser_timezone, ip_timezone, created_at
+        FROM verification_logs 
+        WHERE discord_id = $1 AND guild_id = $2
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [fingerprint.rows[0]?.discord_id || query, guildId]);
+      verificationHistory = history.rows;
+    } catch (e) {
+      // verification_logs table might not exist yet
+      console.log('[STAFF API] Could not fetch verification history:', e.message);
+    }
+    
+    // Get last known IP and threat data
+    const lastVerification = verificationHistory[0] || null;
+    
     res.json({
       user: fingerprint.rows[0] || null,
       is_banned: ban.rows.length > 0,
       ban_info: ban.rows[0] || null,
-      linked_accounts: linkedAccounts
+      linked_accounts: linkedAccounts,
+      verification_history: verificationHistory,
+      threat_data: lastVerification ? {
+        ip_address: lastVerification.ip_address,
+        ip_risk_score: lastVerification.ip_risk_score,
+        ip_vpn: lastVerification.ip_vpn,
+        ip_proxy: lastVerification.ip_proxy,
+        ip_tor: lastVerification.ip_tor,
+        ip_country: lastVerification.ip_country,
+        ip_city: lastVerification.ip_city,
+        ip_isp: lastVerification.ip_isp,
+        ip_abuse_reports: lastVerification.ip_abuse_reports,
+        timezone_mismatch: lastVerification.timezone_mismatch
+      } : null
     });
   } catch (error) {
     console.error('[STAFF API] User lookup error:', error);
