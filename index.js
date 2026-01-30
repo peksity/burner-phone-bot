@@ -1497,6 +1497,317 @@ app.get('/api/staff/mod-logs', checkStaffAuth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIFIED AUTH SYSTEM - For Customers, Staff, and Admins
+// ═══════════════════════════════════════════════════════════════════════════
+
+const userTokens = new Map(); // token -> { user, role, expires }
+const ADMIN_IDS = ['513386668042698755']; // Your Discord ID - always admin
+
+// Middleware to check unified auth
+function checkAuth(requiredRole = null) {
+  return (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const token = authHeader.substring(7);
+    const session = userTokens.get(token);
+    
+    if (!session || session.expires < Date.now()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+    
+    // Check role if required
+    if (requiredRole) {
+      const roleHierarchy = { customer: 1, staff: 2, admin: 3 };
+      if (roleHierarchy[session.role] < roleHierarchy[requiredRole]) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+    }
+    
+    req.user = session.user;
+    req.userRole = session.role;
+    next();
+  };
+}
+
+// POST /api/auth/login - Unified Discord OAuth login
+app.post('/api/auth/login', async (req, res) => {
+  const { code, redirect_uri } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ success: false, error: 'No code provided' });
+  }
+  
+  try {
+    // Exchange code for Discord access token
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID || '1462303194863505521',
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri
+      })
+    });
+    
+    const tokenData = await tokenRes.json();
+    
+    if (!tokenData.access_token) {
+      console.log('[AUTH] Token exchange failed:', tokenData);
+      return res.json({ success: false, error: 'Discord authentication failed' });
+    }
+    
+    // Get user info from Discord
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const discordUser = await userRes.json();
+    
+    if (!discordUser.id) {
+      return res.json({ success: false, error: 'Could not get user info' });
+    }
+    
+    // Check if user exists in database
+    let dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
+    
+    if (dbUser.rows.length === 0) {
+      // New user - create account
+      await pool.query(`
+        INSERT INTO users (discord_id, username, discriminator, avatar, email, role, plan, created_at, last_login)
+        VALUES ($1, $2, $3, $4, $5, 'customer', 'free', NOW(), NOW())
+      `, [discordUser.id, discordUser.username, discordUser.discriminator, discordUser.avatar, discordUser.email]);
+      
+      dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
+      console.log(`[AUTH] New user created: ${discordUser.username} (${discordUser.id})`);
+    } else {
+      // Update existing user
+      await pool.query(`
+        UPDATE users SET username = $1, avatar = $2, email = $3, last_login = NOW()
+        WHERE discord_id = $4
+      `, [discordUser.username, discordUser.avatar, discordUser.email, discordUser.id]);
+    }
+    
+    const user = dbUser.rows[0];
+    
+    // Override role if admin
+    let role = user.role;
+    if (ADMIN_IDS.includes(discordUser.id)) {
+      role = 'admin';
+      // Update DB if not already admin
+      if (user.role !== 'admin') {
+        await pool.query('UPDATE users SET role = $1 WHERE discord_id = $2', ['admin', discordUser.id]);
+      }
+    }
+    
+    // Generate session token
+    const token = require('crypto').randomBytes(32).toString('hex');
+    userTokens.set(token, {
+      user: {
+        id: discordUser.id,
+        username: discordUser.username,
+        avatar: discordUser.avatar,
+        email: discordUser.email,
+        plan: user.plan,
+        created_at: user.created_at
+      },
+      role,
+      expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    // Also add to staffTokens if staff or admin (for backward compatibility)
+    if (role === 'staff' || role === 'admin') {
+      staffTokens.set(token, {
+        user: { id: discordUser.id, username: discordUser.username, avatar: discordUser.avatar },
+        expires: Date.now() + (24 * 60 * 60 * 1000)
+      });
+    }
+    
+    console.log(`[AUTH] ${discordUser.username} (${discordUser.id}) logged in as ${role}`);
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: discordUser.id,
+        username: discordUser.username,
+        avatar: discordUser.avatar,
+        email: discordUser.email,
+        plan: user.plan
+      },
+      role
+    });
+    
+  } catch (e) {
+    console.error('[AUTH] Error:', e);
+    res.json({ success: false, error: 'Authentication error' });
+  }
+});
+
+// GET /api/auth/me - Get current user info
+app.get('/api/auth/me', checkAuth(), (req, res) => {
+  res.json({
+    user: req.user,
+    role: req.userRole
+  });
+});
+
+// POST /api/auth/logout - Logout
+app.post('/api/auth/logout', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    userTokens.delete(token);
+    staffTokens.delete(token);
+  }
+  res.json({ success: true });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN PANEL API - Manage Users and Staff
+// ═══════════════════════════════════════════════════════════════════════════
+
+// GET /api/admin/users - List all users
+app.get('/api/admin/users', checkAuth('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT discord_id, username, avatar, email, role, plan, plan_expires_at, created_at, last_login
+      FROM users ORDER BY created_at DESC LIMIT 100
+    `);
+    res.json({ users: result.rows });
+  } catch (e) {
+    console.error('[ADMIN] Error fetching users:', e);
+    res.json({ error: 'Failed to fetch users', users: [] });
+  }
+});
+
+// POST /api/admin/users/:id/role - Change user role
+app.post('/api/admin/users/:id/role', checkAuth('admin'), async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+  
+  if (!['customer', 'staff', 'admin'].includes(role)) {
+    return res.json({ error: 'Invalid role' });
+  }
+  
+  try {
+    await pool.query('UPDATE users SET role = $1, updated_at = NOW() WHERE discord_id = $2', [role, id]);
+    console.log(`[ADMIN] User ${id} role changed to ${role} by ${req.user.id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[ADMIN] Error updating role:', e);
+    res.json({ error: 'Failed to update role' });
+  }
+});
+
+// POST /api/admin/users/:id/plan - Change user plan
+app.post('/api/admin/users/:id/plan', checkAuth('admin'), async (req, res) => {
+  const { id } = req.params;
+  const { plan, expires_at } = req.body;
+  
+  if (!['free', 'pro', 'enterprise'].includes(plan)) {
+    return res.json({ error: 'Invalid plan' });
+  }
+  
+  try {
+    await pool.query(`
+      UPDATE users SET plan = $1, plan_expires_at = $2, updated_at = NOW() WHERE discord_id = $3
+    `, [plan, expires_at || null, id]);
+    console.log(`[ADMIN] User ${id} plan changed to ${plan} by ${req.user.id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[ADMIN] Error updating plan:', e);
+    res.json({ error: 'Failed to update plan' });
+  }
+});
+
+// POST /api/admin/invite - Create staff invite link
+app.post('/api/admin/invite', checkAuth('admin'), async (req, res) => {
+  try {
+    const code = require('crypto').randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    
+    await pool.query(`
+      INSERT INTO staff_invites (code, created_by, expires_at)
+      VALUES ($1, $2, $3)
+    `, [code, req.user.id, expiresAt]);
+    
+    console.log(`[ADMIN] Staff invite created by ${req.user.id}: ${code}`);
+    
+    res.json({
+      success: true,
+      invite_url: `https://theunpatchedmethod.com/invite/${code}`,
+      code,
+      expires_at: expiresAt
+    });
+  } catch (e) {
+    console.error('[ADMIN] Error creating invite:', e);
+    res.json({ error: 'Failed to create invite' });
+  }
+});
+
+// GET /api/admin/invites - List all invites
+app.get('/api/admin/invites', checkAuth('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT si.*, u.username as created_by_name, u2.username as used_by_name
+      FROM staff_invites si
+      LEFT JOIN users u ON si.created_by = u.discord_id
+      LEFT JOIN users u2 ON si.used_by = u2.discord_id
+      ORDER BY si.created_at DESC
+    `);
+    res.json({ invites: result.rows });
+  } catch (e) {
+    res.json({ invites: [] });
+  }
+});
+
+// DELETE /api/admin/invite/:code - Delete invite
+app.delete('/api/admin/invite/:code', checkAuth('admin'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM staff_invites WHERE code = $1', [req.params.code]);
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ error: 'Failed to delete invite' });
+  }
+});
+
+// POST /api/invite/redeem - Redeem staff invite (authenticated users only)
+app.post('/api/invite/redeem', checkAuth(), async (req, res) => {
+  const { code } = req.body;
+  
+  try {
+    // Check if invite exists and is valid
+    const invite = await pool.query(`
+      SELECT * FROM staff_invites 
+      WHERE code = $1 AND used_by IS NULL AND expires_at > NOW()
+    `, [code]);
+    
+    if (invite.rows.length === 0) {
+      return res.json({ error: 'Invalid or expired invite code' });
+    }
+    
+    // Upgrade user to staff
+    await pool.query('UPDATE users SET role = $1, updated_at = NOW() WHERE discord_id = $2', ['staff', req.user.id]);
+    
+    // Mark invite as used
+    await pool.query(`
+      UPDATE staff_invites SET used_by = $1, used_at = NOW() WHERE code = $2
+    `, [req.user.id, code]);
+    
+    console.log(`[INVITE] ${req.user.username} (${req.user.id}) redeemed staff invite ${code}`);
+    
+    res.json({ success: true, message: 'You are now a staff member!' });
+  } catch (e) {
+    console.error('[INVITE] Error:', e);
+    res.json({ error: 'Failed to redeem invite' });
+  }
+});
+
 // GET /api/staff/members - All guild members (verified + unverified)
 app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
   try {
