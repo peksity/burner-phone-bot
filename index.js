@@ -174,6 +174,43 @@ app.post('/api/web-verify', async (req, res) => {
   const userIP = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
   console.log(`[VERIFY] User IP: ${userIP}`);
   
+  // ═══════════════════════════════════════════════════════════════
+  // EARLY REJECTION - Honeypot & Bot Detection
+  // ═══════════════════════════════════════════════════════════════
+  const clientThreats = fingerprint_data?.threats || {};
+  
+  // Honeypot triggered = instant block
+  if (clientThreats.honeypot) {
+    console.log(`[VERIFY] BLOCKED - Honeypot triggered (BOT)`);
+    return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
+  }
+  
+  // High bot score = block
+  if (clientThreats.botScore >= 80) {
+    console.log(`[VERIFY] BLOCKED - Bot score too high: ${clientThreats.botScore}`);
+    return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
+  }
+  
+  // Calculate overall risk score
+  let riskScore = 0;
+  const riskReasons = [];
+  
+  // Client-side threat signals
+  if (clientThreats.vmScore >= 50) { riskScore += 20; riskReasons.push('VM detected'); }
+  if (clientThreats.botScore >= 30) { riskScore += clientThreats.botScore / 2; riskReasons.push('Bot signals'); }
+  if (clientThreats.incognito) { riskScore += 10; riskReasons.push('Incognito mode'); }
+  if (clientThreats.devTools) { riskScore += 5; riskReasons.push('DevTools open'); }
+  if (clientThreats.tabSwitches > 5) { riskScore += 10; riskReasons.push('Excessive tab switches'); }
+  if (clientThreats.copyPaste) { riskScore += 5; riskReasons.push('Copy-paste detected'); }
+  if (clientThreats.sessionDuration < 3000) { riskScore += 15; riskReasons.push('Too fast'); }
+  
+  // Behavioral analysis
+  const behavior = fingerprint_data?.behavior || {};
+  if (behavior.mouseCount < 5 && behavior.duration > 5000) { riskScore += 20; riskReasons.push('No mouse movement'); }
+  if (behavior.duration < 2000) { riskScore += 15; riskReasons.push('Completed too quickly'); }
+  
+  console.log(`[VERIFY] Client risk score: ${riskScore}, Reasons: ${riskReasons.join(', ') || 'none'}`);
+  
   // Threat intelligence data
   let threatData = {
     ip_address: userIP,
@@ -189,8 +226,12 @@ app.post('/api/web-verify', async (req, res) => {
     timezone_mismatch: false,
     browser_timezone: fingerprint_data?.tz || fingerprint_data?.timezone,
     ip_timezone: null,
-    is_bot: false,
-    is_headless: false,
+    is_bot: clientThreats.botScore >= 50,
+    is_headless: clientThreats.botReasons?.includes('Headless browser UA'),
+    is_vm: clientThreats.vmScore >= 50,
+    is_incognito: clientThreats.incognito || false,
+    client_risk_score: riskScore,
+    client_risk_reasons: riskReasons,
     user_agent: req.headers['user-agent']
   };
   
@@ -215,13 +256,35 @@ app.post('/api/web-verify', async (req, res) => {
         // Check timezone mismatch
         if (threatData.browser_timezone && threatData.ip_timezone) {
           threatData.timezone_mismatch = threatData.browser_timezone !== threatData.ip_timezone;
+          if (threatData.timezone_mismatch) {
+            riskScore += 15;
+            riskReasons.push('Timezone mismatch');
+          }
         }
+        
+        // Add IP risk to overall score
+        riskScore += Math.floor(threatData.ip_risk_score / 2);
+        if (threatData.ip_vpn) { riskScore += 10; riskReasons.push('VPN'); }
+        if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
+        if (threatData.ip_tor) { riskScore += 25; riskReasons.push('Tor'); }
         
         console.log(`[VERIFY] IPQualityScore: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Proxy=${threatData.ip_proxy}`);
       }
     } catch (e) {
       console.log(`[VERIFY] IPQualityScore error:`, e.message);
     }
+  }
+  
+  // Update final risk score
+  threatData.total_risk_score = riskScore;
+  threatData.risk_reasons = riskReasons;
+  
+  console.log(`[VERIFY] TOTAL RISK SCORE: ${riskScore}`);
+  
+  // High risk = block (but allow them to appeal)
+  if (riskScore >= 80) {
+    console.log(`[VERIFY] HIGH RISK - Score ${riskScore} exceeds threshold`);
+    // Don't block, but flag for review
   }
   
   // AbuseIPDB check
