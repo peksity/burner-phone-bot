@@ -431,6 +431,31 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
             content: '```\n[SYSTEM] Cross-referencing device signature...\n[SYSTEM] Match found in banned registry.\n[SYSTEM] Access permanently revoked.\n[SYSTEM] All future attempts will be logged and reported.\n```'
           });
           
+          // Appeal option with button
+          await new Promise(r => setTimeout(r, 2000));
+          const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+          const appealRow = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`appeal_ban_${discord_id}`)
+                .setLabel('📩 Submit Appeal')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`appeal_decline_${discord_id}`)
+                .setLabel('No Thanks')
+                .setStyle(ButtonStyle.Secondary)
+            );
+          
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setTitle('📩 Appeal Process')
+              .setDescription('If you believe this is an error, you may submit an appeal.\n\nA staff member will review your case within 24-48 hours.')
+              .setColor(0x5865F2)
+              .setFooter({ text: 'Click below to start your appeal' })
+            ],
+            components: [appealRow]
+          });
+          
         } catch (e) {
           console.log('[VERIFY] Could not DM user:', e.message);
         }
@@ -573,6 +598,28 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           } catch (e) {
             console.log('[VERIFY] Could not add alternate account role:', e.message);
           }
+          
+          // Send appeal option after 2+ attempts
+          const appealRow = new ActionRowBuilder()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId(`appeal_alt_${discord_id}`)
+                .setLabel('📩 Contact Staff')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('appeal_dismiss')
+                .setLabel('Dismiss')
+                .setStyle(ButtonStyle.Secondary)
+            );
+          
+          await user.send({
+            embeds: [new EmbedBuilder()
+              .setTitle('📩 Need Help?')
+              .setDescription('If you believe this is an error (e.g. shared computer, sold device), you can contact staff to explain your situation.')
+              .setColor(0x5865F2)
+            ],
+            components: [appealRow]
+          });
         }
         
       } catch (e) {
@@ -3766,6 +3813,39 @@ client.on(Events.MessageCreate, async (message) => {
     if (!guild) return;
     
     // ═══════════════════════════════════════════════════════════════
+    // CHECK FOR PENDING APPEAL
+    // ═══════════════════════════════════════════════════════════════
+    const pendingAppeal = client.pendingAppeals?.get(message.author.id);
+    if (pendingAppeal && (Date.now() - pendingAppeal.timestamp) < 600000) { // 10 min timeout
+      client.pendingAppeals.delete(message.author.id);
+      
+      // Create appeal ticket
+      const appealType = pendingAppeal.type === 'suspended' ? '🚨 BAN APPEAL' : '⚠️ ALT ACCOUNT APPEAL';
+      const ticket = await createTicket(message.author, guild, message.content, { isAppeal: true });
+      
+      if (ticket) {
+        // Send special appeal header to ticket
+        await ticket.send({
+          embeds: [new EmbedBuilder()
+            .setTitle(appealType)
+            .setDescription(`**User:** ${message.author.tag} (<@${message.author.id}>)\n**Type:** ${pendingAppeal.type === 'suspended' ? 'Banned Alt Detection' : 'Duplicate Account'}\n\n**Their Appeal:**\n${message.content}`)
+            .setColor(pendingAppeal.type === 'suspended' ? 0xFF0000 : 0xFFA500)
+            .setTimestamp()
+          ]
+        });
+        
+        await message.reply({
+          embeds: [new EmbedBuilder()
+            .setTitle('✅ Appeal Submitted')
+            .setDescription('Your appeal has been sent to staff. You will receive a response in this DM.\n\nPlease be patient - appeals are typically reviewed within 24-48 hours.')
+            .setColor(0x00FF00)
+          ]
+        });
+      }
+      return;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
     // SOC-LEVEL THREAT ANALYSIS
     // ═══════════════════════════════════════════════════════════════
     
@@ -5967,6 +6047,53 @@ client.on(Events.InteractionCreate, async (interaction) => {
   
   // Only handle in DMs
   if (interaction.channel.type !== ChannelType.DM) return;
+  
+  // Appeal button - Suspended (banned alt)
+  if (interaction.customId.startsWith('appeal_ban_')) {
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setTitle('📝 Write Your Appeal')
+        .setDescription('Please reply to this message with your appeal.\n\nInclude:\n• Why you believe this is a mistake\n• Any relevant context\n\nYour next message will be sent to staff.')
+        .setColor(0x5865F2)
+      ],
+      components: []
+    });
+    
+    // Store that they're writing an appeal
+    if (!client.pendingAppeals) client.pendingAppeals = new Map();
+    client.pendingAppeals.set(interaction.user.id, { type: 'suspended', timestamp: Date.now() });
+    return;
+  }
+  
+  // Appeal button - Alternate Account
+  if (interaction.customId.startsWith('appeal_alt_')) {
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setTitle('📝 Explain Your Situation')
+        .setDescription('Please reply to this message explaining why you need a second account.\n\nCommon reasons:\n• Shared computer/device\n• Sold/gave away old device\n• Family member\'s account\n\nYour next message will be sent to staff.')
+        .setColor(0x5865F2)
+      ],
+      components: []
+    });
+    
+    // Store that they're writing an appeal
+    if (!client.pendingAppeals) client.pendingAppeals = new Map();
+    client.pendingAppeals.set(interaction.user.id, { type: 'alternate', timestamp: Date.now() });
+    return;
+  }
+  
+  // Decline appeal
+  if (interaction.customId.startsWith('appeal_decline') || interaction.customId === 'appeal_dismiss') {
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setTitle('📩 Appeal Dismissed')
+        .setDescription('You can start an appeal later by messaging this bot.')
+        .setColor(0x666666)
+      ],
+      components: []
+    });
+    return;
+  }
   
   if (interaction.customId === 'cancel_ticket') {
     client.pendingTickets?.delete(interaction.user.id);
