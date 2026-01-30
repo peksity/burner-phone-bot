@@ -845,7 +845,7 @@ app.post('/api/staff/oauth', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID || '1329887650432569424',
+        client_id: process.env.DISCORD_CLIENT_ID || '1462303194863505521',
         client_secret: process.env.DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code,
