@@ -1143,6 +1143,32 @@ app.get('/api/staff/mod-logs', checkStaffAuth, async (req, res) => {
   }
 });
 
+// GET /api/staff/members - All verified members with their latest data
+app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
+  try {
+    const guildId = req.query.guild_id || '1446317951757062256';
+    
+    // Get all verified members with their latest verification data
+    const members = await pool.query(`
+      SELECT DISTINCT ON (df.discord_id) 
+        df.discord_id, df.discord_tag, df.fingerprint_hash, df.verified_at,
+        vl.ip_address, vl.ip_port, vl.ip_risk_score, vl.ip_vpn, vl.ip_proxy, vl.ip_tor,
+        vl.ip_country, vl.ip_region, vl.ip_city, vl.ip_isp, vl.ip_org,
+        vl.ip_mobile, vl.ip_connection_type, vl.ip_latitude, vl.ip_longitude,
+        vl.timezone_mismatch, vl.created_at as last_verified
+      FROM device_fingerprints df
+      LEFT JOIN verification_logs vl ON df.discord_id = vl.discord_id AND vl.result = 'success'
+      WHERE df.guild_id = $1
+      ORDER BY df.discord_id, vl.created_at DESC NULLS LAST
+    `, [guildId]);
+    
+    res.json({ members: members.rows });
+  } catch (error) {
+    console.error('[STAFF API] Members error:', error);
+    res.status(500).json({ error: 'Failed to get members', members: [] });
+  }
+});
+
 // POST /api/staff/reset-fingerprint - Reset user's fingerprint
 app.post('/api/staff/reset-fingerprint', checkStaffAuth, async (req, res) => {
   const { discord_id } = req.body;
