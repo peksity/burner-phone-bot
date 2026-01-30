@@ -434,6 +434,20 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         } catch (e) {
           console.log('[VERIFY] Could not DM user:', e.message);
         }
+        
+        // Give them "Suspended" role (alt of banned user)
+        try {
+          const member = await guild.members.fetch(discord_id).catch(() => null);
+          if (member) {
+            const suspendedRole = guild.roles.cache.find(r => r.name.toLowerCase() === 'suspended');
+            if (suspendedRole) {
+              await member.roles.add(suspendedRole);
+              console.log(`[VERIFY] Added Suspended role to ${discord_id}`);
+            }
+          }
+        } catch (e) {
+          console.log('[VERIFY] Could not add suspended role:', e.message);
+        }
       }
       
       // Delete the token
@@ -543,6 +557,23 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         
         await user.send(dmMessage);
         console.log(`[VERIFY] Sent escalating DM (attempt #${attemptData.count}) to ${discord_id}`);
+        
+        // Give them "Alternate Account" role after 2+ attempts
+        if (attemptData.count >= 2) {
+          try {
+            const guild = client.guilds.cache.get(guild_id);
+            const member = await guild?.members.fetch(discord_id).catch(() => null);
+            if (member) {
+              const altRole = guild.roles.cache.find(r => r.name.toLowerCase() === 'alternate account');
+              if (altRole) {
+                await member.roles.add(altRole);
+                console.log(`[VERIFY] Added Alternate Account role to ${discord_id}`);
+              }
+            }
+          } catch (e) {
+            console.log('[VERIFY] Could not add alternate account role:', e.message);
+          }
+        }
         
       } catch (e) {
         console.log('[VERIFY] Could not DM user:', e.message);
