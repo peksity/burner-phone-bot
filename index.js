@@ -802,13 +802,163 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
 // Simple API key check (for now, can be enhanced later)
 const STAFF_API_KEY = process.env.STAFF_API_KEY || 'unpatched-staff-2024';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// STAFF OAUTH & AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+const staffTokens = new Map(); // token -> { user, expires }
+const STAFF_ROLE_IDS = ['1329888521283174430', '1329888413376180266']; // Add your mod/admin role IDs
+const ALLOWED_STAFF_IDS = ['513386668042698755']; // Owner ID - always allowed
+
 function checkStaffAuth(req, res, next) {
+  // Check API key (legacy)
   const apiKey = req.headers['x-api-key'] || req.query.key;
-  if (apiKey !== STAFF_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (apiKey === STAFF_API_KEY) {
+    return next();
   }
-  next();
+  
+  // Check Bearer token (OAuth)
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    const session = staffTokens.get(token);
+    if (session && session.expires > Date.now()) {
+      req.staffUser = session.user;
+      return next();
+    }
+  }
+  
+  return res.status(401).json({ error: 'Unauthorized' });
 }
+
+// POST /api/staff/oauth - Exchange Discord code for staff token
+app.post('/api/staff/oauth', async (req, res) => {
+  const { code, redirect_uri } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ success: false, error: 'No code provided' });
+  }
+  
+  try {
+    // Exchange code for Discord access token
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID || '1329887650432569424',
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri
+      })
+    });
+    
+    const tokenData = await tokenRes.json();
+    
+    if (!tokenData.access_token) {
+      console.log('[STAFF OAUTH] Token exchange failed:', tokenData);
+      return res.json({ success: false, error: 'Discord authentication failed' });
+    }
+    
+    // Get user info
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const user = await userRes.json();
+    
+    if (!user.id) {
+      return res.json({ success: false, error: 'Could not get user info' });
+    }
+    
+    // Check if user is allowed (owner or has staff role in guild)
+    let isStaff = ALLOWED_STAFF_IDS.includes(user.id);
+    
+    if (!isStaff) {
+      // Check guild membership and roles
+      try {
+        const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
+        if (guild) {
+          const member = await guild.members.fetch(user.id).catch(() => null);
+          if (member) {
+            isStaff = member.roles.cache.some(r => STAFF_ROLE_IDS.includes(r.id)) ||
+                      member.permissions.has('ModerateMembers') ||
+                      member.permissions.has('Administrator');
+          }
+        }
+      } catch (e) {
+        console.log('[STAFF OAUTH] Role check error:', e.message);
+      }
+    }
+    
+    if (!isStaff) {
+      return res.json({ success: false, error: 'Access denied. You must be a server moderator.' });
+    }
+    
+    // Generate session token
+    const token = require('crypto').randomBytes(32).toString('hex');
+    staffTokens.set(token, {
+      user: { id: user.id, username: user.username, avatar: user.avatar },
+      expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+    });
+    
+    console.log(`[STAFF OAUTH] ${user.username} (${user.id}) logged in`);
+    
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, username: user.username, avatar: user.avatar }
+    });
+    
+  } catch (e) {
+    console.error('[STAFF OAUTH] Error:', e);
+    res.json({ success: false, error: 'Authentication error' });
+  }
+});
+
+// GET /api/staff/verify-token - Check if token is still valid
+app.get('/api/staff/verify-token', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.json({ valid: false });
+  }
+  
+  const token = authHeader.substring(7);
+  const session = staffTokens.get(token);
+  
+  if (session && session.expires > Date.now()) {
+    return res.json({ valid: true, user: session.user });
+  }
+  
+  return res.json({ valid: false });
+});
+
+// GET /api/staff/mod-logs - Moderation action logs
+app.get('/api/staff/mod-logs', checkStaffAuth, async (req, res) => {
+  try {
+    // For now return empty - we can add mod_logs table later
+    res.json({ logs: [] });
+  } catch (e) {
+    res.json({ logs: [] });
+  }
+});
+
+// POST /api/staff/reset-fingerprint - Reset user's fingerprint
+app.post('/api/staff/reset-fingerprint', checkStaffAuth, async (req, res) => {
+  const { discord_id } = req.body;
+  
+  if (!discord_id) {
+    return res.status(400).json({ success: false, error: 'No user ID provided' });
+  }
+  
+  try {
+    await pool.query('DELETE FROM device_fingerprints WHERE discord_id = $1', [discord_id]);
+    console.log(`[STAFF] Fingerprint reset for ${discord_id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[STAFF] Reset error:', e);
+    res.status(500).json({ success: false, error: 'Failed to reset fingerprint' });
+  }
+});
 
 // GET /api/staff/stats - Dashboard stats
 app.get('/api/staff/stats', checkStaffAuth, async (req, res) => {
