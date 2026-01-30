@@ -18,7 +18,15 @@ async function run() {
     ['ip_mobile', 'BOOLEAN DEFAULT false'],
     ['ip_connection_type', 'VARCHAR(50)'],
     ['ip_latitude', 'DECIMAL(10,7)'],
-    ['ip_longitude', 'DECIMAL(10,7)']
+    ['ip_longitude', 'DECIMAL(10,7)'],
+    ['account_age_days', 'INTEGER'],
+    ['is_new_account', 'BOOLEAN DEFAULT false'],
+    ['velocity_count', 'INTEGER'],
+    ['velocity_blocked', 'BOOLEAN DEFAULT false'],
+    ['impossible_travel', 'BOOLEAN DEFAULT false'],
+    ['last_country', 'VARCHAR(10)'],
+    ['language_mismatch', 'BOOLEAN DEFAULT false'],
+    ['unusual_time', 'BOOLEAN DEFAULT false']
   ];
   
   for (const [name, type] of columns) {

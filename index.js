@@ -324,6 +324,176 @@ app.post('/api/web-verify', async (req, res) => {
     }
   }
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADVANCED SECURITY CHECKS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // 1. ACCOUNT AGE CHECK - Flag new Discord accounts
+  let accountAgeDays = null;
+  let isNewAccount = false;
+  try {
+    const guild = client.guilds.cache.get(guild_id);
+    const member = await guild?.members.fetch(discord_id).catch(() => null);
+    if (member?.user?.createdAt) {
+      const accountAge = Date.now() - member.user.createdAt.getTime();
+      accountAgeDays = Math.floor(accountAge / (1000 * 60 * 60 * 24));
+      isNewAccount = accountAgeDays < 7;
+      if (isNewAccount) {
+        riskScore += 20;
+        riskReasons.push(`New account (${accountAgeDays} days)`);
+        console.log(`[VERIFY] NEW ACCOUNT WARNING: ${accountAgeDays} days old`);
+      } else if (accountAgeDays < 30) {
+        riskScore += 10;
+        riskReasons.push(`Young account (${accountAgeDays} days)`);
+      }
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Account age check error:`, e.message);
+  }
+  threatData.account_age_days = accountAgeDays;
+  threatData.is_new_account = isNewAccount;
+  
+  // 2. VELOCITY CHECK - Too many verifications from same IP
+  let velocityCount = 0;
+  let velocityBlocked = false;
+  try {
+    const velocityCheck = await pool.query(`
+      SELECT COUNT(*) FROM verification_logs 
+      WHERE ip_address = $1 AND created_at > NOW() - INTERVAL '1 hour' AND result = 'success'
+    `, [userIP]);
+    velocityCount = parseInt(velocityCheck.rows[0].count);
+    if (velocityCount >= 5) {
+      velocityBlocked = true;
+      riskScore += 50;
+      riskReasons.push(`Velocity limit (${velocityCount} verifications/hour)`);
+      console.log(`[VERIFY] VELOCITY LIMIT: ${velocityCount} accounts from same IP in 1 hour`);
+    } else if (velocityCount >= 3) {
+      riskScore += 20;
+      riskReasons.push(`Multiple verifications (${velocityCount}/hour)`);
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Velocity check error:`, e.message);
+  }
+  threatData.velocity_count = velocityCount;
+  threatData.velocity_blocked = velocityBlocked;
+  
+  // 3. IMPOSSIBLE TRAVEL CHECK - Same fingerprint, different country too fast
+  let impossibleTravel = false;
+  let lastCountry = null;
+  try {
+    const lastVerification = await pool.query(`
+      SELECT ip_country, ip_city, created_at FROM verification_logs 
+      WHERE fingerprint_hash = $1 AND ip_country IS NOT NULL
+      ORDER BY created_at DESC LIMIT 1
+    `, [fingerprint]);
+    
+    if (lastVerification.rows.length > 0) {
+      lastCountry = lastVerification.rows[0].ip_country;
+      const lastTime = new Date(lastVerification.rows[0].created_at);
+      const hoursSinceLastVerification = (Date.now() - lastTime.getTime()) / (1000 * 60 * 60);
+      
+      if (lastCountry && threatData.ip_country && lastCountry !== threatData.ip_country && hoursSinceLastVerification < 6) {
+        impossibleTravel = true;
+        riskScore += 40;
+        riskReasons.push(`Impossible travel (${lastCountry} → ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)}h)`);
+        console.log(`[VERIFY] IMPOSSIBLE TRAVEL: ${lastCountry} → ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)} hours`);
+      }
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Impossible travel check error:`, e.message);
+  }
+  threatData.impossible_travel = impossibleTravel;
+  threatData.last_country = lastCountry;
+  
+  // 4. BROWSER LANGUAGE CHECK - Language doesn't match country
+  let languageMismatch = false;
+  try {
+    const browserLang = fingerprint_data?.nav?.lang || fingerprint_data?.language;
+    if (browserLang && threatData.ip_country) {
+      const langCountryMap = {
+        'en': ['US', 'GB', 'CA', 'AU', 'NZ', 'IE'],
+        'es': ['ES', 'MX', 'AR', 'CO', 'PE', 'CL'],
+        'fr': ['FR', 'CA', 'BE', 'CH'],
+        'de': ['DE', 'AT', 'CH'],
+        'pt': ['BR', 'PT'],
+        'ru': ['RU', 'UA', 'BY', 'KZ'],
+        'zh': ['CN', 'TW', 'HK', 'SG'],
+        'ja': ['JP'],
+        'ko': ['KR']
+      };
+      const langPrefix = browserLang.split('-')[0].toLowerCase();
+      const expectedCountries = langCountryMap[langPrefix] || [];
+      
+      // Only flag if we have a clear mismatch (e.g., Russian browser but US IP)
+      if (expectedCountries.length > 0 && !expectedCountries.includes(threatData.ip_country)) {
+        // Check if it's a suspicious mismatch
+        if (['ru', 'zh', 'ko'].includes(langPrefix) && ['US', 'GB', 'CA', 'AU'].includes(threatData.ip_country)) {
+          languageMismatch = true;
+          riskScore += 15;
+          riskReasons.push(`Language mismatch (${browserLang} in ${threatData.ip_country})`);
+          console.log(`[VERIFY] LANGUAGE MISMATCH: Browser=${browserLang}, Country=${threatData.ip_country}`);
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Language check error:`, e.message);
+  }
+  threatData.language_mismatch = languageMismatch;
+  
+  // 5. TIME-BASED SUSPICION - Verification at unusual hours (2-5 AM local time)
+  let unusualTime = false;
+  try {
+    if (threatData.ip_timezone) {
+      const userLocalTime = new Date().toLocaleString('en-US', { timeZone: threatData.ip_timezone, hour: 'numeric', hour12: false });
+      const hour = parseInt(userLocalTime);
+      if (hour >= 2 && hour <= 5) {
+        unusualTime = true;
+        riskScore += 10;
+        riskReasons.push(`Unusual time (${hour}:00 local)`);
+        console.log(`[VERIFY] UNUSUAL TIME: ${hour}:00 local time`);
+      }
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Time check error:`, e.message);
+  }
+  threatData.unusual_time = unusualTime;
+  
+  // Update final risk score again
+  threatData.total_risk_score = riskScore;
+  threatData.risk_reasons = riskReasons;
+  
+  // 6. STAFF DM ALERTS - Alert mods for high-risk verifications
+  const STAFF_ALERT_CHANNEL = process.env.STAFF_ALERT_CHANNEL || '1329894067922010153'; // Your mod-logs channel
+  if (riskScore >= 50) {
+    try {
+      const alertChannel = client.channels.cache.get(STAFF_ALERT_CHANNEL);
+      if (alertChannel) {
+        const alertEmbed = new EmbedBuilder()
+          .setTitle('⚠️ High-Risk Verification')
+          .setColor(riskScore >= 75 ? 0xFF0000 : 0xFFA500)
+          .addFields(
+            { name: 'User', value: `<@${discord_id}> (${discord_id})`, inline: true },
+            { name: 'Risk Score', value: `**${riskScore}**/100`, inline: true },
+            { name: 'Location', value: `${threatData.ip_country || '?'}, ${threatData.ip_region || '?'}, ${threatData.ip_city || '?'}`, inline: true },
+            { name: 'IP', value: `\`${userIP}\``, inline: true },
+            { name: 'ISP', value: threatData.ip_isp || 'Unknown', inline: true },
+            { name: 'Account Age', value: accountAgeDays !== null ? `${accountAgeDays} days` : 'Unknown', inline: true },
+            { name: 'Flags', value: riskReasons.join(', ') || 'None', inline: false }
+          )
+          .setTimestamp();
+        
+        if (threatData.ip_vpn) alertEmbed.addFields({ name: '🔒 VPN', value: 'Detected', inline: true });
+        if (impossibleTravel) alertEmbed.addFields({ name: '✈️ Travel', value: `${lastCountry} → ${threatData.ip_country}`, inline: true });
+        if (velocityCount >= 3) alertEmbed.addFields({ name: '⚡ Velocity', value: `${velocityCount}/hour`, inline: true });
+        
+        await alertChannel.send({ embeds: [alertEmbed] });
+        console.log(`[VERIFY] Staff alert sent for high-risk user`);
+      }
+    } catch (e) {
+      console.log(`[VERIFY] Staff alert error:`, e.message);
+    }
+  }
+  
   // Bot/Automation detection from fingerprint_data
   if (fingerprint_data) {
     // Check for headless browser indicators
@@ -1035,8 +1205,9 @@ app.get('/api/staff/logs', checkStaffAuth, async (req, res) => {
       let query = `
         SELECT id, discord_id, discord_tag, result, fingerprint_hash, 
                alt_of_discord_id, alt_of_discord_tag,
-               ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score,
-               ip_country, ip_region, ip_city, ip_isp, ip_abuse_reports,
+               ip_address, ip_port, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score,
+               ip_country, ip_region, ip_city, ip_isp, ip_org, ip_mobile, ip_connection_type,
+               ip_latitude, ip_longitude, ip_abuse_reports,
                timezone_mismatch, browser_timezone, ip_timezone,
                behavior_data, gpu_data, user_agent, created_at
         FROM verification_logs 
