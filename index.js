@@ -583,8 +583,8 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         await user.send(dmMessage);
         console.log(`[VERIFY] Sent escalating DM (attempt #${attemptData.count}) to ${discord_id}`);
         
-        // Give them "Alternate Account" role after 2+ attempts
-        if (attemptData.count >= 2) {
+        // Give them "Alternate Account" role after 1+ attempts
+        if (attemptData.count >= 1) {
           try {
             const guild = client.guilds.cache.get(guild_id);
             const member = await guild?.members.fetch(discord_id).catch(() => null);
