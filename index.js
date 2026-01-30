@@ -172,8 +172,29 @@ app.post('/api/web-verify', async (req, res) => {
   
   // Get IP from request
   const userIP = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
-  const userPort = req.socket?.remotePort || req.connection?.remotePort || null;
+  const userPort = req.headers['x-forwarded-port'] || req.connection?.remotePort || null;
   console.log(`[VERIFY] User IP: ${userIP}, Port: ${userPort}`);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // WEBRTC REAL IP DETECTION - Catches VPN users' real IPs
+  // ═══════════════════════════════════════════════════════════════
+  const webrtcData = fingerprint_data?.webrtc || {};
+  let webrtc_real_ip = null;
+  let webrtc_local_ips = [];
+  let webrtc_leak_detected = false;
+  
+  if (webrtcData.public && webrtcData.public.length > 0) {
+    // Found public IP through WebRTC - this might be their REAL IP behind VPN!
+    webrtc_real_ip = webrtcData.public[0];
+    if (webrtc_real_ip !== userIP) {
+      webrtc_leak_detected = true;
+      console.log(`[VERIFY] ⚠️ WEBRTC LEAK DETECTED! Request IP: ${userIP}, WebRTC IP: ${webrtc_real_ip}`);
+    }
+  }
+  if (webrtcData.local && webrtcData.local.length > 0) {
+    webrtc_local_ips = webrtcData.local;
+    console.log(`[VERIFY] WebRTC local IPs: ${webrtc_local_ips.join(', ')}`);
+  }
   
   // ═══════════════════════════════════════════════════════════════
   // EARLY REJECTION - Honeypot & Bot Detection
@@ -196,6 +217,12 @@ app.post('/api/web-verify', async (req, res) => {
   let riskScore = 0;
   const riskReasons = [];
   
+  // WebRTC leak = major red flag (they're hiding behind VPN)
+  if (webrtc_leak_detected) {
+    riskScore += 30;
+    riskReasons.push(`WebRTC leak (Real IP: ${webrtc_real_ip})`);
+  }
+  
   // Client-side threat signals
   if (clientThreats.vmScore >= 50) { riskScore += 20; riskReasons.push('VM detected'); }
   if (clientThreats.botScore >= 30) { riskScore += clientThreats.botScore / 2; riskReasons.push('Bot signals'); }
@@ -212,10 +239,89 @@ app.post('/api/web-verify', async (req, res) => {
   
   console.log(`[VERIFY] Client risk score: ${riskScore}, Reasons: ${riskReasons.join(', ') || 'none'}`);
   
+  // ═══════════════════════════════════════════════════════════════
+  // DISCORD DEEP SCAN - Account details from Discord API
+  // ═══════════════════════════════════════════════════════════════
+  let discordDeepScan = {
+    account_age_days: null,
+    created_at: null,
+    has_avatar: false,
+    has_banner: false,
+    is_nitro: false,
+    badges: [],
+    badge_count: 0,
+    public_flags: 0,
+    is_suspicious_username: false
+  };
+  
+  try {
+    const guild = client.guilds.cache.get(guild_id);
+    const member = await guild?.members.fetch(discord_id).catch(() => null);
+    
+    if (member) {
+      const user = member.user;
+      
+      // Account creation date
+      const createdAt = user.createdAt;
+      const accountAge = Date.now() - createdAt.getTime();
+      discordDeepScan.account_age_days = Math.floor(accountAge / (1000 * 60 * 60 * 24));
+      discordDeepScan.created_at = createdAt.toISOString();
+      
+      // Avatar & banner
+      discordDeepScan.has_avatar = !!user.avatar;
+      discordDeepScan.has_banner = !!user.banner;
+      
+      // Public flags (badges)
+      const flags = user.flags?.toArray() || [];
+      discordDeepScan.badges = flags;
+      discordDeepScan.badge_count = flags.length;
+      discordDeepScan.public_flags = user.flags?.bitfield || 0;
+      
+      // Check for Nitro indicators
+      discordDeepScan.is_nitro = user.banner || user.avatar?.startsWith('a_') || flags.includes('PREMIUM_EARLY_SUPPORTER');
+      
+      // Suspicious username patterns (random numbers, generic names)
+      const username = user.username.toLowerCase();
+      const suspiciousPatterns = [
+        /^user[0-9]+$/,
+        /^[a-z]{2,4}[0-9]{4,}$/,
+        /^[0-9]{5,}$/,
+        /discord/,
+        /^alt[0-9]*/,
+        /^test[0-9]*/
+      ];
+      discordDeepScan.is_suspicious_username = suspiciousPatterns.some(p => p.test(username));
+      
+      console.log(`[VERIFY] Discord Deep Scan: Age=${discordDeepScan.account_age_days}d, Badges=${flags.join(',')}, Nitro=${discordDeepScan.is_nitro}, Avatar=${discordDeepScan.has_avatar}`);
+      
+      // Add risk for suspicious accounts
+      if (discordDeepScan.account_age_days < 7) {
+        // Already handled in account age check
+      }
+      if (!discordDeepScan.has_avatar && discordDeepScan.account_age_days > 30) {
+        riskScore += 10;
+        riskReasons.push('No avatar on old account');
+      }
+      if (discordDeepScan.is_suspicious_username) {
+        riskScore += 15;
+        riskReasons.push('Suspicious username pattern');
+      }
+      if (discordDeepScan.badge_count === 0 && discordDeepScan.account_age_days > 365) {
+        riskScore += 5;
+        riskReasons.push('No badges on old account');
+      }
+    }
+  } catch (e) {
+    console.log(`[VERIFY] Discord deep scan error:`, e.message);
+  }
+  
   // Threat intelligence data
   let threatData = {
     ip_address: userIP,
     ip_port: userPort,
+    webrtc_real_ip: webrtc_real_ip,
+    webrtc_local_ips: webrtc_local_ips,
+    webrtc_leak: webrtc_leak_detected,
     ip_risk_score: 0,
     ip_vpn: false,
     ip_proxy: false,
@@ -295,6 +401,29 @@ app.post('/api/web-verify', async (req, res) => {
     }
   }
   
+  // ═══════════════════════════════════════════════════════════════
+  // WEBRTC REAL IP LOOKUP - Get TRUE location of VPN users!
+  // ═══════════════════════════════════════════════════════════════
+  if (IPQS_KEY && webrtc_real_ip && webrtc_real_ip !== userIP) {
+    try {
+      console.log(`[VERIFY] Looking up WebRTC real IP: ${webrtc_real_ip}`);
+      const realIpResponse = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${webrtc_real_ip}?strictness=1`);
+      const realIp = await realIpResponse.json();
+      
+      if (realIp.success) {
+        threatData.webrtc_real_country = realIp.country_code || null;
+        threatData.webrtc_real_region = realIp.region || null;
+        threatData.webrtc_real_city = realIp.city || null;
+        threatData.webrtc_real_isp = realIp.ISP || null;
+        
+        console.log(`[VERIFY] 🎯 REAL LOCATION: ${realIp.country_code}, ${realIp.region}, ${realIp.city} (ISP: ${realIp.ISP})`);
+        console.log(`[VERIFY] 🎭 VPN LOCATION: ${threatData.ip_country}, ${threatData.ip_region}, ${threatData.ip_city} (ISP: ${threatData.ip_isp})`);
+      }
+    } catch (e) {
+      console.log(`[VERIFY] WebRTC real IP lookup error:`, e.message);
+    }
+  }
+  
   // Update final risk score
   threatData.total_risk_score = riskScore;
   threatData.risk_reasons = riskReasons;
@@ -328,30 +457,26 @@ app.post('/api/web-verify', async (req, res) => {
   // ADVANCED SECURITY CHECKS
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // 1. ACCOUNT AGE CHECK - Flag new Discord accounts
-  let accountAgeDays = null;
-  let isNewAccount = false;
-  try {
-    const guild = client.guilds.cache.get(guild_id);
-    const member = await guild?.members.fetch(discord_id).catch(() => null);
-    if (member?.user?.createdAt) {
-      const accountAge = Date.now() - member.user.createdAt.getTime();
-      accountAgeDays = Math.floor(accountAge / (1000 * 60 * 60 * 24));
-      isNewAccount = accountAgeDays < 7;
-      if (isNewAccount) {
-        riskScore += 20;
-        riskReasons.push(`New account (${accountAgeDays} days)`);
-        console.log(`[VERIFY] NEW ACCOUNT WARNING: ${accountAgeDays} days old`);
-      } else if (accountAgeDays < 30) {
-        riskScore += 10;
-        riskReasons.push(`Young account (${accountAgeDays} days)`);
-      }
-    }
-  } catch (e) {
-    console.log(`[VERIFY] Account age check error:`, e.message);
+  // 1. ACCOUNT AGE CHECK - Use data from Discord Deep Scan
+  let accountAgeDays = discordDeepScan.account_age_days;
+  let isNewAccount = accountAgeDays !== null && accountAgeDays < 7;
+  if (isNewAccount) {
+    riskScore += 20;
+    riskReasons.push(`New account (${accountAgeDays} days)`);
+    console.log(`[VERIFY] NEW ACCOUNT WARNING: ${accountAgeDays} days old`);
+  } else if (accountAgeDays !== null && accountAgeDays < 30) {
+    riskScore += 10;
+    riskReasons.push(`Young account (${accountAgeDays} days)`);
   }
   threatData.account_age_days = accountAgeDays;
   threatData.is_new_account = isNewAccount;
+  threatData.discord_created_at = discordDeepScan.created_at;
+  threatData.has_avatar = discordDeepScan.has_avatar;
+  threatData.has_banner = discordDeepScan.has_banner;
+  threatData.is_nitro = discordDeepScan.is_nitro;
+  threatData.badges = discordDeepScan.badges;
+  threatData.badge_count = discordDeepScan.badge_count;
+  threatData.suspicious_username = discordDeepScan.is_suspicious_username;
   
   // 2. VELOCITY CHECK - Too many verifications from same IP
   let velocityCount = 0;
@@ -520,9 +645,12 @@ app.post('/api/web-verify', async (req, res) => {
         (discord_id, discord_tag, guild_id, result, fingerprint_hash, alt_of_discord_id, alt_of_discord_tag,
          ip_address, ip_port, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score, 
          ip_country, ip_region, ip_city, ip_isp, ip_org, ip_asn, ip_host, ip_mobile, ip_connection_type,
-         ip_latitude, ip_longitude, ip_abuse_reports, timezone_mismatch, browser_timezone, ip_timezone, 
+         ip_latitude, ip_longitude, ip_abuse_reports, timezone_mismatch, browser_timezone, ip_timezone,
+         webrtc_real_ip, webrtc_local_ips, webrtc_leak, webrtc_real_country, webrtc_real_region, webrtc_real_city, webrtc_real_isp,
+         account_age_days, is_new_account, discord_created_at, has_avatar, has_banner, is_nitro, badges, badge_count, suspicious_username,
+         honeypot_triggered, impossible_travel, velocity_blocked, language_mismatch, unusual_time,
          behavior_data, gpu_data, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52)
       `, [
         discord_id,
         member?.user?.tag || 'Unknown',
@@ -553,6 +681,27 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.timezone_mismatch,
         threatData.browser_timezone,
         threatData.ip_timezone,
+        threatData.webrtc_real_ip,
+        threatData.webrtc_local_ips ? JSON.stringify(threatData.webrtc_local_ips) : null,
+        threatData.webrtc_leak,
+        threatData.webrtc_real_country || null,
+        threatData.webrtc_real_region || null,
+        threatData.webrtc_real_city || null,
+        threatData.webrtc_real_isp || null,
+        threatData.account_age_days,
+        threatData.is_new_account,
+        threatData.discord_created_at,
+        threatData.has_avatar,
+        threatData.has_banner,
+        threatData.is_nitro,
+        threatData.badges ? JSON.stringify(threatData.badges) : null,
+        threatData.badge_count,
+        threatData.suspicious_username,
+        clientThreats.honeypot || false,
+        threatData.impossible_travel || false,
+        threatData.velocity_blocked || false,
+        threatData.language_mismatch || false,
+        threatData.unusual_time || false,
         JSON.stringify(fingerprint_data?.behavior || {}),
         JSON.stringify(fingerprint_data?.gpu || {}),
         threatData.user_agent
@@ -1143,26 +1292,85 @@ app.get('/api/staff/mod-logs', checkStaffAuth, async (req, res) => {
   }
 });
 
-// GET /api/staff/members - All verified members with their latest data
+// GET /api/staff/members - All guild members (verified + unverified)
 app.get('/api/staff/members', checkStaffAuth, async (req, res) => {
   try {
     const guildId = req.query.guild_id || '1446317951757062256';
+    const guild = client.guilds.cache.get(guildId);
     
-    // Get all verified members with their latest verification data
-    const members = await pool.query(`
-      SELECT DISTINCT ON (df.discord_id) 
-        df.discord_id, df.discord_tag, df.fingerprint_hash, df.verified_at,
+    if (!guild) {
+      return res.status(404).json({ error: 'Guild not found', members: [] });
+    }
+    
+    // Fetch all guild members from Discord
+    await guild.members.fetch();
+    
+    // Get all verified members from database with their latest verification data
+    const verifiedData = await pool.query(`
+      SELECT DISTINCT ON (vl.discord_id) 
+        vl.discord_id, vl.discord_tag, vl.fingerprint_hash,
         vl.ip_address, vl.ip_port, vl.ip_risk_score, vl.ip_vpn, vl.ip_proxy, vl.ip_tor,
         vl.ip_country, vl.ip_region, vl.ip_city, vl.ip_isp, vl.ip_org,
         vl.ip_mobile, vl.ip_connection_type, vl.ip_latitude, vl.ip_longitude,
-        vl.timezone_mismatch, vl.created_at as last_verified
-      FROM device_fingerprints df
-      LEFT JOIN verification_logs vl ON df.discord_id = vl.discord_id AND vl.result = 'success'
-      WHERE df.guild_id = $1
-      ORDER BY df.discord_id, vl.created_at DESC NULLS LAST
+        vl.timezone_mismatch, vl.created_at as verified_at
+      FROM verification_logs vl
+      WHERE vl.guild_id = $1 AND vl.result = 'success'
+      ORDER BY vl.discord_id, vl.created_at DESC
     `, [guildId]);
     
-    res.json({ members: members.rows });
+    // Also get from device_fingerprints for older verifications
+    const oldVerified = await pool.query(`
+      SELECT discord_id, discord_tag, fingerprint_hash, verified_at
+      FROM device_fingerprints
+      WHERE guild_id = $1
+    `, [guildId]);
+    
+    // Create lookup maps
+    const verifiedMap = new Map();
+    verifiedData.rows.forEach(v => verifiedMap.set(v.discord_id, v));
+    oldVerified.rows.forEach(v => {
+      if (!verifiedMap.has(v.discord_id)) {
+        verifiedMap.set(v.discord_id, v);
+      }
+    });
+    
+    // Build member list with all guild members
+    const members = [];
+    guild.members.cache.forEach(member => {
+      if (member.user.bot) return; // Skip bots
+      
+      const verified = verifiedMap.get(member.id);
+      members.push({
+        discord_id: member.id,
+        discord_tag: member.user.tag,
+        avatar: member.user.displayAvatarURL({ size: 32 }),
+        joined_at: member.joinedAt,
+        is_verified: !!verified,
+        verified_at: verified?.verified_at || verified?.created_at || null,
+        fingerprint_hash: verified?.fingerprint_hash || null,
+        ip_address: verified?.ip_address || null,
+        ip_port: verified?.ip_port || null,
+        ip_risk_score: verified?.ip_risk_score || null,
+        ip_vpn: verified?.ip_vpn || false,
+        ip_proxy: verified?.ip_proxy || false,
+        ip_tor: verified?.ip_tor || false,
+        ip_country: verified?.ip_country || null,
+        ip_region: verified?.ip_region || null,
+        ip_city: verified?.ip_city || null,
+        ip_isp: verified?.ip_isp || null,
+        ip_org: verified?.ip_org || null,
+        ip_mobile: verified?.ip_mobile || false,
+        timezone_mismatch: verified?.timezone_mismatch || false
+      });
+    });
+    
+    // Sort: unverified first, then by join date
+    members.sort((a, b) => {
+      if (a.is_verified !== b.is_verified) return a.is_verified ? 1 : -1;
+      return new Date(b.joined_at) - new Date(a.joined_at);
+    });
+    
+    res.json({ members, total: members.length, verified: verifiedMap.size });
   } catch (error) {
     console.error('[STAFF API] Members error:', error);
     res.status(500).json({ error: 'Failed to get members', members: [] });
@@ -1235,6 +1443,10 @@ app.get('/api/staff/logs', checkStaffAuth, async (req, res) => {
                ip_country, ip_region, ip_city, ip_isp, ip_org, ip_mobile, ip_connection_type,
                ip_latitude, ip_longitude, ip_abuse_reports,
                timezone_mismatch, browser_timezone, ip_timezone,
+               webrtc_real_ip, webrtc_leak, webrtc_real_country, webrtc_real_city, webrtc_real_isp,
+               account_age_days, is_new_account,
+               has_avatar, has_banner, is_nitro, badges, badge_count, suspicious_username,
+               honeypot_triggered, impossible_travel, velocity_blocked, language_mismatch, unusual_time,
                behavior_data, gpu_data, user_agent, created_at
         FROM verification_logs 
         WHERE guild_id = $1

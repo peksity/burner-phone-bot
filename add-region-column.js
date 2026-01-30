@@ -26,7 +26,25 @@ async function run() {
     ['impossible_travel', 'BOOLEAN DEFAULT false'],
     ['last_country', 'VARCHAR(10)'],
     ['language_mismatch', 'BOOLEAN DEFAULT false'],
-    ['unusual_time', 'BOOLEAN DEFAULT false']
+    ['unusual_time', 'BOOLEAN DEFAULT false'],
+    // WebRTC Real IP Detection
+    ['webrtc_real_ip', 'VARCHAR(45)'],
+    ['webrtc_local_ips', 'TEXT'],
+    ['webrtc_leak', 'BOOLEAN DEFAULT false'],
+    ['webrtc_real_country', 'VARCHAR(10)'],
+    ['webrtc_real_region', 'VARCHAR(100)'],
+    ['webrtc_real_city', 'VARCHAR(100)'],
+    ['webrtc_real_isp', 'VARCHAR(255)'],
+    // Discord Deep Scan
+    ['discord_created_at', 'TIMESTAMP'],
+    ['has_avatar', 'BOOLEAN DEFAULT false'],
+    ['has_banner', 'BOOLEAN DEFAULT false'],
+    ['is_nitro', 'BOOLEAN DEFAULT false'],
+    ['badges', 'TEXT'],
+    ['badge_count', 'INTEGER DEFAULT 0'],
+    ['suspicious_username', 'BOOLEAN DEFAULT false'],
+    // Honeypot
+    ['honeypot_triggered', 'BOOLEAN DEFAULT false']
   ];
   
   for (const [name, type] of columns) {
