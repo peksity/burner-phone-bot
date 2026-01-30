@@ -172,7 +172,8 @@ app.post('/api/web-verify', async (req, res) => {
   
   // Get IP from request
   const userIP = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
-  console.log(`[VERIFY] User IP: ${userIP}`);
+  const userPort = req.socket?.remotePort || req.connection?.remotePort || null;
+  console.log(`[VERIFY] User IP: ${userIP}, Port: ${userPort}`);
   
   // ═══════════════════════════════════════════════════════════════
   // EARLY REJECTION - Honeypot & Bot Detection
@@ -214,14 +215,24 @@ app.post('/api/web-verify', async (req, res) => {
   // Threat intelligence data
   let threatData = {
     ip_address: userIP,
+    ip_port: userPort,
     ip_risk_score: 0,
     ip_vpn: false,
     ip_proxy: false,
     ip_tor: false,
     ip_bot_score: 0,
     ip_country: null,
+    ip_region: null,
     ip_city: null,
     ip_isp: null,
+    ip_org: null,
+    ip_asn: null,
+    ip_host: null,
+    ip_mobile: false,
+    ip_is_crawler: false,
+    ip_connection_type: null,
+    ip_latitude: null,
+    ip_longitude: null,
     ip_abuse_reports: 0,
     timezone_mismatch: false,
     browser_timezone: fingerprint_data?.tz || fingerprint_data?.timezone,
@@ -249,9 +260,18 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.ip_tor = ipqs.tor || false;
         threatData.ip_bot_score = ipqs.bot_status ? 100 : 0;
         threatData.ip_country = ipqs.country_code || null;
+        threatData.ip_region = ipqs.region || null;
         threatData.ip_city = ipqs.city || null;
         threatData.ip_isp = ipqs.ISP || null;
         threatData.ip_timezone = ipqs.timezone || null;
+        threatData.ip_org = ipqs.organization || null;
+        threatData.ip_asn = ipqs.ASN || null;
+        threatData.ip_host = ipqs.host || null;
+        threatData.ip_mobile = ipqs.mobile || false;
+        threatData.ip_is_crawler = ipqs.is_crawler || false;
+        threatData.ip_connection_type = ipqs.connection_type || null;
+        threatData.ip_latitude = ipqs.latitude || null;
+        threatData.ip_longitude = ipqs.longitude || null;
         
         // Check timezone mismatch
         if (threatData.browser_timezone && threatData.ip_timezone) {
@@ -268,7 +288,7 @@ app.post('/api/web-verify', async (req, res) => {
         if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
         if (threatData.ip_tor) { riskScore += 25; riskReasons.push('Tor'); }
         
-        console.log(`[VERIFY] IPQualityScore: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Proxy=${threatData.ip_proxy}`);
+        console.log(`[VERIFY] IPQualityScore: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Country=${threatData.ip_country}, Region=${threatData.ip_region}, City=${threatData.ip_city}`);
       }
     } catch (e) {
       console.log(`[VERIFY] IPQualityScore error:`, e.message);
@@ -328,9 +348,11 @@ app.post('/api/web-verify', async (req, res) => {
       await pool.query(`
         INSERT INTO verification_logs 
         (discord_id, discord_tag, guild_id, result, fingerprint_hash, alt_of_discord_id, alt_of_discord_tag,
-         ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score, ip_country, ip_city, ip_isp,
-         ip_abuse_reports, timezone_mismatch, browser_timezone, ip_timezone, behavior_data, gpu_data, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+         ip_address, ip_port, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score, 
+         ip_country, ip_region, ip_city, ip_isp, ip_org, ip_asn, ip_host, ip_mobile, ip_connection_type,
+         ip_latitude, ip_longitude, ip_abuse_reports, timezone_mismatch, browser_timezone, ip_timezone, 
+         behavior_data, gpu_data, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
       `, [
         discord_id,
         member?.user?.tag || 'Unknown',
@@ -340,14 +362,23 @@ app.post('/api/web-verify', async (req, res) => {
         altOfId,
         altOfTag,
         threatData.ip_address,
+        threatData.ip_port,
         threatData.ip_risk_score,
         threatData.ip_vpn,
         threatData.ip_proxy,
         threatData.ip_tor,
         threatData.ip_bot_score,
         threatData.ip_country,
+        threatData.ip_region || null,
         threatData.ip_city,
         threatData.ip_isp,
+        threatData.ip_org,
+        threatData.ip_asn,
+        threatData.ip_host,
+        threatData.ip_mobile,
+        threatData.ip_connection_type,
+        threatData.ip_latitude,
+        threatData.ip_longitude,
         threatData.ip_abuse_reports,
         threatData.timezone_mismatch,
         threatData.browser_timezone,
@@ -1005,7 +1036,7 @@ app.get('/api/staff/logs', checkStaffAuth, async (req, res) => {
         SELECT id, discord_id, discord_tag, result, fingerprint_hash, 
                alt_of_discord_id, alt_of_discord_tag,
                ip_address, ip_risk_score, ip_vpn, ip_proxy, ip_tor, ip_bot_score,
-               ip_country, ip_city, ip_isp, ip_abuse_reports,
+               ip_country, ip_region, ip_city, ip_isp, ip_abuse_reports,
                timezone_mismatch, browser_timezone, ip_timezone,
                behavior_data, gpu_data, user_agent, created_at
         FROM verification_logs 
