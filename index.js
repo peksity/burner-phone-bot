@@ -1964,7 +1964,7 @@ function hashPassword(password) {
 
 // POST /api/auth/signup - Create account with email
 app.post('/api/auth/signup', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, fingerprint, fingerprintData } = req.body;
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
   
   if (!email || !password) {
@@ -1981,12 +1981,38 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.json({ success: false, error: 'Invalid email format' });
   }
   
+  // Check for disposable email
+  if (isDisposableEmail(email)) {
+    console.log(`[AUTH] Blocked disposable email signup: ${email}`);
+    return res.json({ success: false, error: 'Temporary/disposable email addresses are not allowed' });
+  }
+  
   try {
     // Check if IP is banned
     const bannedIp = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [clientIp]);
     if (bannedIp.rows.length > 0) {
       console.log(`[AUTH] Blocked signup from banned IP: ${clientIp}`);
       return res.json({ success: false, error: 'Registration is not available. Contact support.' });
+    }
+    
+    // Check if fingerprint is banned
+    if (fingerprint) {
+      const bannedFp = await pool.query('SELECT * FROM banned_fingerprints WHERE fingerprint = $1', [fingerprint]);
+      if (bannedFp.rows.length > 0) {
+        console.log(`[AUTH] Blocked signup from banned fingerprint: ${fingerprint}`);
+        return res.json({ success: false, error: 'Registration is not available. Contact support.' });
+      }
+      
+      // Multi-account detection
+      const fpMatch = await pool.query('SELECT * FROM users WHERE fingerprint = $1 AND banned = false', [fingerprint]);
+      if (fpMatch.rows.length > 0) {
+        console.log(`[AUTH] Multi-account detected! Fingerprint ${fingerprint} already used by ${fpMatch.rows[0].email}`);
+        await pool.query(`
+          INSERT INTO security_alerts (alert_type, severity, details, ip_address, created_at)
+          VALUES ('multi_account_signup', 'high', $1, $2, NOW())
+        `, [JSON.stringify({ new_email: email, existing_user: fpMatch.rows[0].email, fingerprint }), clientIp]).catch(() => {});
+        // Don't block, just flag - could be family/shared device
+      }
     }
     
     // Check if email already exists
@@ -1998,23 +2024,36 @@ app.post('/api/auth/signup', async (req, res) => {
     // Hash password
     const passwordHash = hashPassword(password);
     
-    // Create user with IP tracking
+    // Create user with IP and fingerprint tracking
     const result = await pool.query(`
-      INSERT INTO users (email, password_hash, role, plan, signup_ip, last_ip, created_at, last_login)
-      VALUES ($1, $2, 'customer', 'free', $3, $3, NOW(), NOW())
+      INSERT INTO users (email, password_hash, role, plan, signup_ip, last_ip, fingerprint, created_at, last_login)
+      VALUES ($1, $2, 'customer', 'free', $3, $3, $4, NOW(), NOW())
       RETURNING *
-    `, [email.toLowerCase(), passwordHash, clientIp]);
+    `, [email.toLowerCase(), passwordHash, clientIp, fingerprint || null]);
     
     const user = result.rows[0];
     
+    // Store fingerprint data
+    if (fingerprint && fingerprintData) {
+      await pool.query(`
+        INSERT INTO fingerprints (user_id, fingerprint, fingerprint_data, ip_address, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (user_id, fingerprint) DO NOTHING
+      `, [user.id, fingerprint, JSON.stringify(fingerprintData), clientIp]).catch(() => {});
+    }
+    
     // Log the signup
     await pool.query(`
-      INSERT INTO login_logs (user_id, email, ip_address, success, created_at)
-      VALUES ($1, $2, $3, true, NOW())
+      INSERT INTO login_logs (user_id, email, ip_address, success, login_method, created_at)
+      VALUES ($1, $2, $3, true, 'email_signup', NOW())
     `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
     
     // Generate session token
     const token = crypto.randomBytes(32).toString('hex');
+    
+    // Enforce single session
+    addUserSession(user.id, token);
+    
     userTokens.set(token, {
       user: {
         id: user.id,
@@ -2023,6 +2062,7 @@ app.post('/api/auth/signup', async (req, res) => {
         created_at: user.created_at
       },
       role: 'customer',
+      fingerprint,
       expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
     });
     
@@ -2047,7 +2087,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
 // POST /api/auth/email-login - Login with email/password
 app.post('/api/auth/email-login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, fingerprint, fingerprintData } = req.body;
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
   
   if (!email || !password) {
@@ -2064,6 +2104,15 @@ app.post('/api/auth/email-login', async (req, res) => {
       `, [email.toLowerCase(), clientIp]).catch(() => {});
       console.log(`[AUTH] Blocked login from banned IP: ${clientIp}`);
       return res.json({ success: false, error: 'Access denied. Contact support.' });
+    }
+    
+    // Check if fingerprint is banned
+    if (fingerprint) {
+      const bannedFp = await pool.query('SELECT * FROM banned_fingerprints WHERE fingerprint = $1', [fingerprint]);
+      if (bannedFp.rows.length > 0) {
+        console.log(`[AUTH] Blocked login from banned fingerprint: ${fingerprint}`);
+        return res.json({ success: false, error: 'Access denied. Contact support.' });
+      }
     }
     
     // Find user by email
@@ -2099,17 +2148,44 @@ app.post('/api/auth/email-login', async (req, res) => {
       return res.json({ success: false, error: 'Invalid email or password' });
     }
     
+    // CONCURRENT LOGIN CHECK - Detect same account from different IP rapidly
+    const lastLoginIp = user.last_ip;
+    const timeSinceLastLogin = Date.now() - new Date(user.last_login).getTime();
+    
+    if (lastLoginIp && lastLoginIp !== clientIp && timeSinceLastLogin < 5 * 60 * 1000) {
+      console.log(`[AUTH] SUSPICIOUS: Rapid login from different IP. User: ${user.email}, Old IP: ${lastLoginIp}, New IP: ${clientIp}`);
+      await pool.query(`
+        INSERT INTO security_alerts (user_id, alert_type, severity, details, ip_address, created_at)
+        VALUES ($1, 'concurrent_login', 'high', $2, $3, NOW())
+      `, [user.id, JSON.stringify({ old_ip: lastLoginIp, new_ip: clientIp, time_diff_ms: timeSinceLastLogin }), clientIp]).catch(() => {});
+    }
+    
     // Update last login and IP
     await pool.query('UPDATE users SET last_login = NOW(), last_ip = $1 WHERE id = $2', [clientIp, user.id]);
     
+    // Store fingerprint data
+    if (fingerprint && fingerprintData) {
+      await pool.query(`
+        INSERT INTO fingerprints (user_id, fingerprint, fingerprint_data, ip_address, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (user_id, fingerprint) DO UPDATE SET 
+          last_seen = NOW(),
+          ip_address = $4
+      `, [user.id, fingerprint, JSON.stringify(fingerprintData), clientIp]).catch(() => {});
+    }
+    
     // Log successful login
     await pool.query(`
-      INSERT INTO login_logs (user_id, email, ip_address, success, created_at)
-      VALUES ($1, $2, $3, true, NOW())
+      INSERT INTO login_logs (user_id, email, ip_address, success, login_method, created_at)
+      VALUES ($1, $2, $3, true, 'email', NOW())
     `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
     
     // Generate session token
     const token = crypto.randomBytes(32).toString('hex');
+    
+    // Enforce single session - invalidate all other sessions
+    addUserSession(user.id, token);
+    
     userTokens.set(token, {
       user: {
         id: user.id,
@@ -2120,6 +2196,7 @@ app.post('/api/auth/email-login', async (req, res) => {
         created_at: user.created_at
       },
       role: user.role,
+      fingerprint,
       expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
     });
     
@@ -2149,6 +2226,404 @@ app.post('/api/auth/email-login', async (req, res) => {
   } catch (e) {
     console.error('[AUTH] Login error:', e);
     res.json({ success: false, error: 'Login failed. Please try again.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DISCORD OAUTH AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Disposable email domains to block
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', 'temp-mail.org', 'guerrillamail.com', 'mailinator.com',
+  '10minutemail.com', 'throwaway.email', 'fakeinbox.com', 'trashmail.com',
+  'tempail.com', 'getnada.com', 'mohmal.com', 'yopmail.com', 'dispostable.com',
+  'mailnesia.com', 'tempr.email', 'discard.email', 'tmpmail.org', 'tmpmail.net',
+  'emailondeck.com', 'fakemail.net', 'spam4.me', 'grr.la', 'sharklasers.com',
+  'guerrillamail.info', 'guerrillamail.net', 'guerrillamail.org', 'guerrillamail.biz',
+  'maildrop.cc', 'mintemail.com', 'tempinbox.com', 'fakemailgenerator.com',
+  'mailcatch.com', 'mailnull.com', 'spamgourmet.com', 'jetable.org'
+]);
+
+function isDisposableEmail(email) {
+  if (!email) return false;
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return false;
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain) || 
+         Array.from(DISPOSABLE_EMAIL_DOMAINS).some(d => domain.endsWith('.' + d));
+}
+
+// Session management - Track active sessions per user
+const userSessions = new Map(); // userId -> Set of tokens
+
+function addUserSession(userId, token) {
+  if (!userSessions.has(userId)) {
+    userSessions.set(userId, new Set());
+  }
+  const sessions = userSessions.get(userId);
+  
+  // Limit to 1 active session - invalidate all others
+  for (const oldToken of sessions) {
+    userTokens.delete(oldToken);
+    staffTokens.delete(oldToken);
+  }
+  sessions.clear();
+  sessions.add(token);
+}
+
+function removeUserSession(userId, token) {
+  const sessions = userSessions.get(userId);
+  if (sessions) {
+    sessions.delete(token);
+    if (sessions.size === 0) {
+      userSessions.delete(userId);
+    }
+  }
+}
+
+// POST /api/auth/discord - Discord OAuth login/signup
+app.post('/api/auth/discord', async (req, res) => {
+  const { code, redirect_uri, fingerprint, fingerprintData } = req.body;
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  
+  if (!code) {
+    return res.json({ success: false, error: 'Authorization code required' });
+  }
+  
+  try {
+    // Check if IP is banned
+    const bannedIp = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [clientIp]);
+    if (bannedIp.rows.length > 0) {
+      console.log(`[DISCORD AUTH] Blocked from banned IP: ${clientIp}`);
+      return res.json({ success: false, error: 'Access denied. Contact support.' });
+    }
+    
+    // Check if fingerprint is banned
+    if (fingerprint) {
+      const bannedFp = await pool.query('SELECT * FROM banned_fingerprints WHERE fingerprint = $1', [fingerprint]);
+      if (bannedFp.rows.length > 0) {
+        console.log(`[DISCORD AUTH] Blocked banned fingerprint: ${fingerprint}`);
+        return res.json({ success: false, error: 'Access denied. Contact support.' });
+      }
+    }
+    
+    // Exchange code for access token
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri
+      })
+    });
+    
+    const tokenData = await tokenRes.json();
+    
+    if (tokenData.error) {
+      console.error('[DISCORD AUTH] Token exchange error:', tokenData);
+      return res.json({ success: false, error: 'Discord authentication failed' });
+    }
+    
+    // Get user info from Discord
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    
+    const discordUser = await userRes.json();
+    
+    if (!discordUser.id) {
+      return res.json({ success: false, error: 'Failed to get Discord user info' });
+    }
+    
+    // Check Discord account age (flag if < 30 days)
+    const discordAccountCreated = new Date(Number((BigInt(discordUser.id) >> 22n) + 1420070400000n));
+    const accountAgeDays = (Date.now() - discordAccountCreated.getTime()) / (1000 * 60 * 60 * 24);
+    const isNewDiscordAccount = accountAgeDays < 30;
+    
+    if (isNewDiscordAccount) {
+      console.log(`[DISCORD AUTH] Warning: New Discord account (${Math.floor(accountAgeDays)} days old): ${discordUser.username}`);
+    }
+    
+    // Check if Discord email is disposable
+    if (discordUser.email && isDisposableEmail(discordUser.email)) {
+      console.log(`[DISCORD AUTH] Blocked disposable email: ${discordUser.email}`);
+      return res.json({ success: false, error: 'Temporary email addresses are not allowed' });
+    }
+    
+    // Check if user exists by Discord ID
+    let user;
+    const existingUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
+    
+    if (existingUser.rows.length > 0) {
+      // Existing user - login
+      user = existingUser.rows[0];
+      
+      // Check if user is banned
+      if (user.banned) {
+        console.log(`[DISCORD AUTH] Blocked banned user: ${discordUser.username}`);
+        return res.json({ success: false, error: 'Your account has been suspended. Contact support.' });
+      }
+      
+      // CONCURRENT LOGIN CHECK - Detect same account from different IP
+      const lastLoginIp = user.last_ip;
+      const timeSinceLastLogin = Date.now() - new Date(user.last_login).getTime();
+      
+      // If logged in from different IP within 5 minutes, flag as suspicious
+      if (lastLoginIp && lastLoginIp !== clientIp && timeSinceLastLogin < 5 * 60 * 1000) {
+        console.log(`[DISCORD AUTH] SUSPICIOUS: Rapid login from different IP. User: ${user.email}, Old IP: ${lastLoginIp}, New IP: ${clientIp}`);
+        // Log security alert but don't block (could be legitimate)
+        await pool.query(`
+          INSERT INTO security_alerts (user_id, alert_type, severity, details, ip_address, created_at)
+          VALUES ($1, 'concurrent_login', 'high', $2, $3, NOW())
+        `, [user.id, JSON.stringify({ old_ip: lastLoginIp, new_ip: clientIp, time_diff_ms: timeSinceLastLogin }), clientIp]).catch(() => {});
+      }
+      
+      // Update user info from Discord
+      await pool.query(`
+        UPDATE users SET 
+          username = $1, 
+          avatar = $2, 
+          last_login = NOW(), 
+          last_ip = $3,
+          discord_account_age_days = $4
+        WHERE id = $5
+      `, [
+        discordUser.username,
+        discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+        clientIp,
+        Math.floor(accountAgeDays),
+        user.id
+      ]);
+      
+      console.log(`[DISCORD AUTH] Login: ${discordUser.username} (${user.role}) from IP ${clientIp}`);
+      
+    } else {
+      // New user - check by email first (link accounts)
+      if (discordUser.email) {
+        const emailUser = await pool.query('SELECT * FROM users WHERE email = $1', [discordUser.email.toLowerCase()]);
+        
+        if (emailUser.rows.length > 0) {
+          // Link Discord to existing email account
+          user = emailUser.rows[0];
+          
+          if (user.banned) {
+            return res.json({ success: false, error: 'Your account has been suspended. Contact support.' });
+          }
+          
+          await pool.query(`
+            UPDATE users SET 
+              discord_id = $1,
+              username = $2,
+              avatar = $3,
+              last_login = NOW(),
+              last_ip = $4,
+              discord_account_age_days = $5
+            WHERE id = $6
+          `, [
+            discordUser.id,
+            discordUser.username,
+            discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+            clientIp,
+            Math.floor(accountAgeDays),
+            user.id
+          ]);
+          
+          console.log(`[DISCORD AUTH] Linked Discord to existing account: ${discordUser.email}`);
+        }
+      }
+      
+      // Create new user if not found
+      if (!user) {
+        // Check fingerprint for multi-account detection
+        if (fingerprint) {
+          const fpMatch = await pool.query('SELECT * FROM users WHERE fingerprint = $1 AND banned = false', [fingerprint]);
+          if (fpMatch.rows.length > 0) {
+            console.log(`[DISCORD AUTH] Multi-account detected! Fingerprint ${fingerprint} already used by user ${fpMatch.rows[0].email}`);
+            // Flag but don't block - could be shared device
+            await pool.query(`
+              INSERT INTO security_alerts (alert_type, severity, details, ip_address, created_at)
+              VALUES ('multi_account', 'medium', $1, $2, NOW())
+            `, [JSON.stringify({ 
+              new_discord: discordUser.username, 
+              existing_user: fpMatch.rows[0].email,
+              fingerprint 
+            }), clientIp]).catch(() => {});
+          }
+        }
+        
+        const result = await pool.query(`
+          INSERT INTO users (
+            discord_id, email, username, avatar, role, plan, 
+            signup_ip, last_ip, fingerprint, discord_account_age_days,
+            created_at, last_login
+          ) VALUES ($1, $2, $3, $4, 'customer', 'free', $5, $5, $6, $7, NOW(), NOW())
+          RETURNING *
+        `, [
+          discordUser.id,
+          discordUser.email?.toLowerCase() || null,
+          discordUser.username,
+          discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+          clientIp,
+          fingerprint || null,
+          Math.floor(accountAgeDays)
+        ]);
+        
+        user = result.rows[0];
+        console.log(`[DISCORD AUTH] New signup: ${discordUser.username} from IP ${clientIp} (Discord age: ${Math.floor(accountAgeDays)} days)`);
+      }
+    }
+    
+    // Store fingerprint data
+    if (fingerprint && fingerprintData) {
+      await pool.query(`
+        INSERT INTO fingerprints (user_id, fingerprint, fingerprint_data, ip_address, created_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (user_id, fingerprint) DO UPDATE SET 
+          last_seen = NOW(),
+          ip_address = $4
+      `, [user.id, fingerprint, JSON.stringify(fingerprintData), clientIp]).catch(() => {});
+    }
+    
+    // Log login
+    await pool.query(`
+      INSERT INTO login_logs (user_id, email, ip_address, success, login_method, created_at)
+      VALUES ($1, $2, $3, true, 'discord', NOW())
+    `, [user.id, user.email, clientIp]).catch(() => {});
+    
+    // Generate session token
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    // Enforce single session - invalidate all other sessions for this user
+    addUserSession(user.id, token);
+    
+    userTokens.set(token, {
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        plan: user.plan,
+        created_at: user.created_at
+      },
+      role: user.role,
+      fingerprint,
+      expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    // Add to staffTokens if staff/admin
+    if (user.role === 'staff' || user.role === 'admin') {
+      staffTokens.set(token, {
+        user: { id: user.id, username: user.username, avatar: user.avatar },
+        expires: Date.now() + (24 * 60 * 60 * 1000)
+      });
+    }
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        discord_id: user.discord_id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        plan: user.plan
+      },
+      role: user.role,
+      warnings: isNewDiscordAccount ? ['Discord account is less than 30 days old'] : []
+    });
+    
+  } catch (e) {
+    console.error('[DISCORD AUTH] Error:', e);
+    res.json({ success: false, error: 'Authentication failed. Please try again.' });
+  }
+});
+
+// POST /api/auth/connect-discord - Connect Discord to existing account
+app.post('/api/auth/connect-discord', checkAuth(), async (req, res) => {
+  const { code, redirect_uri } = req.body;
+  const userId = req.user.id;
+  
+  if (!code) {
+    return res.json({ success: false, error: 'Authorization code required' });
+  }
+  
+  try {
+    // Exchange code for access token
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri
+      })
+    });
+    
+    const tokenData = await tokenRes.json();
+    
+    if (tokenData.error) {
+      return res.json({ success: false, error: 'Discord authentication failed' });
+    }
+    
+    // Get user info from Discord
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    
+    const discordUser = await userRes.json();
+    
+    if (!discordUser.id) {
+      return res.json({ success: false, error: 'Failed to get Discord user info' });
+    }
+    
+    // Check if Discord ID is already linked to another account
+    const existing = await pool.query('SELECT * FROM users WHERE discord_id = $1 AND id != $2', [discordUser.id, userId]);
+    if (existing.rows.length > 0) {
+      return res.json({ success: false, error: 'This Discord account is already linked to another account' });
+    }
+    
+    // Calculate Discord account age
+    const discordAccountCreated = new Date(Number((BigInt(discordUser.id) >> 22n) + 1420070400000n));
+    const accountAgeDays = Math.floor((Date.now() - discordAccountCreated.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Link Discord to account
+    await pool.query(`
+      UPDATE users SET 
+        discord_id = $1,
+        username = COALESCE(username, $2),
+        avatar = COALESCE(avatar, $3),
+        discord_account_age_days = $4
+      WHERE id = $5
+    `, [
+      discordUser.id,
+      discordUser.username,
+      discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+      accountAgeDays,
+      userId
+    ]);
+    
+    console.log(`[DISCORD AUTH] Connected Discord ${discordUser.username} to user ${userId}`);
+    
+    res.json({
+      success: true,
+      discord: {
+        id: discordUser.id,
+        username: discordUser.username,
+        avatar: discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+        account_age_days: accountAgeDays
+      }
+    });
+    
+  } catch (e) {
+    console.error('[DISCORD AUTH] Connect error:', e);
+    res.json({ success: false, error: 'Failed to connect Discord' });
   }
 });
 
