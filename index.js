@@ -1712,6 +1712,206 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// EMAIL SIGNUP & LOGIN
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Simple password hashing (for production, use bcrypt)
+const crypto = require('crypto');
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password + 'unpatched_salt_2025').digest('hex');
+}
+
+// POST /api/auth/signup - Create account with email
+app.post('/api/auth/signup', async (req, res) => {
+  const { email, password } = req.body;
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  
+  if (!email || !password) {
+    return res.json({ success: false, error: 'Email and password required' });
+  }
+  
+  if (password.length < 8) {
+    return res.json({ success: false, error: 'Password must be at least 8 characters' });
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.json({ success: false, error: 'Invalid email format' });
+  }
+  
+  try {
+    // Check if IP is banned
+    const bannedIp = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [clientIp]);
+    if (bannedIp.rows.length > 0) {
+      console.log(`[AUTH] Blocked signup from banned IP: ${clientIp}`);
+      return res.json({ success: false, error: 'Registration is not available. Contact support.' });
+    }
+    
+    // Check if email already exists
+    const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (existing.rows.length > 0) {
+      return res.json({ success: false, error: 'Email already registered' });
+    }
+    
+    // Hash password
+    const passwordHash = hashPassword(password);
+    
+    // Create user with IP tracking
+    const result = await pool.query(`
+      INSERT INTO users (email, password_hash, role, plan, signup_ip, last_ip, created_at, last_login)
+      VALUES ($1, $2, 'customer', 'free', $3, $3, NOW(), NOW())
+      RETURNING *
+    `, [email.toLowerCase(), passwordHash, clientIp]);
+    
+    const user = result.rows[0];
+    
+    // Log the signup
+    await pool.query(`
+      INSERT INTO login_logs (user_id, email, ip_address, success, created_at)
+      VALUES ($1, $2, $3, true, NOW())
+    `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
+    
+    // Generate session token
+    const token = crypto.randomBytes(32).toString('hex');
+    userTokens.set(token, {
+      user: {
+        id: user.id,
+        email: user.email,
+        plan: user.plan,
+        created_at: user.created_at
+      },
+      role: 'customer',
+      expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    console.log(`[AUTH] New email signup: ${email} from IP ${clientIp}`);
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        plan: user.plan
+      },
+      role: 'customer'
+    });
+    
+  } catch (e) {
+    console.error('[AUTH] Signup error:', e);
+    res.json({ success: false, error: 'Signup failed. Please try again.' });
+  }
+});
+
+// POST /api/auth/email-login - Login with email/password
+app.post('/api/auth/email-login', async (req, res) => {
+  const { email, password } = req.body;
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  
+  if (!email || !password) {
+    return res.json({ success: false, error: 'Email and password required' });
+  }
+  
+  try {
+    // Check if IP is banned
+    const bannedIp = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [clientIp]);
+    if (bannedIp.rows.length > 0) {
+      await pool.query(`
+        INSERT INTO login_logs (email, ip_address, success, fail_reason, created_at)
+        VALUES ($1, $2, false, 'IP banned', NOW())
+      `, [email.toLowerCase(), clientIp]).catch(() => {});
+      console.log(`[AUTH] Blocked login from banned IP: ${clientIp}`);
+      return res.json({ success: false, error: 'Access denied. Contact support.' });
+    }
+    
+    // Find user by email
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    
+    if (result.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO login_logs (email, ip_address, success, fail_reason, created_at)
+        VALUES ($1, $2, false, 'User not found', NOW())
+      `, [email.toLowerCase(), clientIp]).catch(() => {});
+      return res.json({ success: false, error: 'Invalid email or password' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Check if user is banned
+    if (user.banned) {
+      await pool.query(`
+        INSERT INTO login_logs (user_id, email, ip_address, success, fail_reason, created_at)
+        VALUES ($1, $2, $3, false, 'User banned', NOW())
+      `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
+      console.log(`[AUTH] Blocked login from banned user: ${email}`);
+      return res.json({ success: false, error: 'Your account has been suspended. Contact support.' });
+    }
+    
+    // Check password
+    const passwordHash = hashPassword(password);
+    if (user.password_hash !== passwordHash) {
+      await pool.query(`
+        INSERT INTO login_logs (user_id, email, ip_address, success, fail_reason, created_at)
+        VALUES ($1, $2, $3, false, 'Wrong password', NOW())
+      `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
+      return res.json({ success: false, error: 'Invalid email or password' });
+    }
+    
+    // Update last login and IP
+    await pool.query('UPDATE users SET last_login = NOW(), last_ip = $1 WHERE id = $2', [clientIp, user.id]);
+    
+    // Log successful login
+    await pool.query(`
+      INSERT INTO login_logs (user_id, email, ip_address, success, created_at)
+      VALUES ($1, $2, $3, true, NOW())
+    `, [user.id, email.toLowerCase(), clientIp]).catch(() => {});
+    
+    // Generate session token
+    const token = crypto.randomBytes(32).toString('hex');
+    userTokens.set(token, {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        plan: user.plan,
+        created_at: user.created_at
+      },
+      role: user.role,
+      expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    // Add to staffTokens if staff/admin
+    if (user.role === 'staff' || user.role === 'admin') {
+      staffTokens.set(token, {
+        user: { id: user.id, username: user.username || user.email, avatar: user.avatar },
+        expires: Date.now() + (24 * 60 * 60 * 1000)
+      });
+    }
+    
+    console.log(`[AUTH] Email login: ${email} as ${user.role} from IP ${clientIp}`);
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        plan: user.plan
+      },
+      role: user.role
+    });
+    
+  } catch (e) {
+    console.error('[AUTH] Login error:', e);
+    res.json({ success: false, error: 'Login failed. Please try again.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ADMIN PANEL API - Manage Users and Staff
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1849,6 +2049,143 @@ app.post('/api/invite/redeem', checkAuth(), async (req, res) => {
   } catch (e) {
     console.error('[INVITE] Error:', e);
     res.json({ error: 'Failed to redeem invite' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BAN SYSTEM - Admin can ban users and IPs
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /api/admin/users/:id/ban - Ban a user
+app.post('/api/admin/users/:id/ban', checkAuth('admin'), async (req, res) => {
+  const { id } = req.params;
+  const { reason, ban_ip } = req.body;
+  
+  try {
+    // Get user
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1 OR discord_id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Ban the user
+    await pool.query(`
+      UPDATE users SET banned = true, ban_reason = $1, banned_at = NOW() WHERE id = $2
+    `, [reason || 'No reason provided', user.id]);
+    
+    // Optionally ban their IP too
+    if (ban_ip && user.last_ip) {
+      await pool.query(`
+        INSERT INTO banned_ips (ip_address, reason, banned_by, created_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT DO NOTHING
+      `, [user.last_ip, `Banned with user: ${user.email || user.discord_id}`, req.user.id]).catch(() => {});
+    }
+    
+    console.log(`[ADMIN] User ${user.email || user.discord_id} banned by ${req.user.id}. Reason: ${reason}`);
+    
+    res.json({ success: true, message: 'User banned successfully' });
+  } catch (e) {
+    console.error('[ADMIN] Ban error:', e);
+    res.json({ error: 'Failed to ban user' });
+  }
+});
+
+// POST /api/admin/users/:id/unban - Unban a user
+app.post('/api/admin/users/:id/unban', checkAuth('admin'), async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    await pool.query(`
+      UPDATE users SET banned = false, ban_reason = NULL, banned_at = NULL WHERE id = $1 OR discord_id = $1
+    `, [id]);
+    
+    console.log(`[ADMIN] User ${id} unbanned by ${req.user.id}`);
+    
+    res.json({ success: true, message: 'User unbanned successfully' });
+  } catch (e) {
+    console.error('[ADMIN] Unban error:', e);
+    res.json({ error: 'Failed to unban user' });
+  }
+});
+
+// POST /api/admin/ban-ip - Ban an IP address
+app.post('/api/admin/ban-ip', checkAuth('admin'), async (req, res) => {
+  const { ip, reason } = req.body;
+  
+  if (!ip) {
+    return res.json({ error: 'IP address required' });
+  }
+  
+  try {
+    await pool.query(`
+      INSERT INTO banned_ips (ip_address, reason, banned_by, created_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [ip, reason || 'No reason provided', req.user.id]);
+    
+    console.log(`[ADMIN] IP ${ip} banned by ${req.user.id}`);
+    
+    res.json({ success: true, message: 'IP banned successfully' });
+  } catch (e) {
+    console.error('[ADMIN] Ban IP error:', e);
+    res.json({ error: 'Failed to ban IP' });
+  }
+});
+
+// DELETE /api/admin/ban-ip/:ip - Unban an IP
+app.delete('/api/admin/ban-ip/:ip', checkAuth('admin'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM banned_ips WHERE ip_address = $1', [req.params.ip]);
+    console.log(`[ADMIN] IP ${req.params.ip} unbanned by ${req.user.id}`);
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ error: 'Failed to unban IP' });
+  }
+});
+
+// GET /api/admin/banned-ips - List all banned IPs
+app.get('/api/admin/banned-ips', checkAuth('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM banned_ips ORDER BY created_at DESC
+    `);
+    res.json({ ips: result.rows });
+  } catch (e) {
+    res.json({ ips: [] });
+  }
+});
+
+// GET /api/admin/login-logs - View login history
+app.get('/api/admin/login-logs', checkAuth('admin'), async (req, res) => {
+  try {
+    const limit = req.query.limit || 100;
+    const result = await pool.query(`
+      SELECT ll.*, u.username, u.email as user_email, u.banned
+      FROM login_logs ll
+      LEFT JOIN users u ON ll.user_id = u.id
+      ORDER BY ll.created_at DESC
+      LIMIT $1
+    `, [limit]);
+    res.json({ logs: result.rows });
+  } catch (e) {
+    res.json({ logs: [] });
+  }
+});
+
+// GET /api/admin/users - List all users (updated with more info)
+app.get('/api/admin/users-full', checkAuth('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, discord_id, username, avatar, email, role, plan, plan_expires_at, 
+             banned, ban_reason, banned_at, signup_ip, last_ip, created_at, last_login
+      FROM users ORDER BY created_at DESC LIMIT 200
+    `);
+    res.json({ users: result.rows });
+  } catch (e) {
+    console.error('[ADMIN] Error fetching users:', e);
+    res.json({ error: 'Failed to fetch users', users: [] });
   }
 });
 
