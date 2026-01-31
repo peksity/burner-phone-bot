@@ -1362,7 +1362,7 @@ app.delete('/api/staff/links/:code', checkStaffAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const staffTokens = new Map(); // token -> { user, expires }
-const STAFF_ROLE_IDS = ['1329888521283174430', '1329888413376180266']; // Add your mod/admin role IDs
+const STAFF_ROLE_IDS = ['1453304665046257819', '1453304662156644445', '1453304660134727764']; // Senior Admin, Admin, Moderator
 const ALLOWED_STAFF_IDS = ['513386668042698755']; // Owner ID - always allowed
 
 function checkStaffAuth(req, res, next) {
@@ -1572,33 +1572,75 @@ app.post('/api/auth/login', async (req, res) => {
       return res.json({ success: false, error: 'Could not get user info' });
     }
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHECK DISCORD SERVER ROLES - Auto-assign staff based on Discord roles
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    let discordRole = 'customer'; // Default
+    let isInServer = false;
+    
+    // Check if user is in the server and get their roles
+    try {
+      const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
+      if (guild) {
+        const member = await guild.members.fetch(discordUser.id).catch(() => null);
+        if (member) {
+          isInServer = true;
+          
+          // Check for admin/mod roles
+          const ADMIN_ROLE_IDS = ['1453304665046257819', '1453304662156644445']; // Senior Admin, Admin
+          const MOD_ROLE_IDS = ['1453304660134727764']; // Moderator
+          
+          const hasAdminRole = member.permissions.has('Administrator') ||
+                              member.roles.cache.some(r => ADMIN_ROLE_IDS.includes(r.id));
+          const hasModRole = member.roles.cache.some(r => MOD_ROLE_IDS.includes(r.id)) ||
+                            member.permissions.has('ModerateMembers');
+          
+          if (ADMIN_IDS.includes(discordUser.id) || hasAdminRole) {
+            discordRole = 'admin';
+          } else if (hasModRole) {
+            discordRole = 'staff';
+          }
+          
+          console.log(`[AUTH] ${discordUser.username} is in server. Discord role: ${discordRole}`);
+        } else {
+          console.log(`[AUTH] ${discordUser.username} is NOT in server`);
+        }
+      }
+    } catch (e) {
+      console.log('[AUTH] Could not check guild membership:', e.message);
+    }
+    
     // Check if user exists in database
     let dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
     
     if (dbUser.rows.length === 0) {
-      // New user - create account
+      // New user - create account with role from Discord
       await pool.query(`
         INSERT INTO users (discord_id, username, discriminator, avatar, email, role, plan, created_at, last_login)
-        VALUES ($1, $2, $3, $4, $5, 'customer', 'free', NOW(), NOW())
-      `, [discordUser.id, discordUser.username, discordUser.discriminator, discordUser.avatar, discordUser.email]);
+        VALUES ($1, $2, $3, $4, $5, $6, 'free', NOW(), NOW())
+      `, [discordUser.id, discordUser.username, discordUser.discriminator, discordUser.avatar, discordUser.email, discordRole]);
       
       dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
-      console.log(`[AUTH] New user created: ${discordUser.username} (${discordUser.id})`);
+      console.log(`[AUTH] New user created: ${discordUser.username} (${discordUser.id}) as ${discordRole}`);
     } else {
-      // Update existing user
+      // Existing user - update their info and sync role from Discord
+      // Always sync role from Discord (so if they lose mod in Discord, they lose it here too)
       await pool.query(`
-        UPDATE users SET username = $1, avatar = $2, email = $3, last_login = NOW()
-        WHERE discord_id = $4
-      `, [discordUser.username, discordUser.avatar, discordUser.email, discordUser.id]);
+        UPDATE users SET username = $1, avatar = $2, email = $3, role = $4, last_login = NOW()
+        WHERE discord_id = $5
+      `, [discordUser.username, discordUser.avatar, discordUser.email, discordRole, discordUser.id]);
+      
+      // Refresh user data
+      dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
     }
     
     const user = dbUser.rows[0];
+    let role = discordRole;
     
-    // Override role if admin
-    let role = user.role;
+    // Override: Owner is always admin
     if (ADMIN_IDS.includes(discordUser.id)) {
       role = 'admin';
-      // Update DB if not already admin
       if (user.role !== 'admin') {
         await pool.query('UPDATE users SET role = $1 WHERE discord_id = $2', ['admin', discordUser.id]);
       }
@@ -1616,6 +1658,7 @@ app.post('/api/auth/login', async (req, res) => {
         created_at: user.created_at
       },
       role,
+      isInServer,
       expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
     });
     
@@ -1639,7 +1682,8 @@ app.post('/api/auth/login', async (req, res) => {
         email: discordUser.email,
         plan: user.plan
       },
-      role
+      role,
+      isInServer
     });
     
   } catch (e) {
