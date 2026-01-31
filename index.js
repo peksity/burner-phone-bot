@@ -1912,6 +1912,260 @@ app.post('/api/auth/email-login', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PASSWORD RESET & ACCOUNT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+
+// POST /api/auth/forgot-password - Request password reset
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.json({ success: false, error: 'Email required' });
+  }
+  
+  try {
+    // Find user by email
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    
+    // Always return success (don't reveal if email exists)
+    if (userResult.rows.length === 0) {
+      console.log(`[AUTH] Password reset requested for non-existent email: ${email}`);
+      return res.json({ success: true, message: 'If that email exists, we sent a reset link.' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Generate reset token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    
+    // Store token in database
+    await pool.query(`
+      INSERT INTO password_reset_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+    `, [user.id, token, expiresAt]);
+    
+    // Create reset URL
+    const resetUrl = `https://theunpatchedmethod.com/reset-password.html?token=${token}`;
+    
+    console.log(`[AUTH] Password reset token generated for ${email}`);
+    console.log(`[AUTH] Reset URL: ${resetUrl}`);
+    
+    // TODO: Send email with reset link
+    // For now, just log it (you can integrate SendGrid, Mailgun, etc.)
+    
+    res.json({ success: true, message: 'If that email exists, we sent a reset link.' });
+    
+  } catch (e) {
+    console.error('[AUTH] Forgot password error:', e);
+    res.json({ success: true, message: 'If that email exists, we sent a reset link.' });
+  }
+});
+
+// POST /api/auth/reset-password - Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  
+  if (!token || !password) {
+    return res.json({ success: false, error: 'Token and password required' });
+  }
+  
+  if (password.length < 8) {
+    return res.json({ success: false, error: 'Password must be at least 8 characters' });
+  }
+  
+  try {
+    // Find valid token
+    const tokenResult = await pool.query(`
+      SELECT * FROM password_reset_tokens 
+      WHERE token = $1 AND used = FALSE AND expires_at > NOW()
+    `, [token]);
+    
+    if (tokenResult.rows.length === 0) {
+      return res.json({ success: false, error: 'Invalid or expired token' });
+    }
+    
+    const resetToken = tokenResult.rows[0];
+    
+    // Update password
+    const passwordHash = hashPassword(password);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, resetToken.user_id]);
+    
+    // Mark token as used
+    await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [resetToken.id]);
+    
+    // Invalidate all other reset tokens for this user
+    await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1', [resetToken.user_id]);
+    
+    console.log(`[AUTH] Password reset successful for user ${resetToken.user_id}`);
+    
+    res.json({ success: true, message: 'Password reset successfully' });
+    
+  } catch (e) {
+    console.error('[AUTH] Reset password error:', e);
+    res.json({ success: false, error: 'Failed to reset password' });
+  }
+});
+
+// POST /api/auth/change-password - Change password (logged in)
+app.post('/api/auth/change-password', checkAuth(), async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  
+  if (!currentPassword || !newPassword) {
+    return res.json({ success: false, error: 'Current and new password required' });
+  }
+  
+  if (newPassword.length < 8) {
+    return res.json({ success: false, error: 'New password must be at least 8 characters' });
+  }
+  
+  try {
+    // Get user from database
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1 OR discord_id = $1', [req.user.id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.json({ success: false, error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Check current password
+    const currentHash = hashPassword(currentPassword);
+    if (user.password_hash !== currentHash) {
+      return res.json({ success: false, error: 'Current password is incorrect' });
+    }
+    
+    // Update to new password
+    const newHash = hashPassword(newPassword);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, user.id]);
+    
+    console.log(`[AUTH] Password changed for user ${user.id}`);
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+    
+  } catch (e) {
+    console.error('[AUTH] Change password error:', e);
+    res.json({ success: false, error: 'Failed to change password' });
+  }
+});
+
+// POST /api/auth/logout-all - Logout from all devices
+app.post('/api/auth/logout-all', checkAuth(), async (req, res) => {
+  try {
+    // Remove all sessions for this user from memory
+    for (const [token, session] of userTokens.entries()) {
+      if (session.user && (session.user.id === req.user.id || session.user.email === req.user.email)) {
+        userTokens.delete(token);
+        staffTokens.delete(token);
+      }
+    }
+    
+    // Also delete from database if using session table
+    await pool.query('DELETE FROM user_sessions WHERE user_id = $1', [req.user.id]).catch(() => {});
+    
+    console.log(`[AUTH] User ${req.user.id} logged out from all devices`);
+    
+    res.json({ success: true, message: 'Logged out from all devices' });
+    
+  } catch (e) {
+    console.error('[AUTH] Logout all error:', e);
+    res.json({ success: false, error: 'Failed to logout' });
+  }
+});
+
+// DELETE /api/auth/delete-account - Delete user account
+app.delete('/api/auth/delete-account', checkAuth(), async (req, res) => {
+  const { password } = req.body;
+  
+  try {
+    // Get user
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1 OR discord_id = $1', [req.user.id]);
+    
+    if (userResult.rows.length === 0) {
+      return res.json({ success: false, error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // If user has password, verify it
+    if (user.password_hash && password) {
+      const passHash = hashPassword(password);
+      if (user.password_hash !== passHash) {
+        return res.json({ success: false, error: 'Incorrect password' });
+      }
+    }
+    
+    // Delete user data
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id]).catch(() => {});
+    await pool.query('DELETE FROM user_sessions WHERE user_id = $1', [user.id]).catch(() => {});
+    await pool.query('DELETE FROM login_logs WHERE user_id = $1', [user.id]).catch(() => {});
+    await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
+    
+    // Remove from memory
+    for (const [token, session] of userTokens.entries()) {
+      if (session.user && session.user.id === user.id) {
+        userTokens.delete(token);
+        staffTokens.delete(token);
+      }
+    }
+    
+    console.log(`[AUTH] User ${user.id} deleted their account`);
+    
+    res.json({ success: true, message: 'Account deleted successfully' });
+    
+  } catch (e) {
+    console.error('[AUTH] Delete account error:', e);
+    res.json({ success: false, error: 'Failed to delete account' });
+  }
+});
+
+// POST /api/auth/resend-verification - Resend email verification
+app.post('/api/auth/resend-verification', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.json({ success: false, error: 'Email required' });
+  }
+  
+  try {
+    // Find user
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    
+    if (userResult.rows.length === 0) {
+      return res.json({ success: true }); // Don't reveal if email exists
+    }
+    
+    const user = userResult.rows[0];
+    
+    if (user.email_verified) {
+      return res.json({ success: false, error: 'Email already verified' });
+    }
+    
+    // Generate verification token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    await pool.query(`
+      INSERT INTO email_verification_tokens (user_id, email, token, expires_at)
+      VALUES ($1, $2, $3, $4)
+    `, [user.id, email.toLowerCase(), token, expiresAt]);
+    
+    const verifyUrl = `https://theunpatchedmethod.com/verify-email.html?token=${token}`;
+    
+    console.log(`[AUTH] Verification email resent to ${email}`);
+    console.log(`[AUTH] Verify URL: ${verifyUrl}`);
+    
+    // TODO: Send actual email
+    
+    res.json({ success: true });
+    
+  } catch (e) {
+    console.error('[AUTH] Resend verification error:', e);
+    res.json({ success: false, error: 'Failed to resend verification' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ADMIN PANEL API - Manage Users and Staff
 // ═══════════════════════════════════════════════════════════════════════════
 
