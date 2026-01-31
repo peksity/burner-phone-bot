@@ -2593,12 +2593,12 @@ app.post('/api/auth/connect-discord', checkAuth(), async (req, res) => {
     const discordAccountCreated = new Date(Number((BigInt(discordUser.id) >> 22n) + 1420070400000n));
     const accountAgeDays = Math.floor((Date.now() - discordAccountCreated.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Link Discord to account
+    // Link Discord to account - ALWAYS update username/avatar from Discord
     await pool.query(`
       UPDATE users SET 
         discord_id = $1,
-        username = COALESCE(username, $2),
-        avatar = COALESCE(avatar, $3),
+        username = $2,
+        avatar = $3,
         discord_account_age_days = $4
       WHERE id = $5
     `, [
