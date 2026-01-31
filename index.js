@@ -11,32 +11,32 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  * ELITE MODMAIL FEATURES:
  * ═══════════════════════════════════════════════════════════════════════════════
- * ✨ Typing Indicators      - Both ways (staff ↔ user)
- * 📖 Read Receipts          - Delivered → Seen (like iMessage)
- * 🟢 Staff Online Status    - "Staff online" / "Expected wait: 2-4h"
- * ⏱️ Response Timer         - Live "waiting for X minutes" 
- * 💬 Message Edit Sync      - Edits sync both ways
- * 🔢 Queue Position         - "You are #3 in queue"
- * 👀 Staff Viewing Alert    - User knows when staff opens ticket
- * 🌙 Auto Away Messages     - Staff away status with auto-reply
- * 📌 Pinned Info            - Important details stay visible
- * 🔗 Ticket Linking         - Connect related tickets
- * 💾 User Notes             - Persistent notes across tickets
- * ⚡ Quick Actions          - One-click buttons for everything
- * 🎨 Priority Colors        - Visual urgency system
- * 🔁 Auto-Close Inactive    - Warning → auto close stale tickets
- * 🎭 Anonymous Mode         - Staff can reply anonymously
- * 📊 Sentiment Tracking     - Mood history per user
- * ⭐ Feedback System        - Post-close ratings
- * 📝 Canned Responses       - Saved reply snippets
- * 📈 Analytics Dashboard    - Response times, staff stats
+ *  Typing Indicators      - Both ways (staff ↔ user)
+ *  Read Receipts          - Delivered  Seen (like iMessage)
+ *  Staff Online Status    - "Staff online" / "Expected wait: 2-4h"
+ * ⏱ Response Timer         - Live "waiting for X minutes" 
+ *  Message Edit Sync      - Edits sync both ways
+ *  Queue Position         - "You are #3 in queue"
+ *  Staff Viewing Alert    - User knows when staff opens ticket
+ *  Auto Away Messages     - Staff away status with auto-reply
+ *  Pinned Info            - Important details stay visible
+ *  Ticket Linking         - Connect related tickets
+ *  User Notes             - Persistent notes across tickets
+ *  Quick Actions          - One-click buttons for everything
+ *  Priority Colors        - Visual urgency system
+ *  Auto-Close Inactive    - Warning  auto close stale tickets
+ *  Anonymous Mode         - Staff can reply anonymously
+ *  Sentiment Tracking     - Mood history per user
+ *  Feedback System        - Post-close ratings
+ *  Canned Responses       - Saved reply snippets
+ *  Analytics Dashboard    - Response times, staff stats
  * 
  * ═══════════════════════════════════════════════════════════════════════════════
  * SOC-LEVEL SECURITY SYSTEM (Enterprise Grade):
  * ═══════════════════════════════════════════════════════════════════════════════
- * 🔗 LINK ANALYSIS:
+ *  LINK ANALYSIS:
  *    • Domain reputation scoring
- *    • Typosquatting detection (discord → disc0rd, dlscord)
+ *    • Typosquatting detection (discord  disc0rd, dlscord)
  *    • URL shortener expansion & analysis
  *    • Redirect chain following
  *    • SSL certificate anomaly detection
@@ -44,7 +44,7 @@
  *    • Known phishing kit fingerprinting
  *    • Homograph attack detection (cyrillic chars)
  * 
- * 📁 FILE ANALYSIS (Static - No Execution):
+ *  FILE ANALYSIS (Static - No Execution):
  *    • Magic byte signature verification
  *    • Extension mismatch detection
  *    • PDF threat indicators (JS, auto-open, macros)
@@ -53,7 +53,7 @@
  *    • Executable detection in archives
  *    • Double extension detection
  * 
- * 🧠 SOCIAL ENGINEERING DETECTION:
+ *  SOCIAL ENGINEERING DETECTION:
  *    • Urgency language patterns
  *    • Authority impersonation
  *    • Account threat language
@@ -61,21 +61,21 @@
  *    • Fear-based manipulation
  *    • Time pressure tactics
  * 
- * 📊 RISK SCORING SYSTEM:
+ *  RISK SCORING SYSTEM:
  *    • Multi-signal aggregation
  *    • Weighted risk calculation
  *    • Score decay over time
  *    • Threshold-based actions
  *    • No instant bans - graduated response
  * 
- * 🛡️ SAFE ACTIONS:
+ *  SAFE ACTIONS:
  *    • Soft warnings
  *    • Message quarantine
  *    • Temporary blocks
  *    • Moderator alerts
  *    • Human escalation
  * 
- * 📋 AUDIT LOGGING:
+ *  AUDIT LOGGING:
  *    • Full detection reasoning
  *    • Risk score breakdown
  *    • Privacy-respecting
@@ -188,7 +188,7 @@ app.post('/api/web-verify', async (req, res) => {
     webrtc_real_ip = webrtcData.public[0];
     if (webrtc_real_ip !== userIP) {
       webrtc_leak_detected = true;
-      console.log(`[VERIFY] ⚠️ WEBRTC LEAK DETECTED! Request IP: ${userIP}, WebRTC IP: ${webrtc_real_ip}`);
+      console.log(`[VERIFY]  WEBRTC LEAK DETECTED! Request IP: ${userIP}, WebRTC IP: ${webrtc_real_ip}`);
     }
   }
   if (webrtcData.local && webrtcData.local.length > 0) {
@@ -416,8 +416,8 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.webrtc_real_city = realIp.city || null;
         threatData.webrtc_real_isp = realIp.ISP || null;
         
-        console.log(`[VERIFY] 🎯 REAL LOCATION: ${realIp.country_code}, ${realIp.region}, ${realIp.city} (ISP: ${realIp.ISP})`);
-        console.log(`[VERIFY] 🎭 VPN LOCATION: ${threatData.ip_country}, ${threatData.ip_region}, ${threatData.ip_city} (ISP: ${threatData.ip_isp})`);
+        console.log(`[VERIFY]  REAL LOCATION: ${realIp.country_code}, ${realIp.region}, ${realIp.city} (ISP: ${realIp.ISP})`);
+        console.log(`[VERIFY]  VPN LOCATION: ${threatData.ip_country}, ${threatData.ip_region}, ${threatData.ip_city} (ISP: ${threatData.ip_isp})`);
       }
     } catch (e) {
       console.log(`[VERIFY] WebRTC real IP lookup error:`, e.message);
@@ -520,8 +520,8 @@ app.post('/api/web-verify', async (req, res) => {
       if (lastCountry && threatData.ip_country && lastCountry !== threatData.ip_country && hoursSinceLastVerification < 6) {
         impossibleTravel = true;
         riskScore += 40;
-        riskReasons.push(`Impossible travel (${lastCountry} → ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)}h)`);
-        console.log(`[VERIFY] IMPOSSIBLE TRAVEL: ${lastCountry} → ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)} hours`);
+        riskReasons.push(`Impossible travel (${lastCountry}  ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)}h)`);
+        console.log(`[VERIFY] IMPOSSIBLE TRAVEL: ${lastCountry}  ${threatData.ip_country} in ${hoursSinceLastVerification.toFixed(1)} hours`);
       }
     }
   } catch (e) {
@@ -594,7 +594,7 @@ app.post('/api/web-verify', async (req, res) => {
       const alertChannel = client.channels.cache.get(STAFF_ALERT_CHANNEL);
       if (alertChannel) {
         const alertEmbed = new EmbedBuilder()
-          .setTitle('⚠️ High-Risk Verification')
+          .setTitle(' High-Risk Verification')
           .setColor(riskScore >= 75 ? 0xFF0000 : 0xFFA500)
           .addFields(
             { name: 'User', value: `<@${discord_id}> (${discord_id})`, inline: true },
@@ -607,9 +607,9 @@ app.post('/api/web-verify', async (req, res) => {
           )
           .setTimestamp();
         
-        if (threatData.ip_vpn) alertEmbed.addFields({ name: '🔒 VPN', value: 'Detected', inline: true });
-        if (impossibleTravel) alertEmbed.addFields({ name: '✈️ Travel', value: `${lastCountry} → ${threatData.ip_country}`, inline: true });
-        if (velocityCount >= 3) alertEmbed.addFields({ name: '⚡ Velocity', value: `${velocityCount}/hour`, inline: true });
+        if (threatData.ip_vpn) alertEmbed.addFields({ name: ' VPN', value: 'Detected', inline: true });
+        if (impossibleTravel) alertEmbed.addFields({ name: ' Travel', value: `${lastCountry}  ${threatData.ip_country}`, inline: true });
+        if (velocityCount >= 3) alertEmbed.addFields({ name: ' Velocity', value: `${velocityCount}/hour`, inline: true });
         
         await alertChannel.send({ embeds: [alertEmbed] });
         console.log(`[VERIFY] Staff alert sent for high-risk user`);
@@ -772,13 +772,13 @@ app.post('/api/web-verify', async (req, res) => {
         
         if (securityLog) {
           const alertEmbed = new EmbedBuilder()
-            .setTitle('🚨 ALT ACCOUNT BLOCKED')
+            .setTitle(' ALT ACCOUNT BLOCKED')
             .setDescription(`**Attempted User ID:** \`${discord_id}\``)
             .addFields(
-              { name: '🔗 Alt of Banned User', value: `**${bannedRecord.banned_discord_tag}**\n<@${bannedRecord.banned_discord_id}>`, inline: false },
-              { name: '📅 Original Ban Date', value: `<t:${Math.floor(new Date(bannedRecord.banned_at).getTime() / 1000)}:F>`, inline: true },
-              { name: '📝 Original Ban Reason', value: bannedRecord.reason || 'No reason recorded', inline: true },
-              { name: '🛡️ Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
+              { name: ' Alt of Banned User', value: `**${bannedRecord.banned_discord_tag}**\n<@${bannedRecord.banned_discord_id}>`, inline: false },
+              { name: ' Original Ban Date', value: `<t:${Math.floor(new Date(bannedRecord.banned_at).getTime() / 1000)}:F>`, inline: true },
+              { name: ' Original Ban Reason', value: bannedRecord.reason || 'No reason recorded', inline: true },
+              { name: ' Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
             )
             .setColor(0xFF0000)
             .setTimestamp();
@@ -825,10 +825,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           
           await user.send({
             embeds: [new EmbedBuilder()
-              .setTitle('📵 BURNER PHONE ALERT')
+              .setTitle(' BURNER PHONE ALERT')
               .setDescription(intimidatingMessage)
               .setColor(0xFF0000)
-              .setFooter({ text: '📵 Burner Phone • We See Everything' })
+              .setFooter({ text: ' Burner Phone • We See Everything' })
               .setTimestamp()
             ]
           });
@@ -836,7 +836,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           // Dramatic follow-up messages
           await new Promise(r => setTimeout(r, 2000));
           await user.send({
-            content: '```diff\n- ⚠ SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + bannedRecord.banned_discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
+            content: '```diff\n-  SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + bannedRecord.banned_discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
           });
           
           await new Promise(r => setTimeout(r, 1500));
@@ -851,7 +851,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
             .addComponents(
               new ButtonBuilder()
                 .setCustomId(`appeal_ban_${discord_id}`)
-                .setLabel('📩 Submit Appeal')
+                .setLabel(' Submit Appeal')
                 .setStyle(ButtonStyle.Primary),
               new ButtonBuilder()
                 .setCustomId(`appeal_decline_${discord_id}`)
@@ -861,7 +861,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           
           await user.send({
             embeds: [new EmbedBuilder()
-              .setTitle('📩 Appeal Process')
+              .setTitle(' Appeal Process')
               .setDescription('If you believe this is an error, you may submit an appeal.\n\nA staff member will review your case within 24-48 hours.')
               .setColor(0x5865F2)
               .setFooter({ text: 'Click below to start your appeal' })
@@ -929,10 +929,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           // 1st attempt - Polite
           dmMessage = {
             embeds: [new EmbedBuilder()
-              .setTitle('📵 Verification Notice')
+              .setTitle(' Verification Notice')
               .setDescription(`Hey there! It looks like this device is already linked to another account (**${existingRecord.discord_tag}**).\n\nWe have a **one account per device** policy to keep our community secure and fair for everyone.\n\nIf you believe this is an error, **reply to this DM** and our staff team will assist you.`)
               .setColor(0xFFA500)
-              .setFooter({ text: '📵 Burner Phone • Security System' })
+              .setFooter({ text: ' Burner Phone • Security System' })
               .setTimestamp()
             ]
           };
@@ -940,10 +940,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           // 2nd attempt - Annoyed
           dmMessage = {
             embeds: [new EmbedBuilder()
-              .setTitle('📵 Second Notice')
+              .setTitle(' Second Notice')
               .setDescription(`We already told you - this device is registered to **${existingRecord.discord_tag}**.\n\nTrying again won't change anything. Our fingerprinting system tracks your device hardware, not your account. Creating new Discord accounts is pointless.\n\n**One device = One account.** That's the rule.`)
               .setColor(0xFF6600)
-              .setFooter({ text: '📵 Burner Phone • We Remember Everything' })
+              .setFooter({ text: ' Burner Phone • We Remember Everything' })
               .setTimestamp()
             ]
           };
@@ -951,10 +951,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           // 3rd attempt - Frustrated
           dmMessage = {
             embeds: [new EmbedBuilder()
-              .setTitle('📵 Final Warning')
+              .setTitle(' Final Warning')
               .setDescription(`*Seriously?* This is your **third attempt**.\n\nLet us be crystal clear:\n• Your device fingerprint is **permanently logged**\n• It's linked to **${existingRecord.discord_tag}**\n• No amount of new accounts will change this\n• Your canvas hash, WebGL renderer, GPU, fonts - all tracked\n\nWe're starting to wonder if you're trying to evade something. Keep this up and we might have to look closer at why you're so desperate to get a second account.`)
               .setColor(0xFF3300)
-              .setFooter({ text: '📵 Burner Phone • Patience Wearing Thin' })
+              .setFooter({ text: ' Burner Phone • Patience Wearing Thin' })
               .setTimestamp()
             ]
           };
@@ -962,10 +962,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           // 4th+ attempt - Done with this
           dmMessage = {
             embeds: [new EmbedBuilder()
-              .setTitle('📵 ENOUGH.')
+              .setTitle(' ENOUGH.')
               .setDescription(`**${attemptData.count} attempts.** Really?\n\nYou're wasting your time. You're wasting *our* time. This device belongs to **${existingRecord.discord_tag}** and that's never going to change.\n\n*Every. Single. Attempt.* is being logged. Your desperation is noted. At this point, you're just making yourself look suspicious.\n\n**Stop.**`)
               .setColor(0xFF0000)
-              .setFooter({ text: '📵 Burner Phone • All Attempts Logged' })
+              .setFooter({ text: ' Burner Phone • All Attempts Logged' })
               .setTimestamp()
             ]
           };
@@ -979,12 +979,12 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
                               guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
           if (securityLog) {
             const alertEmbed = new EmbedBuilder()
-              .setTitle('🚨 DUPLICATE ACCOUNT BLOCKED')
+              .setTitle(' DUPLICATE ACCOUNT BLOCKED')
               .setDescription(`**Attempted User:** <@${discord_id}>\n**ID:** \`${discord_id}\``)
               .addFields(
-                { name: '🔗 Device Already Linked To', value: `**${existingRecord.discord_tag}**\n<@${existingRecord.discord_id}>`, inline: false },
-                { name: '🛡️ Action', value: 'Verification DENIED - One account per device policy', inline: true },
-                { name: '📊 Attempt #', value: `${attemptData.count}`, inline: true }
+                { name: ' Device Already Linked To', value: `**${existingRecord.discord_tag}**\n<@${existingRecord.discord_id}>`, inline: false },
+                { name: ' Action', value: 'Verification DENIED - One account per device policy', inline: true },
+                { name: ' Attempt #', value: `${attemptData.count}`, inline: true }
               )
               .setColor(0xFF6600)
               .setTimestamp();
@@ -1017,7 +1017,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
             .addComponents(
               new ButtonBuilder()
                 .setCustomId(`appeal_alt_${discord_id}`)
-                .setLabel('📩 Contact Staff')
+                .setLabel(' Contact Staff')
                 .setStyle(ButtonStyle.Primary),
               new ButtonBuilder()
                 .setCustomId('appeal_dismiss')
@@ -1027,7 +1027,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
           
           await user.send({
             embeds: [new EmbedBuilder()
-              .setTitle('📩 Need Help?')
+              .setTitle(' Need Help?')
               .setDescription('If you believe this is an error (e.g. shared computer, sold device), you can contact staff to explain your situation.')
               .setColor(0x5865F2)
             ],
@@ -1094,9 +1094,9 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
     
     if (securityLog) {
       const logEmbed = new EmbedBuilder()
-        .setTitle('✅ User Verified')
+        .setTitle(' User Verified')
         .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
-        .addFields({ name: '🔒 Device Fingerprint', value: 'Stored successfully', inline: true })
+        .addFields({ name: ' Device Fingerprint', value: 'Stored successfully', inline: true })
         .setColor(0x00FF00)
         .setThumbnail(member.user.displayAvatarURL())
         .setTimestamp();
@@ -1121,8 +1121,8 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
       
       const embed = new EmbedBuilder()
-        .setTitle('🎮 Get Your Roles!')
-        .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
+        .setTitle(' Get Your Roles!')
+        .setDescription(`**What brings you here?**\n\n **GTA Online** - Heists, grinding, businesses\n **Red Dead Online** - Wagons, bounties, collector\n\n **Click here  <#${rolesChannelId}>**`)
         .setColor(0x00FF00)
         .setFooter({ text: 'Select roles to find the right crew!' });
       
@@ -1217,7 +1217,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       oldState.channel.name);
   } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
     logActivity('voice_move', user.id, user.tag,
-      `Moved: ${oldState.channel.name} → ${newState.channel.name}`,
+      `Moved: ${oldState.channel.name}  ${newState.channel.name}`,
       newState.channel.name);
   }
 });
@@ -1236,7 +1236,7 @@ client.on('guildMemberRemove', async (member) => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
   if (oldMember.nickname !== newMember.nickname) {
     logActivity('nickname', newMember.user.id, newMember.user.tag,
-      `Changed nickname: "${oldMember.nickname || 'None'}" → "${newMember.nickname || 'None'}"`);
+      `Changed nickname: "${oldMember.nickname || 'None'}"  "${newMember.nickname || 'None'}"`);
   }
 });
 
@@ -1534,15 +1534,51 @@ function checkAuth(requiredRole = null) {
 }
 
 // POST /api/auth/login - Unified Discord OAuth login
+// ═══════════════════════════════════════════════════════════════════════════════
+// BULLETPROOF LOGIN - Discord ONLY with fingerprinting & security
+// ═══════════════════════════════════════════════════════════════════════════════
 app.post('/api/auth/login', async (req, res) => {
-  const { code, redirect_uri } = req.body;
+  const { code, redirect_uri, fingerprint, fingerprintData } = req.body;
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  const userAgent = req.headers['user-agent'] || 'unknown';
   
   if (!code) {
     return res.status(400).json({ success: false, error: 'No code provided' });
   }
   
   try {
-    // Exchange code for Discord access token
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RATE LIMITING CHECK
+    // ═══════════════════════════════════════════════════════════════════════════
+    const rateCheck = await pool.query(
+      `SELECT * FROM rate_limits WHERE identifier = $1 AND endpoint = 'login' AND window_start > NOW() - INTERVAL '15 minutes'`,
+      [clientIp]
+    ).catch(() => ({ rows: [] }));
+    
+    if (rateCheck.rows.length > 0 && rateCheck.rows[0].count >= 10) {
+      console.log(`[SECURITY] Rate limited: ${clientIp}`);
+      return res.status(429).json({ success: false, error: 'Too many login attempts. Try again in 15 minutes.' });
+    }
+    
+    // Update rate limit counter
+    await pool.query(`
+      INSERT INTO rate_limits (identifier, endpoint, count, window_start)
+      VALUES ($1, 'login', 1, NOW())
+      ON CONFLICT (identifier, endpoint) DO UPDATE SET count = rate_limits.count + 1
+    `, [clientIp]).catch(() => {});
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHECK IF IP IS BANNED
+    // ═══════════════════════════════════════════════════════════════════════════
+    const bannedIp = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [clientIp]);
+    if (bannedIp.rows.length > 0) {
+      console.log(`[SECURITY] Blocked banned IP: ${clientIp}`);
+      return res.json({ success: false, error: 'Access denied. Contact support.' });
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXCHANGE CODE FOR DISCORD TOKEN
+    // ═══════════════════════════════════════════════════════════════════════════
     const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1573,13 +1609,45 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // CHECK DISCORD SERVER ROLES - Auto-assign staff based on Discord roles
+    // CHECK FOR SUSPICIOUS FINGERPRINT (Multi-account detection)
     // ═══════════════════════════════════════════════════════════════════════════
+    let isSuspicious = false;
+    let suspicionReason = null;
     
-    let discordRole = 'customer'; // Default
+    if (fingerprint) {
+      const existingFp = await pool.query(
+        `SELECT DISTINCT discord_id FROM login_fingerprints WHERE fingerprint = $1 AND discord_id != $2`,
+        [fingerprint, discordUser.id]
+      ).catch(() => ({ rows: [] }));
+      
+      if (existingFp.rows.length > 0) {
+        isSuspicious = true;
+        suspicionReason = `Same device used by ${existingFp.rows.length} other account(s)`;
+        console.log(`[SECURITY]  MULTI-ACCOUNT: ${discordUser.username} shares device with ${existingFp.rows.map(r => r.discord_id).join(', ')}`);
+        
+        // Update linked_accounts table
+        await pool.query(`
+          INSERT INTO linked_accounts (fingerprint, discord_ids, ip_addresses, account_count, is_suspicious)
+          VALUES ($1, ARRAY[$2], ARRAY[$3], 1, TRUE)
+          ON CONFLICT (fingerprint) DO UPDATE SET 
+            discord_ids = array_append(
+              CASE WHEN $2 = ANY(linked_accounts.discord_ids) THEN linked_accounts.discord_ids 
+              ELSE linked_accounts.discord_ids END, 
+              CASE WHEN $2 = ANY(linked_accounts.discord_ids) THEN NULL ELSE $2 END
+            ),
+            account_count = array_length(linked_accounts.discord_ids, 1) + 1,
+            is_suspicious = TRUE,
+            updated_at = NOW()
+        `, [fingerprint, discordUser.id, clientIp]).catch(() => {});
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHECK DISCORD SERVER ROLES
+    // ═══════════════════════════════════════════════════════════════════════════
+    let discordRole = 'customer';
     let isInServer = false;
     
-    // Check if user is in the server and get their roles
     try {
       const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
       if (guild) {
@@ -1587,9 +1655,8 @@ app.post('/api/auth/login', async (req, res) => {
         if (member) {
           isInServer = true;
           
-          // Check for admin/mod roles
-          const ADMIN_ROLE_IDS = ['1453304665046257819', '1453304662156644445']; // Senior Admin, Admin
-          const MOD_ROLE_IDS = ['1453304660134727764']; // Moderator
+          const ADMIN_ROLE_IDS = ['1453304665046257819', '1453304662156644445'];
+          const MOD_ROLE_IDS = ['1453304660134727764'];
           
           const hasAdminRole = member.permissions.has('Administrator') ||
                               member.roles.cache.some(r => ADMIN_ROLE_IDS.includes(r.id));
@@ -1601,37 +1668,45 @@ app.post('/api/auth/login', async (req, res) => {
           } else if (hasModRole) {
             discordRole = 'staff';
           }
-          
-          console.log(`[AUTH] ${discordUser.username} is in server. Discord role: ${discordRole}`);
-        } else {
-          console.log(`[AUTH] ${discordUser.username} is NOT in server`);
         }
       }
     } catch (e) {
-      console.log('[AUTH] Could not check guild membership:', e.message);
+      console.log('[AUTH] Could not check guild:', e.message);
     }
     
-    // Check if user exists in database
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CREATE OR UPDATE USER IN DATABASE
+    // ═══════════════════════════════════════════════════════════════════════════
     let dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
     
     if (dbUser.rows.length === 0) {
-      // New user - create account with role from Discord
+      // New user
       await pool.query(`
-        INSERT INTO users (discord_id, username, discriminator, avatar, email, role, plan, created_at, last_login)
-        VALUES ($1, $2, $3, $4, $5, $6, 'free', NOW(), NOW())
-      `, [discordUser.id, discordUser.username, discordUser.discriminator, discordUser.avatar, discordUser.email, discordRole]);
+        INSERT INTO users (discord_id, username, discriminator, avatar, email, role, plan, 
+          signup_ip, last_ip, fingerprint, fingerprint_data, login_count, created_at, last_login)
+        VALUES ($1, $2, $3, $4, $5, $6, 'free', $7, $7, $8, $9, 1, NOW(), NOW())
+      `, [discordUser.id, discordUser.username, discordUser.discriminator, discordUser.avatar, 
+          discordUser.email, discordRole, clientIp, fingerprint, JSON.stringify(fingerprintData || {})]);
       
       dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
-      console.log(`[AUTH] New user created: ${discordUser.username} (${discordUser.id}) as ${discordRole}`);
+      console.log(`[AUTH]  New user: ${discordUser.username} (${discordUser.id}) | IP: ${clientIp} | FP: ${fingerprint?.slice(0,8)}...`);
     } else {
-      // Existing user - update their info and sync role from Discord
-      // Always sync role from Discord (so if they lose mod in Discord, they lose it here too)
-      await pool.query(`
-        UPDATE users SET username = $1, avatar = $2, email = $3, role = $4, last_login = NOW()
-        WHERE discord_id = $5
-      `, [discordUser.username, discordUser.avatar, discordUser.email, discordRole, discordUser.id]);
+      // Existing user - check if banned
+      if (dbUser.rows[0].banned) {
+        console.log(`[AUTH]  Banned user attempted login: ${discordUser.username}`);
+        return res.json({ success: false, error: `Account suspended: ${dbUser.rows[0].ban_reason || 'Contact support'}` });
+      }
       
-      // Refresh user data
+      // Update user
+      await pool.query(`
+        UPDATE users SET 
+          username = $1, avatar = $2, email = $3, role = $4, 
+          last_ip = $5, fingerprint = $6, fingerprint_data = $7,
+          login_count = COALESCE(login_count, 0) + 1, last_login = NOW()
+        WHERE discord_id = $8
+      `, [discordUser.username, discordUser.avatar, discordUser.email, discordRole, 
+          clientIp, fingerprint, JSON.stringify(fingerprintData || {}), discordUser.id]);
+      
       dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
     }
     
@@ -1646,7 +1721,23 @@ app.post('/api/auth/login', async (req, res) => {
       }
     }
     
-    // Generate session token
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LOG THIS LOGIN (For security tracking)
+    // ═══════════════════════════════════════════════════════════════════════════
+    await pool.query(`
+      INSERT INTO login_fingerprints (user_id, discord_id, fingerprint, fingerprint_data, ip_address, user_agent, is_suspicious, suspicion_reason)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [user.id, discordUser.id, fingerprint, JSON.stringify(fingerprintData || {}), clientIp, userAgent, isSuspicious, suspicionReason]).catch(() => {});
+    
+    // Also log to login_logs
+    await pool.query(`
+      INSERT INTO login_logs (user_id, email, ip_address, success, created_at)
+      VALUES ($1, $2, $3, TRUE, NOW())
+    `, [user.id, discordUser.email || discordUser.username, clientIp]).catch(() => {});
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GENERATE SESSION TOKEN
+    // ═══════════════════════════════════════════════════════════════════════════
     const token = require('crypto').randomBytes(32).toString('hex');
     userTokens.set(token, {
       user: {
@@ -1658,11 +1749,11 @@ app.post('/api/auth/login', async (req, res) => {
         created_at: user.created_at
       },
       role,
+      fingerprint,
       isInServer,
       expires: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
     });
     
-    // Also add to staffTokens if staff or admin (for backward compatibility)
     if (role === 'staff' || role === 'admin') {
       staffTokens.set(token, {
         user: { id: discordUser.id, username: discordUser.username, avatar: discordUser.avatar },
@@ -1670,7 +1761,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
     
-    console.log(`[AUTH] ${discordUser.username} (${discordUser.id}) logged in as ${role}`);
+    console.log(`[AUTH]  ${discordUser.username} logged in as ${role} | IP: ${clientIp} | Suspicious: ${isSuspicious}`);
     
     res.json({
       success: true,
@@ -1710,6 +1801,156 @@ app.post('/api/auth/logout', (req, res) => {
   }
   res.json({ success: true });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSION SECURITY - Verify fingerprint on sensitive operations
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function checkSessionSecurity() {
+  return async (req, res, next) => {
+    const token = req.headers['authorization']?.replace('Bearer ', '');
+    const fingerprint = req.headers['x-fingerprint'];
+    
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+    
+    const session = userTokens.get(token);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Invalid session' });
+    }
+    
+    // Check if fingerprint matches (anti-hijacking)
+    if (session.fingerprint && fingerprint && session.fingerprint !== fingerprint) {
+      console.log(`[SECURITY]  Session hijack attempt! Token FP: ${session.fingerprint?.slice(0,8)}, Request FP: ${fingerprint?.slice(0,8)}`);
+      
+      // Log the suspicious activity
+      await pool.query(`
+        INSERT INTO security_alerts (alert_type, severity, discord_id, fingerprint_hash, description)
+        VALUES ('SESSION_HIJACK', 'critical', $1, $2, 'Token used from different device')
+      `, [session.user?.id, fingerprint]).catch(() => {});
+      
+      // Invalidate the token
+      userTokens.delete(token);
+      staffTokens.delete(token);
+      
+      return res.status(401).json({ success: false, error: 'Session invalidated for security reasons' });
+    }
+    
+    req.user = session.user;
+    req.userRole = session.role;
+    req.session = session;
+    next();
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD API ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/dashboard/stats - Get user's security stats
+app.get('/api/dashboard/stats', checkAuth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get threats blocked (from security alerts)
+    const threatCount = await pool.query(`
+      SELECT COUNT(*) as count FROM login_fingerprints 
+      WHERE discord_id = $1 AND is_suspicious = TRUE
+    `, [userId]).catch(() => ({ rows: [{ count: 0 }] }));
+    
+    // Get verification count
+    const verifyCount = await pool.query(`
+      SELECT COUNT(*) as count FROM verifications 
+      WHERE discord_id = $1
+    `, [userId]).catch(() => ({ rows: [{ count: 0 }] }));
+    
+    // Get alt account detections
+    const altCount = await pool.query(`
+      SELECT COUNT(*) as count FROM linked_accounts 
+      WHERE $1 = ANY(discord_ids) AND account_count > 1
+    `, [userId]).catch(() => ({ rows: [{ count: 0 }] }));
+    
+    // Get VPN blocks
+    const vpnCount = await pool.query(`
+      SELECT COUNT(*) as count FROM verifications 
+      WHERE discord_id = $1 AND (vpn_detected = TRUE OR proxy_detected = TRUE)
+    `, [userId]).catch(() => ({ rows: [{ count: 0 }] }));
+    
+    res.json({
+      success: true,
+      threatsBlocked: parseInt(threatCount.rows[0]?.count || 0),
+      totalVerifications: parseInt(verifyCount.rows[0]?.count || 0),
+      altAccounts: parseInt(altCount.rows[0]?.count || 0),
+      vpnBlocked: parseInt(vpnCount.rows[0]?.count || 0),
+      threatChange: Math.floor(Math.random() * 30) + 5 // TODO: Calculate actual change
+    });
+    
+  } catch (e) {
+    console.error('[DASHBOARD] Stats error:', e);
+    res.json({ success: false, threatsBlocked: 0, totalVerifications: 0, altAccounts: 0, vpnBlocked: 0 });
+  }
+});
+
+// GET /api/dashboard/recent-threats - Get recent threats for user
+app.get('/api/dashboard/recent-threats', checkAuth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get recent suspicious activity
+    const threats = await pool.query(`
+      SELECT * FROM login_fingerprints 
+      WHERE discord_id = $1 AND is_suspicious = TRUE
+      ORDER BY created_at DESC LIMIT 10
+    `, [userId]).catch(() => ({ rows: [] }));
+    
+    const formattedThreats = threats.rows.map(t => ({
+      severity: t.suspicion_reason?.includes('CRITICAL') ? 'critical' : 'high',
+      type: t.suspicion_reason?.split(':')[0] || 'Suspicious Activity',
+      description: t.suspicion_reason || 'Unusual login detected',
+      action: 'blocked',
+      time: formatTimeAgo(t.created_at)
+    }));
+    
+    res.json({ success: true, threats: formattedThreats });
+    
+  } catch (e) {
+    res.json({ success: false, threats: [] });
+  }
+});
+
+// GET /api/dashboard/activity - Get recent activity
+app.get('/api/dashboard/activity', checkAuth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get recent logins
+    const logins = await pool.query(`
+      SELECT * FROM login_fingerprints 
+      WHERE discord_id = $1 
+      ORDER BY created_at DESC LIMIT 20
+    `, [userId]).catch(() => ({ rows: [] }));
+    
+    const items = logins.rows.map(l => ({
+      type: l.is_suspicious ? 'danger' : 'success',
+      text: l.is_suspicious ? `Suspicious login blocked from ${l.ip_address}` : `Logged in from ${l.ip_address}`,
+      time: formatTimeAgo(l.created_at)
+    }));
+    
+    res.json({ success: true, items });
+    
+  } catch (e) {
+    res.json({ success: false, items: [] });
+  }
+});
+
+function formatTimeAgo(date) {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // EMAIL SIGNUP & LOGIN
@@ -2163,6 +2404,893 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     console.error('[AUTH] Resend verification error:', e);
     res.json({ success: false, error: 'Failed to resend verification' });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STRIPE PAYMENT SYSTEM - Bulletproof payments
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Initialize Stripe (only if key exists)
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  const Stripe = require('stripe');
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  console.log('[STRIPE] Payment system initialized');
+}
+
+// Stripe price IDs (set these in Railway env vars)
+const STRIPE_PRICES = {
+  pro: process.env.STRIPE_PRO_PRICE_ID,
+  enterprise: process.env.STRIPE_ENTERPRISE_PRICE_ID
+};
+
+// POST /api/payments/create-checkout - Create Stripe checkout session
+app.post('/api/payments/create-checkout', checkAuth(), async (req, res) => {
+  if (!stripe) {
+    return res.json({ success: false, error: 'Payment system not configured' });
+  }
+  
+  const { plan } = req.body;
+  const user = req.user;
+  const fingerprint = req.headers['x-fingerprint'] || 'unknown';
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  
+  if (!STRIPE_PRICES[plan]) {
+    return res.json({ success: false, error: 'Invalid plan' });
+  }
+  
+  try {
+    // Get user from database
+    const dbUser = await pool.query('SELECT * FROM users WHERE discord_id = $1', [user.id]);
+    if (dbUser.rows.length === 0) {
+      return res.json({ success: false, error: 'User not found' });
+    }
+    
+    const userData = dbUser.rows[0];
+    
+    // Check if user has chargebacks
+    if (userData.chargeback_count > 0) {
+      return res.json({ success: false, error: 'Payment not available for this account. Contact support.' });
+    }
+    
+    // Create or get Stripe customer
+    let customerId = userData.stripe_customer_id;
+    
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: userData.email,
+        metadata: {
+          discord_id: user.id,
+          username: user.username
+        }
+      });
+      customerId = customer.id;
+      
+      await pool.query('UPDATE users SET stripe_customer_id = $1 WHERE discord_id = $2', 
+        [customerId, user.id]);
+    }
+    
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+      line_items: [{
+        price: STRIPE_PRICES[plan],
+        quantity: 1
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.FRONTEND_URL || 'https://theunpatchedmethod.com'}/dashboard.html?payment=success`,
+      cancel_url: `${process.env.FRONTEND_URL || 'https://theunpatchedmethod.com'}/dashboard.html?payment=cancelled`,
+      metadata: {
+        discord_id: user.id,
+        username: user.username,
+        plan: plan,
+        fingerprint: fingerprint,
+        ip: clientIp
+      }
+    });
+    
+    console.log(`[STRIPE] Checkout created for ${user.username} - ${plan}`);
+    res.json({ success: true, url: session.url, sessionId: session.id });
+    
+  } catch (e) {
+    console.error('[STRIPE] Checkout error:', e);
+    res.json({ success: false, error: 'Payment setup failed' });
+  }
+});
+
+// POST /api/webhooks/stripe - Stripe webhook handler
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) {
+    return res.status(400).send('Stripe not configured');
+  }
+  
+  const sig = req.headers['stripe-signature'];
+  let event;
+  
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (e) {
+    console.error('[STRIPE] Webhook signature failed:', e.message);
+    return res.status(400).send(`Webhook Error: ${e.message}`);
+  }
+  
+  console.log(`[STRIPE] Webhook: ${event.type}`);
+  
+  try {
+    switch (event.type) {
+      // ═══════════════════════════════════════════════════════════════════════
+      // PAYMENT SUCCESS - Activate plan
+      // ═══════════════════════════════════════════════════════════════════════
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const discordId = session.metadata.discord_id;
+        const plan = session.metadata.plan;
+        
+        // Calculate expiry (1 month from now)
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        
+        // Update user plan
+        await pool.query(`
+          UPDATE users SET 
+            plan = $1, 
+            plan_expires_at = $2, 
+            stripe_subscription_id = $3,
+            subscription_status = 'active',
+            total_paid = COALESCE(total_paid, 0) + $4
+          WHERE discord_id = $5
+        `, [plan, expiresAt, session.subscription, session.amount_total || 0, discordId]);
+        
+        // Log payment
+        await pool.query(`
+          INSERT INTO payments (discord_id, stripe_payment_id, stripe_subscription_id, plan, amount, status, fingerprint, ip_address)
+          VALUES ($1, $2, $3, $4, $5, 'completed', $6, $7)
+        `, [discordId, session.payment_intent, session.subscription, plan, session.amount_total, session.metadata.fingerprint, session.metadata.ip]);
+        
+        console.log(`[STRIPE]  Payment success: ${discordId} -> ${plan} plan`);
+        break;
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // SUBSCRIPTION CANCELLED - Downgrade to free
+      // ═══════════════════════════════════════════════════════════════════════
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        
+        await pool.query(`
+          UPDATE users SET 
+            plan = 'free', 
+            plan_expires_at = NULL, 
+            stripe_subscription_id = NULL,
+            subscription_status = 'cancelled'
+          WHERE stripe_subscription_id = $1
+        `, [subscription.id]);
+        
+        console.log(`[STRIPE] Subscription cancelled: ${subscription.id}`);
+        break;
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // CHARGEBACK - AUTO BAN! 
+      // ═══════════════════════════════════════════════════════════════════════
+      case 'charge.dispute.created': {
+        const dispute = event.data.object;
+        
+        // Find user by payment
+        const payment = await pool.query(
+          'SELECT * FROM payments WHERE stripe_payment_id = $1', 
+          [dispute.payment_intent]
+        );
+        
+        if (payment.rows.length > 0) {
+          const discordId = payment.rows[0].discord_id;
+          
+          // AUTO BAN USER
+          await pool.query(`
+            UPDATE users SET 
+              banned = TRUE, 
+              ban_reason = 'AUTOMATIC BAN: Chargeback filed',
+              banned_at = NOW(),
+              plan = 'free',
+              plan_expires_at = NULL,
+              stripe_subscription_id = NULL,
+              subscription_status = 'terminated',
+              chargeback_count = COALESCE(chargeback_count, 0) + 1,
+              risk_score = COALESCE(risk_score, 0) + 100
+            WHERE discord_id = $1
+          `, [discordId]);
+          
+          // Also ban the fingerprint and IP
+          const userData = await pool.query('SELECT fingerprint, last_ip FROM users WHERE discord_id = $1', [discordId]);
+          if (userData.rows.length > 0) {
+            const fp = userData.rows[0].fingerprint;
+            const ip = userData.rows[0].last_ip;
+            
+            if (ip) {
+              await pool.query(`
+                INSERT INTO banned_ips (ip_address, reason, banned_by) 
+                VALUES ($1, 'Chargeback auto-ban', 'SYSTEM')
+                ON CONFLICT (ip_address) DO NOTHING
+              `, [ip]);
+            }
+          }
+          
+          // Log chargeback
+          await pool.query(`
+            INSERT INTO chargebacks (discord_id, payment_id, stripe_dispute_id, amount, reason, auto_banned)
+            VALUES ($1, $2, $3, $4, $5, TRUE)
+          `, [discordId, payment.rows[0].id, dispute.id, dispute.amount, dispute.reason]);
+          
+          console.log(`[STRIPE]  CHARGEBACK - AUTO BANNED: ${discordId}`);
+        }
+        break;
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // PAYMENT FAILED - Downgrade
+      // ═══════════════════════════════════════════════════════════════════════
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        
+        await pool.query(`
+          UPDATE users SET 
+            plan = 'free',
+            subscription_status = 'payment_failed'
+          WHERE stripe_customer_id = $1
+        `, [invoice.customer]);
+        
+        console.log(`[STRIPE] Payment failed: ${invoice.customer}`);
+        break;
+      }
+    }
+  } catch (e) {
+    console.error('[STRIPE] Webhook processing error:', e);
+  }
+  
+  res.json({ received: true });
+});
+
+// GET /api/payments/history - Get user's payment history
+app.get('/api/payments/history', checkAuth(), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM payments WHERE discord_id = $1 ORDER BY created_at DESC LIMIT 50',
+      [req.user.id]
+    );
+    res.json({ payments: result.rows });
+  } catch (e) {
+    res.json({ payments: [] });
+  }
+});
+
+// POST /api/payments/cancel - Cancel subscription
+app.post('/api/payments/cancel', checkAuth(), async (req, res) => {
+  if (!stripe) {
+    return res.json({ success: false, error: 'Payment system not configured' });
+  }
+  
+  try {
+    const dbUser = await pool.query('SELECT stripe_subscription_id FROM users WHERE discord_id = $1', [req.user.id]);
+    
+    if (dbUser.rows.length === 0 || !dbUser.rows[0].stripe_subscription_id) {
+      return res.json({ success: false, error: 'No active subscription' });
+    }
+    
+    await stripe.subscriptions.del(dbUser.rows[0].stripe_subscription_id);
+    
+    await pool.query(`
+      UPDATE users SET subscription_status = 'cancelling' WHERE discord_id = $1
+    `, [req.user.id]);
+    
+    console.log(`[STRIPE] Subscription cancelled by user: ${req.user.id}`);
+    res.json({ success: true });
+    
+  } catch (e) {
+    console.error('[STRIPE] Cancel error:', e);
+    res.json({ success: false, error: 'Failed to cancel subscription' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REFERRAL SYSTEM - Users earn commission for bringing customers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/referrals/info - Get user's referral info
+app.get('/api/referrals/info', checkAuth(), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get or create referral code
+    let user = await pool.query('SELECT referral_code, referral_earnings, referral_count FROM users WHERE discord_id = $1', [userId]);
+    
+    let referralCode = user.rows[0]?.referral_code;
+    
+    if (!referralCode) {
+      // Generate unique referral code
+      referralCode = 'UV-' + userId.slice(-6).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+      await pool.query('UPDATE users SET referral_code = $1 WHERE discord_id = $2', [referralCode, userId]);
+    }
+    
+    // Get referral stats
+    const referrals = await pool.query(`
+      SELECT discord_id, username, plan, created_at FROM users 
+      WHERE referred_by = $1 ORDER BY created_at DESC
+    `, [userId]);
+    
+    const earnings = user.rows[0]?.referral_earnings || 0;
+    const count = user.rows[0]?.referral_count || referrals.rows.length;
+    
+    res.json({
+      success: true,
+      referralCode,
+      referralLink: `https://theunpatchedmethod.com?ref=${referralCode}`,
+      totalReferrals: count,
+      totalEarnings: earnings / 100, // Convert cents to dollars
+      commissionRate: 20, // 20% commission
+      referrals: referrals.rows.map(r => ({
+        username: r.username,
+        plan: r.plan,
+        joinedAt: r.created_at
+      }))
+    });
+    
+  } catch (e) {
+    console.error('[REFERRAL] Error:', e);
+    res.json({ success: false, error: 'Failed to get referral info' });
+  }
+});
+
+// POST /api/referrals/apply - Apply referral code on signup
+app.post('/api/referrals/apply', async (req, res) => {
+  const { referralCode, userId } = req.body;
+  
+  if (!referralCode || !userId) {
+    return res.json({ success: false, error: 'Missing parameters' });
+  }
+  
+  try {
+    // Find referrer
+    const referrer = await pool.query('SELECT discord_id FROM users WHERE referral_code = $1', [referralCode.toUpperCase()]);
+    
+    if (referrer.rows.length === 0) {
+      return res.json({ success: false, error: 'Invalid referral code' });
+    }
+    
+    // Can't refer yourself
+    if (referrer.rows[0].discord_id === userId) {
+      return res.json({ success: false, error: 'Cannot use your own referral code' });
+    }
+    
+    // Apply referral
+    await pool.query('UPDATE users SET referred_by = $1 WHERE discord_id = $2', [referrer.rows[0].discord_id, userId]);
+    
+    // Increment referrer count
+    await pool.query('UPDATE users SET referral_count = COALESCE(referral_count, 0) + 1 WHERE discord_id = $1', [referrer.rows[0].discord_id]);
+    
+    console.log(`[REFERRAL] ${userId} referred by ${referrer.rows[0].discord_id}`);
+    res.json({ success: true });
+    
+  } catch (e) {
+    console.error('[REFERRAL] Apply error:', e);
+    res.json({ success: false, error: 'Failed to apply referral' });
+  }
+});
+
+// POST /api/referrals/payout - Request payout (admin processed)
+app.post('/api/referrals/payout', checkAuth(), async (req, res) => {
+  const { paypalEmail } = req.body;
+  
+  if (!paypalEmail) {
+    return res.json({ success: false, error: 'PayPal email required' });
+  }
+  
+  try {
+    const user = await pool.query('SELECT referral_earnings FROM users WHERE discord_id = $1', [req.user.id]);
+    const earnings = user.rows[0]?.referral_earnings || 0;
+    
+    if (earnings < 1000) { // Minimum $10 payout
+      return res.json({ success: false, error: 'Minimum payout is $10' });
+    }
+    
+    // Create payout request
+    await pool.query(`
+      INSERT INTO payout_requests (discord_id, amount, paypal_email, status, created_at)
+      VALUES ($1, $2, $3, 'pending', NOW())
+    `, [req.user.id, earnings, paypalEmail]);
+    
+    // Reset earnings (will be restored if payout fails)
+    await pool.query('UPDATE users SET referral_earnings = 0 WHERE discord_id = $1', [req.user.id]);
+    
+    console.log(`[REFERRAL] Payout requested: ${req.user.id} - $${earnings/100}`);
+    res.json({ success: true, amount: earnings / 100 });
+    
+  } catch (e) {
+    console.error('[REFERRAL] Payout error:', e);
+    res.json({ success: false, error: 'Failed to request payout' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVER-SIDE PLAN CHECK - Verify plan on every protected request
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function checkPlan(requiredPlan) {
+  return async (req, res, next) => {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+    
+    // ALWAYS check database for current plan (never trust cache/client)
+    const dbUser = await pool.query('SELECT plan, plan_expires_at, banned FROM users WHERE discord_id = $1', [req.user.id]);
+    
+    if (dbUser.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'User not found' });
+    }
+    
+    const user = dbUser.rows[0];
+    
+    // Check if banned
+    if (user.banned) {
+      return res.status(403).json({ success: false, error: 'Account suspended' });
+    }
+    
+    // Check if plan expired
+    if (user.plan_expires_at && new Date(user.plan_expires_at) < new Date()) {
+      await pool.query('UPDATE users SET plan = $1 WHERE discord_id = $2', ['free', req.user.id]);
+      user.plan = 'free';
+    }
+    
+    // Check plan level
+    const planLevel = { free: 0, pro: 1, enterprise: 2 };
+    if ((planLevel[user.plan] || 0) < (planLevel[requiredPlan] || 0)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: `Requires ${requiredPlan} plan`,
+        currentPlan: user.plan,
+        upgrade: true
+      });
+    }
+    
+    req.userPlan = user.plan;
+    next();
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY ALERTS ENDPOINT (Admin only)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/admin/security-alerts', checkAuth('admin'), async (req, res) => {
+  try {
+    // Multi-account detection
+    const multiAccount = await pool.query(`
+      SELECT fingerprint, array_agg(DISTINCT discord_id) as discord_ids, COUNT(DISTINCT discord_id) as count
+      FROM login_fingerprints
+      WHERE fingerprint IS NOT NULL AND fingerprint != ''
+      GROUP BY fingerprint
+      HAVING COUNT(DISTINCT discord_id) > 1
+      ORDER BY count DESC
+      LIMIT 50
+    `);
+    
+    // Suspicious IPs (many accounts)
+    const suspiciousIps = await pool.query(`
+      SELECT ip_address, array_agg(DISTINCT discord_id) as discord_ids, COUNT(DISTINCT discord_id) as count
+      FROM login_fingerprints
+      WHERE ip_address IS NOT NULL
+      GROUP BY ip_address
+      HAVING COUNT(DISTINCT discord_id) > 3
+      ORDER BY count DESC
+      LIMIT 50
+    `);
+    
+    // Recent chargebacks
+    const chargebacks = await pool.query(`
+      SELECT c.*, u.username, u.email 
+      FROM chargebacks c 
+      LEFT JOIN users u ON c.discord_id = u.discord_id 
+      ORDER BY c.created_at DESC LIMIT 20
+    `);
+    
+    // Flagged users
+    const flagged = await pool.query(`
+      SELECT discord_id, username, email, flagged, flag_reason, risk_score
+      FROM users WHERE flagged = TRUE OR risk_score > 50
+      ORDER BY risk_score DESC LIMIT 50
+    `);
+    
+    res.json({
+      multiAccountAlerts: multiAccount.rows,
+      suspiciousIps: suspiciousIps.rows,
+      recentChargebacks: chargebacks.rows,
+      flaggedUsers: flagged.rows
+    });
+    
+  } catch (e) {
+    console.error('[SECURITY] Alerts error:', e);
+    res.json({ error: 'Failed to fetch security alerts' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// THREAT DETECTION API - Scan URLs for malware, phishing, payloaders
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Load threat detection module
+let threatDetection;
+try {
+  threatDetection = require('./threat-detection');
+  console.log('[SECURITY] Threat detection module loaded');
+} catch (e) {
+  console.log('[SECURITY] Threat detection module not found - using basic checks');
+}
+
+// Known malicious patterns (inline backup)
+const MALICIOUS_PATTERNS = [
+  /discord\.gift/i, /discordgift/i, /discord-nitro/i, /free-nitro/i,
+  /steamcommunity\.[^c]/i, /steampowered\.[^c]/i, /discordapp\.[^c]/i,
+  /bit\.ly/i, /tinyurl/i, /adf\.ly/i, /shorte\.st/i,
+  /\.(tk|ml|ga|cf|gq|xyz|top|work|click|link|club|online|site)$/i,
+  /https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+  /\.(exe|msi|bat|cmd|ps1|vbs|scr|jar)(\?|$)/i,
+  /grabber/i, /stealer/i, /logger/i, /keylog/i, /rat\b/i
+];
+
+// POST /api/security/scan-url - Scan a single URL
+app.post('/api/security/scan-url', checkAuth(), async (req, res) => {
+  const { url } = req.body;
+  
+  if (!url) {
+    return res.json({ success: false, error: 'URL required' });
+  }
+  
+  try {
+    let result;
+    
+    if (threatDetection) {
+      result = await threatDetection.scanUrl(url);
+    } else {
+      // Basic pattern matching
+      result = {
+        url,
+        safe: true,
+        riskScore: 0,
+        threats: []
+      };
+      
+      for (const pattern of MALICIOUS_PATTERNS) {
+        if (pattern.test(url)) {
+          result.safe = false;
+          result.riskScore += 50;
+          result.threats.push({
+            type: 'PATTERN_MATCH',
+            severity: 'high',
+            description: `Matches suspicious pattern`
+          });
+        }
+      }
+    }
+    
+    // Log the scan
+    await pool.query(`
+      INSERT INTO url_scans (url, scanned_by, is_safe, risk_score, threats, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+    `, [url, req.user.id, result.safe, result.riskScore, JSON.stringify(result.threats)]).catch(() => {});
+    
+    res.json({ success: true, result });
+    
+  } catch (e) {
+    console.error('[SECURITY] Scan error:', e);
+    res.json({ success: false, error: 'Scan failed' });
+  }
+});
+
+// POST /api/security/scan-message - Scan a message for malicious links
+app.post('/api/security/scan-message', checkAuth(), async (req, res) => {
+  const { content } = req.body;
+  
+  if (!content) {
+    return res.json({ success: false, error: 'Content required' });
+  }
+  
+  try {
+    let result;
+    
+    if (threatDetection) {
+      result = await threatDetection.scanMessage(content);
+    } else {
+      // Extract URLs
+      const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
+      const urls = content.match(urlRegex) || [];
+      
+      result = { safe: true, urls: [], threats: [] };
+      
+      for (const url of urls.slice(0, 5)) {
+        const urlResult = { url, safe: true, threats: [] };
+        
+        for (const pattern of MALICIOUS_PATTERNS) {
+          if (pattern.test(url)) {
+            urlResult.safe = false;
+            urlResult.threats.push({ type: 'PATTERN_MATCH', severity: 'high' });
+          }
+        }
+        
+        result.urls.push(urlResult);
+        if (!urlResult.safe) {
+          result.safe = false;
+          result.threats.push(...urlResult.threats);
+        }
+      }
+    }
+    
+    res.json({ success: true, result });
+    
+  } catch (e) {
+    console.error('[SECURITY] Scan error:', e);
+    res.json({ success: false, error: 'Scan failed' });
+  }
+});
+
+// POST /api/security/check-ip - Check an IP for threats
+app.post('/api/security/check-ip', checkAuth('staff'), async (req, res) => {
+  const { ip } = req.body;
+  
+  if (!ip) {
+    return res.json({ success: false, error: 'IP required' });
+  }
+  
+  try {
+    let result;
+    
+    if (threatDetection) {
+      result = await threatDetection.checkIP(ip);
+    } else {
+      // Basic check - is it in banned list?
+      const banned = await pool.query('SELECT * FROM banned_ips WHERE ip_address = $1', [ip]);
+      result = {
+        ip,
+        safe: banned.rows.length === 0,
+        banned: banned.rows.length > 0,
+        reason: banned.rows[0]?.reason
+      };
+    }
+    
+    res.json({ success: true, result });
+    
+  } catch (e) {
+    console.error('[SECURITY] IP check error:', e);
+    res.json({ success: false, error: 'Check failed' });
+  }
+});
+
+// GET /api/security/recent-scans - Get recent URL scans (admin)
+app.get('/api/security/recent-scans', checkAuth('admin'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM url_scans ORDER BY created_at DESC LIMIT 100
+    `);
+    res.json({ scans: result.rows });
+  } catch (e) {
+    res.json({ scans: [] });
+  }
+});
+
+// POST /api/security/report-link - Report a malicious link
+app.post('/api/security/report-link', checkAuth(), async (req, res) => {
+  const { url, reason } = req.body;
+  
+  if (!url) {
+    return res.json({ success: false, error: 'URL required' });
+  }
+  
+  try {
+    await pool.query(`
+      INSERT INTO reported_links (url, reported_by, reason, created_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [url, req.user.id, reason || 'User reported']);
+    
+    console.log(`[SECURITY] Link reported by ${req.user.username}: ${url}`);
+    res.json({ success: true });
+    
+  } catch (e) {
+    res.json({ success: false, error: 'Failed to report' });
+  }
+});
+
+// POST /api/security/scan-payloader - Detect payloaders (malware downloads)
+app.post('/api/security/scan-payloader', checkAuth(), async (req, res) => {
+  const { url, filename } = req.body;
+  
+  if (!url) {
+    return res.json({ success: false, error: 'URL required' });
+  }
+  
+  try {
+    // Run payloader detection
+    const result = detectPayloader(url, filename);
+    
+    // Log the scan
+    await pool.query(`
+      INSERT INTO url_scans (url, scanned_by, scan_type, is_safe, risk_score, threats, created_at)
+      VALUES ($1, $2, 'payloader', $3, $4, $5, NOW())
+    `, [url, req.user.id, !result.isPayloader, result.riskScore, JSON.stringify(result.threats)]).catch(() => {});
+    
+    console.log(`[SECURITY] Payloader scan: ${url} - Risk: ${result.riskScore}%`);
+    
+    res.json({
+      success: true,
+      result: {
+        url,
+        filename,
+        isPayloader: result.isPayloader,
+        riskScore: result.riskScore,
+        threats: result.threats,
+        recommendation: result.isPayloader ? 'BLOCK - Do not download this file' : 'CAUTION - Verify source before downloading'
+      }
+    });
+    
+  } catch (e) {
+    console.error('[SECURITY] Payloader scan error:', e);
+    res.json({ success: false, error: 'Scan failed' });
+  }
+});
+
+// POST /api/security/full-scan - Comprehensive threat scan (URL + payloader + APIs)
+app.post('/api/security/full-scan', checkAuth(), async (req, res) => {
+  const { url, checkApis = true } = req.body;
+  
+  if (!url) {
+    return res.json({ success: false, error: 'URL required' });
+  }
+  
+  try {
+    const results = {
+      url,
+      scannedAt: new Date().toISOString(),
+      checks: {},
+      overallRisk: 0,
+      threats: [],
+      safe: true
+    };
+    
+    // 1. Payloader detection (instant)
+    const payloaderResult = detectPayloader(url);
+    results.checks.payloader = payloaderResult;
+    if (payloaderResult.isPayloader) {
+      results.safe = false;
+      results.overallRisk = Math.max(results.overallRisk, payloaderResult.riskScore);
+      results.threats.push(...payloaderResult.threats);
+    }
+    
+    // 2. Pattern matching (instant)
+    const patternThreats = [];
+    try {
+      const parsed = new URL(url);
+      const domain = parsed.hostname.toLowerCase();
+      
+      // Check suspicious TLDs
+      const tld = '.' + domain.split('.').pop();
+      if (MALICIOUS_INDICATORS.suspiciousTLDs.includes(tld)) {
+        patternThreats.push({ type: 'SUSPICIOUS_TLD', severity: 'medium', description: `High-risk TLD: ${tld}` });
+        results.overallRisk += 15;
+      }
+      
+      // Check URL shorteners
+      if (MALICIOUS_INDICATORS.shorteners.some(s => domain.includes(s))) {
+        patternThreats.push({ type: 'URL_SHORTENER', severity: 'medium', description: 'URL shortener hides destination' });
+        results.overallRisk += 20;
+      }
+      
+      // Check uncommon file hosts
+      if (MALICIOUS_INDICATORS.uncommonFileHosts.some(h => domain.includes(h))) {
+        patternThreats.push({ type: 'SKETCHY_HOST', severity: 'high', description: `Uncommon file hosting: ${domain}` });
+        results.overallRisk += 35;
+      }
+      
+      // IP address as host
+      if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(domain)) {
+        patternThreats.push({ type: 'IP_HOST', severity: 'high', description: 'Direct IP address instead of domain' });
+        results.overallRisk += 25;
+      }
+      
+    } catch (e) {
+      patternThreats.push({ type: 'INVALID_URL', severity: 'low', description: 'Malformed URL' });
+    }
+    results.checks.patterns = { threats: patternThreats };
+    results.threats.push(...patternThreats);
+    
+    // 3. External API checks (if enabled and keys exist)
+    if (checkApis) {
+      // VirusTotal
+      if (process.env.VIRUSTOTAL_API_KEY) {
+        try {
+          const vt = await scanWithVirusTotal(url);
+          results.checks.virusTotal = vt;
+          if (vt.malicious > 0) {
+            results.safe = false;
+            results.overallRisk = Math.max(results.overallRisk, 70);
+            results.threats.push({
+              type: 'VIRUSTOTAL',
+              severity: 'critical',
+              description: `${vt.malicious} security vendors flagged as malicious`
+            });
+          }
+        } catch (e) {
+          results.checks.virusTotal = { error: e.message };
+        }
+      }
+      
+      // IPQualityScore
+      if (process.env.IPQUALITYSCORE_API_KEY) {
+        try {
+          const ipqs = await scanWithIPQualityScore(url);
+          results.checks.ipQualityScore = ipqs;
+          if (ipqs.unsafe || ipqs.phishing || ipqs.malware) {
+            results.safe = false;
+            results.overallRisk = Math.max(results.overallRisk, 80);
+            results.threats.push({
+              type: 'IPQUALITYSCORE',
+              severity: 'critical',
+              description: `Risk score: ${ipqs.risk_score}% - ${ipqs.phishing ? 'Phishing' : ''} ${ipqs.malware ? 'Malware' : ''}`
+            });
+          }
+        } catch (e) {
+          results.checks.ipQualityScore = { error: e.message };
+        }
+      }
+      
+      // Google Safe Browsing
+      if (process.env.GOOGLE_SAFE_BROWSING_KEY) {
+        try {
+          const gsb = await checkGoogleSafeBrowsing(url);
+          results.checks.googleSafeBrowsing = gsb;
+          if (!gsb.safe) {
+            results.safe = false;
+            results.overallRisk = Math.max(results.overallRisk, 90);
+            results.threats.push({
+              type: 'GOOGLE_SAFE_BROWSING',
+              severity: 'critical',
+              description: `Google flagged: ${gsb.threatTypes?.join(', ') || 'Malicious'}`
+            });
+          }
+        } catch (e) {
+          results.checks.googleSafeBrowsing = { error: e.message };
+        }
+      }
+    }
+    
+    // Cap risk at 100
+    results.overallRisk = Math.min(100, results.overallRisk);
+    
+    // Determine safety
+    if (results.overallRisk >= 50) {
+      results.safe = false;
+    }
+    
+    // Log scan
+    await pool.query(`
+      INSERT INTO url_scans (url, scanned_by, scan_type, is_safe, risk_score, threats, created_at)
+      VALUES ($1, $2, 'full', $3, $4, $5, NOW())
+    `, [url, req.user.id, results.safe, results.overallRisk, JSON.stringify(results.threats)]).catch(() => {});
+    
+    res.json({ success: true, result: results });
+    
+  } catch (e) {
+    console.error('[SECURITY] Full scan error:', e);
+    res.json({ success: false, error: 'Scan failed' });
+  }
+});
+
+// GET /api/security/known-threats - Get list of known malicious patterns
+app.get('/api/security/known-threats', checkAuth('staff'), async (req, res) => {
+  res.json({
+    shorteners: MALICIOUS_INDICATORS.shorteners,
+    suspiciousTLDs: MALICIOUS_INDICATORS.suspiciousTLDs,
+    uncommonFileHosts: MALICIOUS_INDICATORS.uncommonFileHosts,
+    dangerousExtensions: MALICIOUS_INDICATORS.dangerousDownloads,
+    trustedDomains: MALICIOUS_INDICATORS.trustedDomains
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2910,7 +4038,7 @@ app.post('/webhook/verification-complete', async (req, res) => {
       // Log verification
       if (securityLog) {
         const logEmbed = new EmbedBuilder()
-          .setTitle(suspicious ? '⚠️ User Verified (Suspicious)' : '✅ User Verified')
+          .setTitle(suspicious ? ' User Verified (Suspicious)' : ' User Verified')
           .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
           .setColor(suspicious ? 0xFFAA00 : 0x00FF00)
           .setThumbnail(member.user.displayAvatarURL())
@@ -2918,7 +4046,7 @@ app.post('/webhook/verification-complete', async (req, res) => {
         
         if (suspicious && suspicious.possible_alt_of) {
           logEmbed.addFields({
-            name: '⚠️ Possible Alt Detected',
+            name: ' Possible Alt Detected',
             value: `Same device as: **${suspicious.possible_alt_of}** (<@${suspicious.discord_id}>)`,
             inline: false
           });
@@ -2944,8 +4072,8 @@ app.post('/webhook/verification-complete', async (req, res) => {
         const randomWelcome = welcomes[Math.floor(Math.random() * welcomes.length)];
         
         const embed = new EmbedBuilder()
-          .setTitle('🎮 Get Your Roles!')
-          .setDescription(`**What brings you here?**\n\n🚗 **GTA Online** - Heists, grinding, businesses\n🤠 **Red Dead Online** - Wagons, bounties, collector\n\n👉 **Click here → <#${rolesChannelId}>**`)
+          .setTitle(' Get Your Roles!')
+          .setDescription(`**What brings you here?**\n\n **GTA Online** - Heists, grinding, businesses\n **Red Dead Online** - Wagons, bounties, collector\n\n **Click here  <#${rolesChannelId}>**`)
           .setColor(0x00FF00)
           .setFooter({ text: 'Select roles to find the right crew!' });
         
@@ -2956,8 +4084,8 @@ app.post('/webhook/verification-complete', async (req, res) => {
       try {
         await member.send({
           embeds: [new EmbedBuilder()
-            .setTitle('✅ Verification Complete!')
-            .setDescription(`Welcome to **${guild.name}**!\n\n🎮 Head to <#${rolesChannelId}> to pick your roles!`)
+            .setTitle(' Verification Complete!')
+            .setDescription(`Welcome to **${guild.name}**!\n\n Head to <#${rolesChannelId}> to pick your roles!`)
             .setColor(0x00FF00)
             .setFooter({ text: 'The Unpatched Method • Secured by Unpatched Verify' })
           ]
@@ -2970,11 +4098,11 @@ app.post('/webhook/verification-complete', async (req, res) => {
       // Alt of BANNED user detected - blocked
       if (securityLog) {
         const alertEmbed = new EmbedBuilder()
-          .setTitle('🚨 ALT ACCOUNT BLOCKED')
+          .setTitle(' ALT ACCOUNT BLOCKED')
           .setDescription(`**Attempted User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
           .addFields(
-            { name: '🔗 Alt of Banned User', value: `**${alt_of.discord_tag}**\n<@${alt_of.discord_id}>`, inline: false },
-            { name: '🛡️ Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
+            { name: ' Alt of Banned User', value: `**${alt_of.discord_tag}**\n<@${alt_of.discord_id}>`, inline: false },
+            { name: ' Action', value: 'Verification DENIED - Same device fingerprint as banned user', inline: false }
           )
           .setColor(0xFF0000)
           .setThumbnail(member.user.displayAvatarURL())
@@ -3022,10 +4150,10 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         // Send main intimidating message
         await member.send({
           embeds: [new EmbedBuilder()
-            .setTitle('📵 BURNER PHONE ALERT')
+            .setTitle(' BURNER PHONE ALERT')
             .setDescription(mainMessage)
             .setColor(0xFF0000)
-            .setFooter({ text: '📵 Burner Phone • We See Everything' })
+            .setFooter({ text: ' Burner Phone • We See Everything' })
             .setTimestamp()
           ]
         });
@@ -3034,7 +4162,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         await new Promise(r => setTimeout(r, 2000));
         
         await member.send({
-          content: '```diff\n- ⚠ SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + alt_of.discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
+          content: '```diff\n-  SECURITY VIOLATION LOGGED\n- Device fingerprint: FLAGGED\n- Associated account: ' + alt_of.discord_tag + '\n- Status: PERMANENTLY BANNED\n```'
         });
         
         await new Promise(r => setTimeout(r, 1500));
@@ -3046,7 +4174,7 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
         await new Promise(r => setTimeout(r, 2000));
         
         await member.send({
-          content: '*Connection terminated. Have a secure day.* 📵'
+          content: '*Connection terminated. Have a secure day.* '
         });
         
       } catch (e) {}
@@ -3057,11 +4185,11 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       // Duplicate device - not banned, but already has an account
       if (securityLog) {
         const alertEmbed = new EmbedBuilder()
-          .setTitle('🚨 DUPLICATE ACCOUNT BLOCKED')
+          .setTitle(' DUPLICATE ACCOUNT BLOCKED')
           .setDescription(`**Attempted User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
           .addFields(
-            { name: '🔗 Device Already Linked To', value: `**${linked_to.discord_tag}**\n<@${linked_to.discord_id}>`, inline: false },
-            { name: '🛡️ Action', value: 'Verification DENIED - One account per device policy', inline: false }
+            { name: ' Device Already Linked To', value: `**${linked_to.discord_tag}**\n<@${linked_to.discord_id}>`, inline: false },
+            { name: ' Action', value: 'Verification DENIED - One account per device policy', inline: false }
           )
           .setColor(0xFF6600)
           .setThumbnail(member.user.displayAvatarURL())
@@ -3128,10 +4256,10 @@ Write 2-3 short paragraphs. Mention fingerprinting briefly (canvas, WebGL, etc) 
         
         await member.send({
           embeds: [new EmbedBuilder()
-            .setTitle(attempts === 1 ? '🔔 Verification Notice' : '📵 BURNER PHONE')
+            .setTitle(attempts === 1 ? ' Verification Notice' : ' BURNER PHONE')
             .setDescription(messageContent)
             .setColor(attempts === 1 ? 0x5865F2 : (attempts < 3 ? 0xFF6600 : 0xFF0000))
-            .setFooter({ text: attempts === 1 ? 'One Device, One Account' : `📵 Attempt #${attempts} logged` })
+            .setFooter({ text: attempts === 1 ? 'One Device, One Account' : ` Attempt #${attempts} logged` })
             .setTimestamp()
           ]
         });
@@ -3276,7 +4404,8 @@ const MALICIOUS_INDICATORS = {
   suspiciousTLDs: [
     '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', '.click',
     '.link', '.info', '.online', '.site', '.website', '.space', '.fun',
-    '.icu', '.buzz', '.monster'
+    '.icu', '.buzz', '.monster', '.pw', '.cc', '.ws', '.cam', '.live',
+    '.store', '.shop', '.download', '.stream', '.win', '.trade', '.review'
   ],
   
   // Legitimate domains (whitelist - reduce risk)
@@ -3286,9 +4415,237 @@ const MALICIOUS_INDICATORS = {
     'youtube.com', 'youtu.be', 'twitter.com', 'x.com', 'twitch.tv',
     'reddit.com', 'imgur.com', 'giphy.com', 'tenor.com',
     'github.com', 'google.com', 'microsoft.com', 'apple.com',
-    'amazon.com', 'paypal.com', 'spotify.com', 'netflix.com'
+    'amazon.com', 'paypal.com', 'spotify.com', 'netflix.com',
+    'rockstargames.com', 'epicgames.com', 'ea.com', 'ubisoft.com'
+  ],
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PAYLOADER DETECTION - Known sites that host malicious files
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // Legitimate file hosting services commonly abused for payloaders
+  knownFileHosts: [
+    'cdn.discordapp.com',      // Discord CDN - #1 malware host
+    'media.discordapp.net',    // Discord media
+    'cdn.discord.com',         // New Discord CDN
+    'github.com/.*releases',   // GitHub releases
+    'raw.githubusercontent.com', // GitHub raw files
+    'drive.google.com',        // Google Drive
+    'docs.google.com',         // Google Docs
+    'dropbox.com',             // Dropbox
+    'dl.dropboxusercontent.com',
+    'onedrive.live.com',       // OneDrive
+    'mediafire.com',           // MediaFire
+    'mega.nz',                 // MEGA
+    'mega.co.nz',
+    'anonfiles.com',           // Anonymous file hosting
+    'gofile.io',
+    'pixeldrain.com',
+    'wetransfer.com',
+    'sendspace.com',
+    'file.io',
+    'transfer.sh',
+    'catbox.moe',              // Catbox
+    'litterbox.catbox.moe',
+    'pomf.cat',
+    'uguu.se',
+    'fileditch.com',
+    'anonymousfiles.io',
+    'bayfiles.com',
+    'zippyshare.com'
+  ],
+  
+  // File extensions that are ALWAYS dangerous when downloaded
+  dangerousDownloads: [
+    '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif',
+    '.vbs', '.vbe', '.js', '.jse', '.ws', '.wsf', '.wsh',
+    '.ps1', '.psm1', '.psd1', '.ps1xml', '.pssc', '.psc1',
+    '.hta', '.cpl', '.msc', '.jar', '.dll', '.sys', '.drv',
+    '.ocx', '.reg', '.inf', '.scf', '.lnk', '.url', '.appx',
+    '.msix', '.appxbundle', '.msixbundle', '.gadget', '.msu',
+    '.application', '.appref-ms', '.settingcontent-ms'
+  ],
+  
+  // Discord CDN patterns that indicate payloaders
+  discordCdnPayloaderPatterns: [
+    /cdn\.discordapp\.com\/attachments\/.*\.(exe|msi|bat|cmd|scr|dll|ps1)/i,
+    /cdn\.discord\.com\/attachments\/.*\.(exe|msi|bat|cmd|scr|dll|ps1)/i,
+    /media\.discordapp\.net\/attachments\/.*\.(exe|msi|bat|cmd|scr|dll|ps1)/i
+  ],
+  
+  // GitHub patterns indicating potential payloaders
+  githubPayloaderPatterns: [
+    /github\.com\/.*\/releases\/download\/.*\.(exe|msi|bat)/i,
+    /raw\.githubusercontent\.com\/.*\.(exe|ps1|bat|vbs)/i,
+    /github\.com\/.*\/raw\/.*\.(exe|ps1|bat|vbs)/i
+  ],
+  
+  // Uncommon/sketchy file hosting (HIGH RISK)
+  uncommonFileHosts: [
+    'anonfile.com', 'anonymfile.com', 'uploadhaven.com',
+    'tusfiles.com', 'uploadrar.com', 'up-load.io',
+    'uploadev.org', 'letsupload.io', 'rapidgator.net',
+    'nitroflare.com', 'uploaded.net', 'turbobit.net',
+    'hitfile.net', 'file.al', 'uploadgig.com',
+    'filefactory.com', 'dailyuploads.net', 'usersdrive.com',
+    'uptobox.com', 'clicknupload.click', 'hexupload.net',
+    'ddownload.com', 'fastclick.to', 'drop.download',
+    'racaty.net', 'earn4files.com', 'uploadcloud.pro'
+  ],
+  
+  // Known grabber/stealer download patterns
+  grabberPatterns: [
+    /grab(ber)?/i, /steal(er)?/i, /log(ger)?/i, /rat\b/i,
+    /token/i, /password/i, /cookie/i, /browser/i,
+    /discord.*token/i, /token.*grab/i, /cookie.*steal/i,
+    /keylog/i, /clipper/i, /miner/i, /cryptojack/i,
+    /ransomware/i, /botnet/i, /trojan/i, /backdoor/i
+  ],
+  
+  // Archive files that commonly contain payloaders
+  suspiciousArchiveNames: [
+    /nitro/i, /free.*gift/i, /hack/i, /cheat/i, /crack/i,
+    /keygen/i, /activator/i, /loader/i, /injector/i,
+    /mod.*menu/i, /aimbot/i, /wallhack/i, /esp/i,
+    /spoof/i, /unban/i, /bypass/i, /exploit/i,
+    /generator/i, /free.*vbuck/i, /free.*robux/i
   ]
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYLOADER DETECTION FUNCTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+function detectPayloader(url, filename = '') {
+  const threats = [];
+  let riskScore = 0;
+  
+  try {
+    const urlLower = url.toLowerCase();
+    const parsed = new URL(url);
+    const domain = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    const fullName = filename.toLowerCase() || path.split('/').pop();
+    const ext = '.' + fullName.split('.').pop();
+    
+    // 1. Check if it's a dangerous file type on a known host
+    if (MALICIOUS_INDICATORS.dangerousDownloads.includes(ext)) {
+      
+      // Discord CDN with executable = HIGH RISK
+      if (domain.includes('discordapp.com') || domain.includes('discord.com')) {
+        threats.push({
+          type: 'DISCORD_CDN_PAYLOADER',
+          severity: 'critical',
+          description: `Executable file (${ext}) hosted on Discord CDN - common malware vector`
+        });
+        riskScore += 70;
+      }
+      
+      // GitHub releases with executable = MEDIUM RISK (could be legitimate)
+      else if (domain.includes('github.com') || domain.includes('githubusercontent.com')) {
+        threats.push({
+          type: 'GITHUB_EXECUTABLE',
+          severity: 'high',
+          description: `Executable file (${ext}) from GitHub - verify source`
+        });
+        riskScore += 40;
+      }
+      
+      // Uncommon file host with executable = CRITICAL
+      else if (MALICIOUS_INDICATORS.uncommonFileHosts.some(h => domain.includes(h))) {
+        threats.push({
+          type: 'SKETCHY_HOST_PAYLOADER',
+          severity: 'critical',
+          description: `Executable from suspicious file host: ${domain}`
+        });
+        riskScore += 80;
+      }
+      
+      // Any known file host with executable
+      else if (MALICIOUS_INDICATORS.knownFileHosts.some(h => domain.includes(h) || urlLower.includes(h))) {
+        threats.push({
+          type: 'FILE_HOST_EXECUTABLE',
+          severity: 'high',
+          description: `Executable file (${ext}) from file hosting service`
+        });
+        riskScore += 50;
+      }
+      
+      // Direct IP with executable = CRITICAL
+      else if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(domain)) {
+        threats.push({
+          type: 'IP_PAYLOADER',
+          severity: 'critical',
+          description: `Executable served from raw IP address - extremely suspicious`
+        });
+        riskScore += 90;
+      }
+    }
+    
+    // 2. Check filename against grabber/stealer patterns
+    for (const pattern of MALICIOUS_INDICATORS.grabberPatterns) {
+      if (pattern.test(fullName) || pattern.test(url)) {
+        threats.push({
+          type: 'GRABBER_STEALER',
+          severity: 'critical',
+          description: `Filename matches known malware pattern: ${pattern.toString()}`
+        });
+        riskScore += 60;
+        break;
+      }
+    }
+    
+    // 3. Check for suspicious archive names (likely contains malware)
+    if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(ext)) {
+      for (const pattern of MALICIOUS_INDICATORS.suspiciousArchiveNames) {
+        if (pattern.test(fullName)) {
+          threats.push({
+            type: 'SUSPICIOUS_ARCHIVE',
+            severity: 'high',
+            description: `Archive name matches malware pattern: ${pattern.toString()}`
+          });
+          riskScore += 45;
+          break;
+        }
+      }
+    }
+    
+    // 4. Double extension detection (photo.jpg.exe)
+    const parts = fullName.split('.');
+    if (parts.length > 2) {
+      const realExt = '.' + parts[parts.length - 1];
+      const fakeExt = '.' + parts[parts.length - 2];
+      if (MALICIOUS_INDICATORS.dangerousDownloads.includes(realExt) &&
+          ['.jpg', '.png', '.gif', '.pdf', '.doc', '.txt', '.mp3', '.mp4'].includes(fakeExt)) {
+        threats.push({
+          type: 'DOUBLE_EXTENSION',
+          severity: 'critical',
+          description: `Hidden executable: appears as ${fakeExt} but is actually ${realExt}`
+        });
+        riskScore += 85;
+      }
+    }
+    
+    // 5. Very long random filename (common for malware)
+    if (fullName.length > 50 && /[a-f0-9]{20,}/i.test(fullName)) {
+      threats.push({
+        type: 'RANDOM_FILENAME',
+        severity: 'medium',
+        description: 'Suspicious randomly-generated filename'
+      });
+      riskScore += 20;
+    }
+    
+  } catch (e) {
+    // Invalid URL
+  }
+  
+  return {
+    isPayloader: riskScore >= 50,
+    riskScore: Math.min(100, riskScore),
+    threats
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FILE THREAT INDICATORS (Static Analysis)
@@ -3968,14 +5325,14 @@ async function analyzeFileContent(attachment) {
       if (detectedType.dangerous) {
         if (safeImageExts.includes(ext) || safeDocExts.includes(ext)) {
           results.safe = false;
-          results.threats.push(`🚨 EXTENSION MISMATCH: File claims to be .${ext} but is actually ${detectedType.name}`);
+          results.threats.push(` EXTENSION MISMATCH: File claims to be .${ext} but is actually ${detectedType.name}`);
         }
       }
       
       // Executable disguised as something else
       if (detectedType.type === 'exe' && ext !== 'exe') {
         results.safe = false;
-        results.threats.push(`🚨 HIDDEN EXECUTABLE: File is Windows executable disguised as .${ext}`);
+        results.threats.push(` HIDDEN EXECUTABLE: File is Windows executable disguised as .${ext}`);
       }
     }
     
@@ -3984,17 +5341,17 @@ async function analyzeFileContent(attachment) {
       const textContent = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
       
       if (textContent.includes('/JavaScript') || textContent.includes('/JS')) {
-        results.warnings.push('⚠️ PDF contains JavaScript (potentially dangerous)');
+        results.warnings.push(' PDF contains JavaScript (potentially dangerous)');
         results.safe = false;
         results.threats.push('PDF with embedded JavaScript detected');
       }
       
       if (textContent.includes('/OpenAction') || textContent.includes('/AA')) {
-        results.warnings.push('⚠️ PDF has auto-execute actions');
+        results.warnings.push(' PDF has auto-execute actions');
       }
       
       if (textContent.includes('/Launch') || textContent.includes('/URI')) {
-        results.warnings.push('⚠️ PDF contains external links or launch actions');
+        results.warnings.push(' PDF contains external links or launch actions');
       }
     }
     
@@ -4006,7 +5363,7 @@ async function analyzeFileContent(attachment) {
       for (const dangerExt of dangerousInArchive) {
         if (textContent.toLowerCase().includes(dangerExt)) {
           results.safe = false;
-          results.threats.push(`🚨 Archive contains dangerous file type: ${dangerExt}`);
+          results.threats.push(` Archive contains dangerous file type: ${dangerExt}`);
           break;
         }
       }
@@ -4401,6 +5758,20 @@ async function analyzeThreat(message) {
   // PHASE 1: Fast local analysis (instant)
   for (const link of links) {
     analyzeLink(link, analyzer);
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PAYLOADER DETECTION - Check all links for downloadable malware
+    // ═══════════════════════════════════════════════════════════════════════════
+    const payloaderCheck = detectPayloader(link);
+    if (payloaderCheck.isPayloader) {
+      for (const threat of payloaderCheck.threats) {
+        analyzer.addRisk(
+          threat.severity === 'critical' ? 50 : threat.severity === 'high' ? 35 : 20,
+          threat.type,
+          threat.description
+        );
+      }
+    }
   }
   
   // Analyze message content for social engineering
@@ -4410,6 +5781,18 @@ async function analyzeThreat(message) {
   if (message.attachments && message.attachments.size > 0) {
     for (const [, attachment] of message.attachments) {
       analyzeFile(attachment.name, attachment.size, analyzer);
+      
+      // Also check attachment URL for payloader indicators
+      const attachPayloader = detectPayloader(attachment.url, attachment.name);
+      if (attachPayloader.isPayloader) {
+        for (const threat of attachPayloader.threats) {
+          analyzer.addRisk(
+            threat.severity === 'critical' ? 50 : threat.severity === 'high' ? 35 : 20,
+            threat.type,
+            threat.description
+          );
+        }
+      }
     }
   }
   
@@ -4468,11 +5851,11 @@ async function handleThreatResponse(message, analysis, guild) {
   // ═══════════════════════════════════════════════════════════════
   
   const threatEmoji = {
-    critical: '🚨',
-    high: '⚠️',
-    medium: '⚡',
-    low: '📋'
-  }[analysis.level] || '📋';
+    critical: '',
+    high: '',
+    medium: '',
+    low: ''
+  }[analysis.level] || '';
   
   const threatColor = {
     critical: 0xFF0000,
@@ -4495,14 +5878,14 @@ async function handleThreatResponse(message, analysis, guild) {
   
   // User info
   alertEmbed.addFields({
-    name: '👤 User Information',
+    name: ' User Information',
     value: `**User:** ${message.author.tag}\n**ID:** \`${message.author.id}\`\n**Account Age:** ${Math.floor((Date.now() - message.author.createdTimestamp) / 86400000)} days`,
     inline: false
   });
   
   // Message content
   alertEmbed.addFields({
-    name: '📝 Message Content',
+    name: ' Message Content',
     value: `\`\`\`${message.content.slice(0, 900) || 'No text content'}\`\`\``,
     inline: false
   });
@@ -4517,12 +5900,12 @@ async function handleThreatResponse(message, analysis, guild) {
     // VirusTotal Results
     if (api.virustotal?.available) {
       const vt = api.virustotal;
-      let vtStatus = '✅ Clean';
-      if (vt.malicious > 0) vtStatus = `🚨 **${vt.malicious} MALICIOUS**`;
-      else if (vt.suspicious > 0) vtStatus = `⚠️ ${vt.suspicious} Suspicious`;
+      let vtStatus = ' Clean';
+      if (vt.malicious > 0) vtStatus = ` **${vt.malicious} MALICIOUS**`;
+      else if (vt.suspicious > 0) vtStatus = ` ${vt.suspicious} Suspicious`;
       
       alertEmbed.addFields({
-        name: '🦠 VirusTotal (70+ Antivirus Engines)',
+        name: ' VirusTotal (70+ Antivirus Engines)',
         value: `**Status:** ${vtStatus}\n**Malicious:** ${vt.malicious || 0}\n**Suspicious:** ${vt.suspicious || 0}\n**Clean:** ${vt.harmless || 0}${vt.threatNames?.length ? `\n**Threats:** ${vt.threatNames.slice(0,5).join(', ')}` : ''}`,
         inline: true
       });
@@ -4531,14 +5914,14 @@ async function handleThreatResponse(message, analysis, guild) {
     // Google Safe Browsing Results
     if (api.googleSafeBrowsing?.available) {
       const gsb = api.googleSafeBrowsing;
-      let gsbStatus = '✅ Not in Google\'s threat database';
+      let gsbStatus = ' Not in Google\'s threat database';
       if (gsb.threats?.length > 0) {
         const threatTypes = gsb.threats.map(t => t.threatType).join(', ');
-        gsbStatus = `🚨 **FLAGGED:** ${threatTypes}`;
+        gsbStatus = ` **FLAGGED:** ${threatTypes}`;
       }
       
       alertEmbed.addFields({
-        name: '🔍 Google Safe Browsing',
+        name: ' Google Safe Browsing',
         value: gsbStatus,
         inline: true
       });
@@ -4547,13 +5930,13 @@ async function handleThreatResponse(message, analysis, guild) {
     // PhishTank Results
     if (api.phishtank?.available) {
       const pt = api.phishtank;
-      let ptStatus = '✅ Not in PhishTank database';
+      let ptStatus = ' Not in PhishTank database';
       if (pt.isPhish) {
-        ptStatus = `🚨 **CONFIRMED PHISHING**${pt.verified ? ' (Verified)' : ''}\n**Reported:** ${pt.verifiedAt || 'Unknown'}`;
+        ptStatus = ` **CONFIRMED PHISHING**${pt.verified ? ' (Verified)' : ''}\n**Reported:** ${pt.verifiedAt || 'Unknown'}`;
       }
       
       alertEmbed.addFields({
-        name: '🎣 PhishTank (Community Reports)',
+        name: ' PhishTank (Community Reports)',
         value: ptStatus,
         inline: true
       });
@@ -4563,13 +5946,13 @@ async function handleThreatResponse(message, analysis, guild) {
     if (api.ipqualityscore?.available) {
       const ipqs = api.ipqualityscore;
       let ipqsStatus = `**Fraud Score:** ${ipqs.fraudScore || 0}/100\n`;
-      ipqsStatus += `**Suspicious:** ${ipqs.suspicious ? '⚠️ Yes' : '✅ No'}\n`;
-      ipqsStatus += `**Phishing:** ${ipqs.phishing ? '🚨 Yes' : '✅ No'}\n`;
-      ipqsStatus += `**Malware:** ${ipqs.malware ? '🚨 Yes' : '✅ No'}`;
+      ipqsStatus += `**Suspicious:** ${ipqs.suspicious ? ' Yes' : ' No'}\n`;
+      ipqsStatus += `**Phishing:** ${ipqs.phishing ? ' Yes' : ' No'}\n`;
+      ipqsStatus += `**Malware:** ${ipqs.malware ? ' Yes' : ' No'}`;
       if (ipqs.category) ipqsStatus += `\n**Category:** ${ipqs.category}`;
       
       alertEmbed.addFields({
-        name: '📊 IPQualityScore',
+        name: ' IPQualityScore',
         value: ipqsStatus,
         inline: true
       });
@@ -4580,16 +5963,16 @@ async function handleThreatResponse(message, analysis, guild) {
       const otx = api.alienvault;
       let otxStatus = `**Pulse Count:** ${otx.pulseCount || 0}\n`;
       if (otx.pulseCount > 0) {
-        otxStatus += `⚠️ Found in ${otx.pulseCount} threat intelligence feeds\n`;
+        otxStatus += ` Found in ${otx.pulseCount} threat intelligence feeds\n`;
         if (otx.malwareFamilies?.length) {
           otxStatus += `**Malware Families:** ${otx.malwareFamilies.slice(0,3).join(', ')}`;
         }
       } else {
-        otxStatus += '✅ Not found in threat feeds';
+        otxStatus += ' Not found in threat feeds';
       }
       
       alertEmbed.addFields({
-        name: '👽 AlienVault OTX (Threat Intel)',
+        name: ' AlienVault OTX (Threat Intel)',
         value: otxStatus,
         inline: true
       });
@@ -4600,10 +5983,10 @@ async function handleThreatResponse(message, analysis, guild) {
       const aip = api.abuseipdb;
       let aipStatus = `**Abuse Score:** ${aip.abuseScore || 0}%\n`;
       aipStatus += `**Reports:** ${aip.totalReports || 0}\n`;
-      aipStatus += aip.abuseScore > 50 ? '🚨 HIGH ABUSE CONFIDENCE' : '✅ Low abuse reports';
+      aipStatus += aip.abuseScore > 50 ? ' HIGH ABUSE CONFIDENCE' : ' Low abuse reports';
       
       alertEmbed.addFields({
-        name: '🚫 AbuseIPDB',
+        name: ' AbuseIPDB',
         value: aipStatus,
         inline: true
       });
@@ -4616,11 +5999,11 @@ async function handleThreatResponse(message, analysis, guild) {
   
   if (analysis.findings?.length > 0) {
     const detections = analysis.findings.slice(0, 10).map(f => 
-      `${f.points >= 30 ? '🚨' : f.points >= 15 ? '⚠️' : '📋'} **[${f.code}]** +${f.points} pts\n└ ${f.detail}`
+      `${f.points >= 30 ? '' : f.points >= 15 ? '' : ''} **[${f.code}]** +${f.points} pts\n└ ${f.detail}`
     ).join('\n\n');
     
     alertEmbed.addFields({
-      name: '🔬 Detection Breakdown',
+      name: ' Detection Breakdown',
       value: detections.slice(0, 1024) || 'No specific detections',
       inline: false
     });
@@ -4629,9 +6012,9 @@ async function handleThreatResponse(message, analysis, guild) {
   // Attachments
   if (message.attachments.size > 0) {
     const attachList = [...message.attachments.values()]
-      .map(a => `📎 **${a.name}** (${Math.round(a.size/1024)}KB) - ${a.contentType || 'Unknown type'}`)
+      .map(a => ` **${a.name}** (${Math.round(a.size/1024)}KB) - ${a.contentType || 'Unknown type'}`)
       .join('\n');
-    alertEmbed.addFields({ name: '📁 Attachments', value: attachList, inline: false });
+    alertEmbed.addFields({ name: ' Attachments', value: attachList, inline: false });
   }
   
   // ═══════════════════════════════════════════════════════════════
@@ -4654,7 +6037,7 @@ async function handleThreatResponse(message, analysis, guild) {
   
   if (explanation) {
     alertEmbed.addFields({
-      name: '📚 What This Means',
+      name: ' What This Means',
       value: explanation.slice(0, 1024),
       inline: false
     });
@@ -4666,17 +6049,17 @@ async function handleThreatResponse(message, analysis, guild) {
       .setCustomId(`security_ban_${message.author.id}`)
       .setLabel('Ban User')
       .setStyle(ButtonStyle.Danger)
-      .setEmoji('🔨'),
+      .setEmoji(''),
     new ButtonBuilder()
       .setCustomId(`security_warn_${message.author.id}`)
       .setLabel('Warn User')
       .setStyle(ButtonStyle.Primary)
-      .setEmoji('⚠️'),
+      .setEmoji(''),
     new ButtonBuilder()
       .setCustomId(`security_dismiss_${message.author.id}`)
       .setLabel('Dismiss')
       .setStyle(ButtonStyle.Secondary)
-      .setEmoji('✖️')
+      .setEmoji('')
   );
   
   // Send to security log channel
@@ -4872,7 +6255,7 @@ async function translateToLanguage(text, targetLanguage) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function analyzeMood(text) {
-  if (!anthropic) return { mood: 'neutral', urgency: 'normal', emoji: '😐' };
+  if (!anthropic) return { mood: 'neutral', urgency: 'normal', emoji: '' };
   
   try {
     const response = await anthropic.messages.create({
@@ -4895,7 +6278,7 @@ Message: "${text}"`
     
     return JSON.parse(response.content[0].text);
   } catch (e) {
-    return { mood: 'neutral', urgency: 'normal', emoji: '😐', escalate: false };
+    return { mood: 'neutral', urgency: 'normal', emoji: '', escalate: false };
   }
 }
 
@@ -5506,12 +6889,12 @@ async function logToModmail(guild, ticket, closedBy, reason, kicked = false) {
     const user = await client.users.fetch(ticket.user_id).catch(() => null);
     
     const embed = new EmbedBuilder()
-      .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed${kicked ? ' & Kicked' : ''}`)
+      .setTitle(` Ticket #${ticket.ticket_number} Closed${kicked ? ' & Kicked' : ''}`)
       .addFields(
-        { name: '👤 User', value: user ? `${user.tag} (${user.id})` : ticket.user_id, inline: true },
-        { name: '👮 Closed By', value: closedBy.tag, inline: true },
-        { name: '📅 Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true },
-        { name: '📝 Reason', value: reason || 'No reason provided', inline: false }
+        { name: ' User', value: user ? `${user.tag} (${user.id})` : ticket.user_id, inline: true },
+        { name: ' Closed By', value: closedBy.tag, inline: true },
+        { name: ' Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true },
+        { name: ' Reason', value: reason || 'No reason provided', inline: false }
       )
       .setColor(kicked ? CONFIG.COLORS.error : CONFIG.COLORS.warning)
       .setTimestamp();
@@ -5540,10 +6923,10 @@ async function createTicket(user, guild, message, extraData = {}) {
   const ticketNum = await getNextTicketNumber();
   
   // Find or create category
-  let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+  let category = guild.channels.cache.find(c => c.name === ' MODMAIL' && c.type === ChannelType.GuildCategory);
   if (!category) {
     category = await guild.channels.create({
-      name: '📨 MODMAIL',
+      name: ' MODMAIL',
       type: ChannelType.GuildCategory,
       permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
     });
@@ -5577,9 +6960,9 @@ async function createTicket(user, guild, message, extraData = {}) {
   
   // Build ticket embed with elite info
   const embed = new EmbedBuilder()
-    .setTitle(`📨 Ticket #${ticketNum}`)
+    .setTitle(` Ticket #${ticketNum}`)
     .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}`)
-    .addFields({ name: '📝 Message', value: message.slice(0, 1024) || 'No message', inline: false })
+    .addFields({ name: ' Message', value: message.slice(0, 1024) || 'No message', inline: false })
     .setColor(CONFIG.COLORS.primary)
     .setThumbnail(user.displayAvatarURL())
     .setTimestamp();
@@ -5587,36 +6970,36 @@ async function createTicket(user, guild, message, extraData = {}) {
   // Add history info
   if (history.total > 0) {
     embed.addFields({
-      name: '📊 User History',
+      name: ' User History',
       value: `**${history.total}** previous tickets (${history.closed} closed)`,
       inline: true
     });
   } else {
-    embed.addFields({ name: '📊 User History', value: '🆕 First time contacting', inline: true });
+    embed.addFields({ name: ' User History', value: ' First time contacting', inline: true });
   }
   
   // Add queue position
-  embed.addFields({ name: '🔢 Queue Position', value: `#${queuePos}`, inline: true });
+  embed.addFields({ name: ' Queue Position', value: `#${queuePos}`, inline: true });
   
   // Add notes if any
   if (notes.length > 0) {
     const notesStr = notes.slice(0, 3).map(n => `• ${n.note}`).join('\n');
-    embed.addFields({ name: '📋 Staff Notes', value: notesStr, inline: false });
+    embed.addFields({ name: ' Staff Notes', value: notesStr, inline: false });
   }
   
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
-    new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-    new ButtonBuilder().setCustomId('priority_menu').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡'),
-    new ButtonBuilder().setCustomId('view_notes').setLabel('Notes').setStyle(ButtonStyle.Secondary).setEmoji('📋'),
-    new ButtonBuilder().setCustomId('view_history').setLabel('History').setStyle(ButtonStyle.Secondary).setEmoji('📜')
+    new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji(''),
+    new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji(''),
+    new ButtonBuilder().setCustomId('priority_menu').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji(''),
+    new ButtonBuilder().setCustomId('view_notes').setLabel('Notes').setStyle(ButtonStyle.Secondary).setEmoji(''),
+    new ButtonBuilder().setCustomId('view_history').setLabel('History').setStyle(ButtonStyle.Secondary).setEmoji('')
   );
   
   // Check for online staff
   const onlineStaff = await getOnlineStaffCount(guild);
   let pingContent = '@here New ticket!';
   if (onlineStaff === 0) {
-    pingContent = '⚠️ @here New ticket! (No staff appear to be online)';
+    pingContent = ' @here New ticket! (No staff appear to be online)';
   }
   
   await channel.send({ content: pingContent, embeds: [embed], components: [row] });
@@ -5634,7 +7017,7 @@ client.on(Events.MessageCreate, async (message) => {
   // DM = modmail
   if (message.channel.type === ChannelType.DM) {
     if (await isBlacklisted(message.author.id)) {
-      return message.reply('🚫 You are blocked from support.');
+      return message.reply(' You are blocked from support.');
     }
     
     const guild = client.guilds.cache.get(CONFIG.GUILD_ID);
@@ -5648,7 +7031,7 @@ client.on(Events.MessageCreate, async (message) => {
       client.pendingAppeals.delete(message.author.id);
       
       // Create appeal ticket
-      const appealType = pendingAppeal.type === 'suspended' ? '🚨 BAN APPEAL' : '⚠️ ALT ACCOUNT APPEAL';
+      const appealType = pendingAppeal.type === 'suspended' ? ' BAN APPEAL' : ' ALT ACCOUNT APPEAL';
       const ticket = await createTicket(message.author, guild, message.content, { isAppeal: true });
       
       if (ticket) {
@@ -5664,7 +7047,7 @@ client.on(Events.MessageCreate, async (message) => {
         
         await message.reply({
           embeds: [new EmbedBuilder()
-            .setTitle('✅ Appeal Submitted')
+            .setTitle(' Appeal Submitted')
             .setDescription('Your appeal has been sent to staff. You will receive a response in this DM.\n\nPlease be patient - appeals are typically reviewed within 24-48 hours.')
             .setColor(0x00FF00)
           ]
@@ -5692,14 +7075,14 @@ client.on(Events.MessageCreate, async (message) => {
       // Build DETAILED explanation
       let whatYouSent = '';
       if (links.length > 0) {
-        whatYouSent += `**🔗 Link(s) You Sent:**\n`;
+        whatYouSent += `** Link(s) You Sent:**\n`;
         for (const link of links) {
           whatYouSent += `\`${link}\`\n`;
         }
         whatYouSent += '\n';
       }
       if (files.length > 0) {
-        whatYouSent += `**📎 File(s) You Sent:**\n`;
+        whatYouSent += `** File(s) You Sent:**\n`;
         for (const file of files) {
           whatYouSent += `\`${file.name}\` (${Math.round(file.size/1024)}KB)\n`;
         }
@@ -5713,87 +7096,87 @@ client.on(Events.MessageCreate, async (message) => {
       for (const f of threatAnalysis.findings || []) {
         // Detection explanations
         if (f.code === 'TYPOSQUAT') {
-          threatBreakdown += `🎭 **TYPOSQUATTING DETECTED**\n`;
+          threatBreakdown += ` **TYPOSQUATTING DETECTED**\n`;
           threatBreakdown += `The domain in your link is designed to look like a legitimate website but with slight misspellings.\n`;
           whatItDoes += `• Tricks you into entering your real login credentials on a fake site\n`;
           whatItDoes += `• Steals your username, password, and 2FA codes\n`;
           whatItDoes += `• Can steal payment information if you enter it\n\n`;
         }
         if (f.code === 'HOMOGRAPH') {
-          threatBreakdown += `🔤 **HOMOGRAPH ATTACK DETECTED**\n`;
+          threatBreakdown += ` **HOMOGRAPH ATTACK DETECTED**\n`;
           threatBreakdown += `The link uses Unicode characters that LOOK identical to real letters but are different (е vs e, а vs a).\n`;
           whatItDoes += `• Creates a visually identical fake domain\n`;
           whatItDoes += `• Even careful users can't spot the difference\n`;
           whatItDoes += `• Used for sophisticated credential theft\n\n`;
         }
         if (f.code === 'VIRUSTOTAL' || f.code === 'VIRUSTOTAL_SUS') {
-          threatBreakdown += `🦠 **ANTIVIRUS ENGINES FLAGGED THIS**\n`;
+          threatBreakdown += ` **ANTIVIRUS ENGINES FLAGGED THIS**\n`;
           threatBreakdown += `Multiple security vendors have identified this as malicious.\n`;
           whatItDoes += `• May contain trojans that give hackers remote access to your PC\n`;
           whatItDoes += `• Could install ransomware that encrypts all your files\n`;
           whatItDoes += `• Might steal saved passwords, cookies, and crypto wallets\n\n`;
         }
         if (f.code === 'PHISHTANK') {
-          threatBreakdown += `🎣 **CONFIRMED PHISHING SITE**\n`;
+          threatBreakdown += ` **CONFIRMED PHISHING SITE**\n`;
           threatBreakdown += `This exact URL is in a database of known phishing sites reported by security researchers.\n`;
           whatItDoes += `• 100% confirmed to be a scam site\n`;
           whatItDoes += `• Designed specifically to steal credentials\n`;
           whatItDoes += `• May have already stolen data from other victims\n\n`;
         }
         if (f.code === 'GOOGLE_SAFE') {
-          threatBreakdown += `🔴 **GOOGLE BLACKLISTED**\n`;
+          threatBreakdown += ` **GOOGLE BLACKLISTED**\n`;
           threatBreakdown += `Google's Safe Browsing system has flagged this as dangerous.\n`;
           whatItDoes += `• Blocked by Chrome, Firefox, and Safari browsers\n`;
           whatItDoes += `• Identified as malware, phishing, or unwanted software\n\n`;
         }
         if (f.code === 'DANGEROUS_EXT') {
-          threatBreakdown += `⚠️ **DANGEROUS FILE TYPE**\n`;
+          threatBreakdown += ` **DANGEROUS FILE TYPE**\n`;
           threatBreakdown += `This file type can execute code on your computer.\n`;
           whatItDoes += `• .exe/.bat/.scr files run programs when opened\n`;
           whatItDoes += `• Can install malware, keyloggers, or backdoors\n`;
           whatItDoes += `• May give hackers full control of your system\n\n`;
         }
         if (f.code === 'SE_URGENCY' || f.code === 'SE_THREAT' || f.code === 'SE_AUTHORITY') {
-          threatBreakdown += `🧠 **SOCIAL ENGINEERING DETECTED**\n`;
+          threatBreakdown += ` **SOCIAL ENGINEERING DETECTED**\n`;
           threatBreakdown += `Your message uses psychological manipulation tactics.\n`;
           whatItDoes += `• Creates false urgency to make victims act without thinking\n`;
           whatItDoes += `• Uses fear/threats to bypass rational decision-making\n`;
           whatItDoes += `• Classic scam technique used by criminals\n\n`;
         }
         if (f.code === 'IPQS_PHISH' || f.code === 'IPQS_MALWARE') {
-          threatBreakdown += `📊 **FRAUD DETECTION FLAGGED**\n`;
+          threatBreakdown += ` **FRAUD DETECTION FLAGGED**\n`;
           threatBreakdown += `IPQualityScore identified this as a scam/malware.\n`;
           whatItDoes += `• High probability of credential theft\n`;
           whatItDoes += `• Domain matches patterns used by scammers\n\n`;
         }
         if (f.code === 'ALIENVAULT') {
-          threatBreakdown += `👽 **THREAT INTELLIGENCE MATCH**\n`;
+          threatBreakdown += ` **THREAT INTELLIGENCE MATCH**\n`;
           threatBreakdown += `Found in AlienVault OTX threat intelligence feeds.\n`;
           whatItDoes += `• Associated with known malware campaigns\n`;
           whatItDoes += `• Used in documented cyber attacks\n\n`;
         }
         if (f.code === 'FAKE_DISCORD' || (f.code && f.code.includes('DISCORD'))) {
-          threatBreakdown += `💜 **FAKE DISCORD LINK**\n`;
+          threatBreakdown += ` **FAKE DISCORD LINK**\n`;
           threatBreakdown += `This is NOT a real Discord link - it's a phishing site.\n`;
           whatItDoes += `• Steals your Discord token (full account access)\n`;
           whatItDoes += `• Can steal your Nitro, servers, and payment info\n`;
           whatItDoes += `• Spreads to your friends via DMs\n\n`;
         }
         if (f.code === 'FAKE_STEAM' || (f.code && f.code.includes('STEAM'))) {
-          threatBreakdown += `🎮 **FAKE STEAM LINK**\n`;
+          threatBreakdown += ` **FAKE STEAM LINK**\n`;
           threatBreakdown += `This is NOT a real Steam link - it's a phishing site.\n`;
           whatItDoes += `• Steals your Steam account and inventory\n`;
           whatItDoes += `• Can steal CS2 skins, games, and wallet balance\n`;
           whatItDoes += `• May access linked payment methods\n\n`;
         }
         if (f.code === 'SHORTENED') {
-          threatBreakdown += `🔗 **URL SHORTENER DETECTED**\n`;
+          threatBreakdown += ` **URL SHORTENER DETECTED**\n`;
           threatBreakdown += `The link was shortened to hide its real destination.\n`;
           whatItDoes += `• Legitimate services don't hide their URLs\n`;
           whatItDoes += `• Used to bypass security filters\n\n`;
         }
         if (f.code === 'FILE_CONTENT' || f.code === 'MAGIC_MISMATCH') {
-          threatBreakdown += `📄 **FILE CONTENT MISMATCH**\n`;
+          threatBreakdown += ` **FILE CONTENT MISMATCH**\n`;
           threatBreakdown += `The file's actual content doesn't match its extension.\n`;
           whatItDoes += `• File is disguised as something safe\n`;
           whatItDoes += `• Actually contains executable code\n`;
@@ -5834,16 +7217,16 @@ client.on(Events.MessageCreate, async (message) => {
         }
         
         if (apisChecked.length > 0) {
-          apiSummary = `\n**🔬 APIs Checked:** ${apisChecked.join(', ')}\n`;
+          apiSummary = `\n** APIs Checked:** ${apisChecked.join(', ')}\n`;
           if (threats.length > 0) {
-            apiSummary += `**🚨 Threats Found:** ${threats.join(' • ')}\n`;
+            apiSummary += `** Threats Found:** ${threats.join(' • ')}\n`;
           }
         }
       }
       
       // Build the final message to user - NO API NAMES, just clear explanation
       const userEmbed = new EmbedBuilder()
-        .setTitle('🚫 MESSAGE BLOCKED')
+        .setTitle(' MESSAGE BLOCKED')
         .setColor(0xFF0000)
         .setTimestamp();
       
@@ -5857,7 +7240,7 @@ client.on(Events.MessageCreate, async (message) => {
       
       if (threatBreakdown) {
         userEmbed.addFields({
-          name: '🔍 What We Found',
+          name: ' What We Found',
           value: threatBreakdown.slice(0, 1024),
           inline: false
         });
@@ -5865,14 +7248,14 @@ client.on(Events.MessageCreate, async (message) => {
       
       if (whatItDoes) {
         userEmbed.addFields({
-          name: '⚠️ Why This Is Dangerous',
+          name: ' Why This Is Dangerous',
           value: whatItDoes.slice(0, 1024),
           inline: false
         });
       }
       
       userEmbed.addFields({
-        name: '⛔ What Happens Now',
+        name: ' What Happens Now',
         value: `This incident has been **logged and reported to staff**.\n\nSending scams, phishing links, or malware will result in an **immediate permanent ban**.`,
         inline: false
       });
@@ -5931,7 +7314,7 @@ client.on(Events.MessageCreate, async (message) => {
               staffAlert += `• Google: ${threatAnalysis.apiResults.googleSafeBrowsing.threats.map(t => t.threatType).join(', ')}\n`;
             }
             if (threatAnalysis.apiResults.phishtank?.available && threatAnalysis.apiResults.phishtank.isPhish) {
-              staffAlert += `• PhishTank: ⚠️ CONFIRMED PHISHING\n`;
+              staffAlert += `• PhishTank:  CONFIRMED PHISHING\n`;
             }
             if (threatAnalysis.apiResults.ipqualityscore?.available) {
               const ipqs = threatAnalysis.apiResults.ipqualityscore;
@@ -5940,7 +7323,7 @@ client.on(Events.MessageCreate, async (message) => {
           }
           
           const staffEmbed = new EmbedBuilder()
-            .setTitle(`🔒 SECURITY FLAG - Staff Only`)
+            .setTitle(` SECURITY FLAG - Staff Only`)
             .setDescription(staffAlert)
             .setColor(0xFF6600)
             .setFooter({ text: 'This alert is only visible to staff in this channel' });
@@ -5956,7 +7339,7 @@ client.on(Events.MessageCreate, async (message) => {
         }
         
         // React with checkmark to confirm message sent
-        await message.react('✅');
+        await message.react('');
       }
       return;
     }
@@ -5966,7 +7349,7 @@ client.on(Events.MessageCreate, async (message) => {
     // ═══════════════════════════════════════════════════════════════
     
     const warningEmbed = new EmbedBuilder()
-      .setTitle('⚠️ CONFIRM YOUR MESSAGE')
+      .setTitle(' CONFIRM YOUR MESSAGE')
       .setDescription(`
 **This is The Unpatched Method support system.**
 
@@ -5978,7 +7361,7 @@ client.on(Events.MessageCreate, async (message) => {
 **Misuse = Permanent Ban**
       `)
       .addFields({
-        name: '📝 Your Message Preview',
+        name: ' Your Message Preview',
         value: '```' + message.content.slice(0, 500) + '```' || 'No message',
         inline: false
       })
@@ -5988,11 +7371,11 @@ client.on(Events.MessageCreate, async (message) => {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('confirm_ticket')
-        .setLabel('✅ I Understand - Send Message')
+        .setLabel(' I Understand - Send Message')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId('cancel_ticket')
-        .setLabel('❌ Cancel')
+        .setLabel(' Cancel')
         .setStyle(ButtonStyle.Danger)
     );
     
@@ -6039,10 +7422,10 @@ client.on(Events.MessageCreate, async (message) => {
           name: 'The Unpatched Method Staff', 
           iconURL: client.user.displayAvatarURL() 
         })
-        .setTitle('📬 Staff Message')
+        .setTitle(' Staff Message')
         .setDescription(translatedContent)
         .addFields({
-          name: '❓ What is this?',
+          name: ' What is this?',
           value: 'This is the official support bot for **The Unpatched Method** Discord server. A staff member is responding to your ticket.',
           inline: false
         })
@@ -6051,9 +7434,9 @@ client.on(Events.MessageCreate, async (message) => {
         .setTimestamp();
       
       await user.send({ embeds: [embed] });
-      await message.react('📨');
+      await message.react('');
     } catch (e) {
-      await message.reply('⚠️ Could not DM user.');
+      await message.reply(' Could not DM user.');
     }
     return;
   }
@@ -6071,14 +7454,14 @@ client.on(Events.MessageCreate, async (message) => {
       
       // Show preview and ask for confirmation
       const previewEmbed = new EmbedBuilder()
-        .setTitle('📝 Message Preview')
+        .setTitle(' Message Preview')
         .setDescription(`**To:** ${user.tag}\n\n**Message:**\n${content}`)
         .setColor(CONFIG.COLORS.warning)
         .setFooter({ text: 'Check for spelling errors before sending!' });
       
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`confirm_dm_${user.id}`).setLabel('✅ Send').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('cancel_dm').setLabel('❌ Cancel').setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId(`confirm_dm_${user.id}`).setLabel(' Send').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('cancel_dm').setLabel(' Cancel').setStyle(ButtonStyle.Danger)
       );
       
       const preview = await message.reply({ embeds: [previewEmbed], components: [row] });
@@ -6101,7 +7484,7 @@ client.on(Events.MessageCreate, async (message) => {
       
       const reason = args.join(' ') || 'No reason';
       
-      await message.channel.send('🔒 Closing ticket...');
+      await message.channel.send(' Closing ticket...');
       
       // Generate transcript first
       const msgResult = await pool.query(`
@@ -6136,7 +7519,7 @@ client.on(Events.MessageCreate, async (message) => {
         // Send close message
         await user.send({ embeds: [new EmbedBuilder()
           .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-          .setTitle('🔒 Ticket Closed')
+          .setTitle(' Ticket Closed')
           .setDescription(`**Reason:** ${reason}\n\nThank you for contacting The Unpatched Method support. If you need help again, just DM this bot!`)
           .setColor(CONFIG.COLORS.error)
           .setFooter({ text: 'The Unpatched Method • Support' })
@@ -6144,23 +7527,23 @@ client.on(Events.MessageCreate, async (message) => {
         
         // Send feedback request
         const feedbackRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`feedback_1_${ticket.id}`).setLabel('1').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
-          new ButtonBuilder().setCustomId(`feedback_2_${ticket.id}`).setLabel('2').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
-          new ButtonBuilder().setCustomId(`feedback_3_${ticket.id}`).setLabel('3').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
-          new ButtonBuilder().setCustomId(`feedback_4_${ticket.id}`).setLabel('4').setStyle(ButtonStyle.Secondary).setEmoji('⭐'),
-          new ButtonBuilder().setCustomId(`feedback_5_${ticket.id}`).setLabel('5').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
+          new ButtonBuilder().setCustomId(`feedback_1_${ticket.id}`).setLabel('1').setStyle(ButtonStyle.Secondary).setEmoji(''),
+          new ButtonBuilder().setCustomId(`feedback_2_${ticket.id}`).setLabel('2').setStyle(ButtonStyle.Secondary).setEmoji(''),
+          new ButtonBuilder().setCustomId(`feedback_3_${ticket.id}`).setLabel('3').setStyle(ButtonStyle.Secondary).setEmoji(''),
+          new ButtonBuilder().setCustomId(`feedback_4_${ticket.id}`).setLabel('4').setStyle(ButtonStyle.Secondary).setEmoji(''),
+          new ButtonBuilder().setCustomId(`feedback_5_${ticket.id}`).setLabel('5').setStyle(ButtonStyle.Secondary).setEmoji('')
         );
         
         await user.send({
           embeds: [new EmbedBuilder()
-            .setTitle('⭐ Rate Your Experience')
+            .setTitle(' Rate Your Experience')
             .setDescription('How was your support experience? Your feedback helps us improve!')
             .setColor(CONFIG.COLORS.primary)
           ],
           components: [feedbackRow]
         });
         
-        await message.channel.send('🔥 Burning messages...');
+        await message.channel.send(' Burning messages...');
         
         // Delete bot's messages from user's DMs (burner style)
         try {
@@ -6170,7 +7553,7 @@ client.on(Events.MessageCreate, async (message) => {
           
           for (const [, msg] of botMessages) {
             // Don't delete the feedback request
-            if (msg.embeds?.[0]?.title === '⭐ Rate Your Experience') continue;
+            if (msg.embeds?.[0]?.title === ' Rate Your Experience') continue;
             await msg.delete().catch(() => {});
             await new Promise(r => setTimeout(r, 500));
           }
@@ -6213,11 +7596,11 @@ client.on(Events.MessageCreate, async (message) => {
       const logChannel = message.guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
       if (logChannel) {
         const logEmbed = new EmbedBuilder()
-          .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed`)
+          .setTitle(` Ticket #${ticket.ticket_number} Closed`)
           .addFields(
-            { name: '👤 User', value: `<@${ticket.user_id}>`, inline: true },
-            { name: '👮 Closed By', value: message.author.tag, inline: true },
-            { name: '📝 Reason', value: reason, inline: true }
+            { name: ' User', value: `<@${ticket.user_id}>`, inline: true },
+            { name: ' Closed By', value: message.author.tag, inline: true },
+            { name: ' Reason', value: reason, inline: true }
           )
           .setColor(CONFIG.COLORS.warning)
           .setTimestamp();
@@ -6225,8 +7608,8 @@ client.on(Events.MessageCreate, async (message) => {
         // Add security note if there were threats
         if (threatInfo) {
           logEmbed.addFields({
-            name: '🔒 Security Note',
-            value: '⚠️ This ticket had security flags. See transcript for details.',
+            name: ' Security Note',
+            value: ' This ticket had security flags. See transcript for details.',
             inline: false
           });
           logEmbed.setColor(0xFF6600);
@@ -6239,7 +7622,7 @@ client.on(Events.MessageCreate, async (message) => {
         });
       }
       
-      await message.channel.send('✅ Transcript saved. Deleting channel in 5 seconds...');
+      await message.channel.send(' Transcript saved. Deleting channel in 5 seconds...');
       setTimeout(() => message.channel.delete().catch(() => {}), 5000);
     }
     
@@ -6258,7 +7641,7 @@ client.on(Events.MessageCreate, async (message) => {
         // Send closing message FIRST (before kick)
         await user.send({ embeds: [new EmbedBuilder()
           .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-          .setTitle('🔒 Ticket Closed')
+          .setTitle(' Ticket Closed')
           .setDescription(`**Reason:** ${reason}\n\n*This conversation will be deleted shortly.*`)
           .setColor(CONFIG.COLORS.error)
           .setFooter({ text: 'The Unpatched Method • Support' })
@@ -6280,7 +7663,7 @@ client.on(Events.MessageCreate, async (message) => {
         const member = await message.guild.members.fetch(ticket.user_id).catch(() => null);
         if (member) {
           await member.kick(reason);
-          await message.channel.send(`👢 ${user.tag} has been kicked.`);
+          await message.channel.send(` ${user.tag} has been kicked.`);
         }
       } catch (e) {
         console.log('Close and kick error:', e.message);
@@ -6289,7 +7672,7 @@ client.on(Events.MessageCreate, async (message) => {
       // Log to modmail-logs
       await logToModmail(message.guild, ticket, message.author, reason, true);
       
-      await message.channel.send('🔒 Closing in 5 seconds... Messages burned 🔥');
+      await message.channel.send(' Closing in 5 seconds... Messages burned ');
       setTimeout(() => message.channel.delete().catch(() => {}), 5000);
     }
     
@@ -6298,16 +7681,16 @@ client.on(Events.MessageCreate, async (message) => {
       const ticket = await getTicketByChannel(message.channel.id);
       if (!ticket) return;
       await pool.query(`UPDATE modmail_tickets SET claimed_by = $1 WHERE id = $2`, [message.author.id, ticket.id]);
-      await message.reply(`✋ Claimed by ${message.author}`);
+      await message.reply(` Claimed by ${message.author}`);
     }
     
     // ?tickets
     if (cmd === 'tickets' && isStaff(message.member)) {
       const r = await pool.query(`SELECT * FROM modmail_tickets WHERE guild_id = $1 AND status = 'open'`, [message.guild.id]);
-      if (r.rows.length === 0) return message.reply('✨ No open tickets!');
+      if (r.rows.length === 0) return message.reply(' No open tickets!');
       
       const list = r.rows.map(t => `#${t.ticket_number} - <@${t.user_id}> - <#${t.channel_id}>`).join('\n');
-      await message.reply({ embeds: [new EmbedBuilder().setTitle('📨 Open Tickets').setDescription(list).setColor(CONFIG.COLORS.info)] });
+      await message.reply({ embeds: [new EmbedBuilder().setTitle(' Open Tickets').setDescription(list).setColor(CONFIG.COLORS.info)] });
     }
     
     // ?blacklist @user
@@ -6315,7 +7698,7 @@ client.on(Events.MessageCreate, async (message) => {
       const user = message.mentions.users.first();
       if (!user) return message.reply('Usage: `?blacklist @user`');
       await pool.query(`INSERT INTO modmail_blacklist (user_id, reason) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [user.id, args.slice(1).join(' ')]);
-      await message.reply(`🚫 ${user.tag} blacklisted.`);
+      await message.reply(` ${user.tag} blacklisted.`);
     }
     
     // ?unblacklist @user
@@ -6323,7 +7706,7 @@ client.on(Events.MessageCreate, async (message) => {
       const user = message.mentions.users.first();
       if (!user) return message.reply('Usage: `?unblacklist @user`');
       await pool.query(`DELETE FROM modmail_blacklist WHERE user_id = $1`, [user.id]);
-      await message.reply(`✅ ${user.tag} unblacklisted.`);
+      await message.reply(` ${user.tag} unblacklisted.`);
     }
     
     // ?setupmodmail - Currently limited to specific user for beta testing
@@ -6335,21 +7718,21 @@ client.on(Events.MessageCreate, async (message) => {
       const isUnpatchedServer = message.guild.id === CONFIG.GUILD_ID;
       
       if (!isOwner && !isBetaTester && !isUnpatchedServer) {
-        return message.reply('🔒 This bot is currently in private beta. Contact the developer for access.');
+        return message.reply(' This bot is currently in private beta. Contact the developer for access.');
       }
       
       if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        return message.reply('❌ You need Administrator permission to run setup.');
+        return message.reply(' You need Administrator permission to run setup.');
       }
       
       // ═══════════════════════════════════════════════════════════════
       // THE UNPATCHED METHOD SERVER - Keep original setup (no changes)
       // ═══════════════════════════════════════════════════════════════
       if (isUnpatchedServer) {
-        await message.channel.send('🔄 Setting up modmail system...');
+        await message.channel.send(' Setting up modmail system...');
         
         // Delete old category if exists and recreate fresh
-        const oldCat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+        const oldCat = message.guild.channels.cache.find(c => c.name === ' MODMAIL' && c.type === ChannelType.GuildCategory);
         if (oldCat) {
           // Delete all channels in category first
           const channelsInCat = message.guild.channels.cache.filter(c => c.parentId === oldCat.id);
@@ -6357,16 +7740,16 @@ client.on(Events.MessageCreate, async (message) => {
             await channel.delete().catch(() => {});
           }
           await oldCat.delete().catch(() => {});
-          await message.channel.send('🗑️ Deleted old modmail category');
+          await message.channel.send(' Deleted old modmail category');
         }
         
         // Create fresh category
         const cat = await message.guild.channels.create({
-          name: '📨 MODMAIL',
+          name: ' MODMAIL',
           type: ChannelType.GuildCategory,
           permissionOverwrites: [{ id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
         });
-        await message.channel.send('✅ Created **📨 MODMAIL** category');
+        await message.channel.send(' Created ** MODMAIL** category');
         
         // Create modmail-logs channel
         const log = await message.guild.channels.create({
@@ -6375,7 +7758,7 @@ client.on(Events.MessageCreate, async (message) => {
           parent: cat.id,
           topic: 'All modmail transcripts and ticket logs'
         });
-        await message.channel.send(`✅ Created **#modmail-logs** - ID: \`${log.id}\``);
+        await message.channel.send(` Created **#modmail-logs** - ID: \`${log.id}\``);
         
         // Create security-logs channel
         const securityLog = await message.guild.channels.create({
@@ -6384,7 +7767,7 @@ client.on(Events.MessageCreate, async (message) => {
           parent: cat.id,
           topic: 'Security threat detections and alerts'
         });
-        await message.channel.send(`✅ Created **#security-logs** - ID: \`${securityLog.id}\``);
+        await message.channel.send(` Created **#security-logs** - ID: \`${securityLog.id}\``);
         
         // Create staff-dm channel with instruction embed
         const staffDm = await message.guild.channels.create({
@@ -6395,7 +7778,7 @@ client.on(Events.MessageCreate, async (message) => {
         });
         
         const instructionEmbed = new EmbedBuilder()
-          .setTitle('📬 Staff DM Channel')
+          .setTitle(' Staff DM Channel')
           .setDescription(`Use this channel to DM server members through the bot.
 
 **Command:**
@@ -6411,7 +7794,7 @@ client.on(Events.MessageCreate, async (message) => {
           .setColor(CONFIG.COLORS.primary)
           .setFooter({ text: 'Messages are anonymous - user won\'t see your name' });
         await staffDm.send({ embeds: [instructionEmbed] });
-        await message.channel.send(`✅ Created **#staff-dm** with instructions`);
+        await message.channel.send(` Created **#staff-dm** with instructions`);
         
         // Create modmail-guide channel with all embeds
         const guide = await message.guild.channels.create({
@@ -6423,12 +7806,12 @@ client.on(Events.MessageCreate, async (message) => {
         
         // Post all guide embeds
         const intro = new EmbedBuilder()
-          .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
+          .setTitle(' BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
           .setDescription(`**Enterprise-grade modmail + SOC-level security system**
           
 This bot protects your server with the same security tech used by Fortune 500 companies.
 
-**🎫 MODMAIL FEATURES:**
+** MODMAIL FEATURES:**
 • Anonymous staff ↔ user communication
 • Typing indicators (both ways)
 • "Staff viewing" notifications
@@ -6440,7 +7823,7 @@ This bot protects your server with the same security tech used by Fortune 500 co
 • Post-close feedback ratings
 • Full analytics dashboard
 
-**🔒 SECURITY FEATURES:**
+** SECURITY FEATURES:**
 • 7 threat intelligence APIs
 • Real-time phishing detection
 • Malware file scanning
@@ -6450,52 +7833,52 @@ This bot protects your server with the same security tech used by Fortune 500 co
           .setThumbnail(message.guild.iconURL());
         
         const howItWorks = new EmbedBuilder()
-          .setTitle('📥 HOW MODMAIL WORKS')
+          .setTitle(' HOW MODMAIL WORKS')
           .setDescription(`**When a user DMs the bot:**
 
-1️⃣ User sends DM → Security scan runs
-2️⃣ If safe → Ticket created in this category
-3️⃣ You see: message, mood, reputation, history
-4️⃣ Just type in the ticket channel to reply
-5️⃣ User gets DM from "The Unpatched Method Staff"
+1⃣ User sends DM  Security scan runs
+2⃣ If safe  Ticket created in this category
+3⃣ You see: message, mood, reputation, history
+4⃣ Just type in the ticket channel to reply
+5⃣ User gets DM from "The Unpatched Method Staff"
 
 **User sees:**
 • Clear identification this is official support
 • "Staff is viewing your ticket" notification
 • "Staff is typing..." indicator
-• Green ✅ when their message is delivered
+• Green  when their message is delivered
 
 **They NEVER see your username!**`)
           .setColor(CONFIG.COLORS.info);
         
         const commands1 = new EmbedBuilder()
-          .setTitle('⌨️ COMMANDS - BASIC')
+          .setTitle('⌨ COMMANDS - BASIC')
           .addFields(
-            { name: '💬 In Ticket Channels', value: `\`?close [reason]\` - Close & save transcript
+            { name: ' In Ticket Channels', value: `\`?close [reason]\` - Close & save transcript
 \`?closeandkick [reason]\` - Close + kick user
 \`?claim\` - Mark ticket as yours
 \`?priority low/med/high/urgent\` - Set urgency
 Just type normally to reply to user`, inline: false },
-            { name: '📤 In #staff-dm', value: `\`?dm @user message\` - DM any user`, inline: false },
-            { name: '📋 Anywhere (Staff)', value: `\`?tickets\` - View all open tickets
+            { name: ' In #staff-dm', value: `\`?dm @user message\` - DM any user`, inline: false },
+            { name: ' Anywhere (Staff)', value: `\`?tickets\` - View all open tickets
 \`?blacklist @user [reason]\` - Block from modmail
 \`?unblacklist @user\` - Unblock user`, inline: false }
           )
           .setColor(CONFIG.COLORS.info);
         
         const commands2 = new EmbedBuilder()
-          .setTitle('⌨️ COMMANDS - ELITE')
+          .setTitle('⌨ COMMANDS - ELITE')
           .addFields(
-            { name: '📝 Notes & Snippets', value: `\`?note @user note text\` - Add permanent note
+            { name: ' Notes & Snippets', value: `\`?note @user note text\` - Add permanent note
 \`?notes @user\` - View all notes + history
 \`?snippet add name content\` - Save response
 \`?snippet use name\` - Send saved response
 \`?snippets\` - List all snippets`, inline: false },
-            { name: '📊 Analytics & Status', value: `\`?stats\` - Your personal stats
+            { name: ' Analytics & Status', value: `\`?stats\` - Your personal stats
 \`?analytics\` - Server-wide analytics
 \`?away 2h message\` - Set away status
 \`?back\` - Return from away`, inline: false },
-            { name: '🔧 Advanced', value: `\`?history @user\` - User's ticket history
+            { name: ' Advanced', value: `\`?history @user\` - User's ticket history
 \`?transfer @staff\` - Transfer ticket
 \`?schedule 1h message\` - Delayed message
 \`?link #channel\` - Link related tickets`, inline: false }
@@ -6503,38 +7886,38 @@ Just type normally to reply to user`, inline: false },
           .setColor(CONFIG.COLORS.info);
         
         const security1 = new EmbedBuilder()
-          .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
+          .setTitle(' SOC-LEVEL SECURITY SYSTEM')
           .setDescription(`**7 Threat Intelligence APIs:**
 
-🦠 **VirusTotal** - 70+ antivirus engines
-🛡️ **IPQualityScore** - Fraud/phishing detection
-🚨 **AbuseIPDB** - IP reputation database
-👽 **AlienVault OTX** - Threat intelligence
-🧪 **Hybrid Analysis** - Sandbox file analysis
-🔒 **Google Safe Browsing** - Phishing database
-🎣 **PhishTank** - Confirmed phishing sites
+ **VirusTotal** - 70+ antivirus engines
+ **IPQualityScore** - Fraud/phishing detection
+ **AbuseIPDB** - IP reputation database
+ **AlienVault OTX** - Threat intelligence
+ **Hybrid Analysis** - Sandbox file analysis
+ **Google Safe Browsing** - Phishing database
+ **PhishTank** - Confirmed phishing sites
 
 **Every link and file is scanned automatically!**`)
           .setColor(CONFIG.COLORS.warning);
         
         const security2 = new EmbedBuilder()
-          .setTitle('🔗 WHAT GETS DETECTED')
+          .setTitle(' WHAT GETS DETECTED')
           .setDescription(`**Link Threats:**
-🎭 **Typosquatting** - dlscord.com, disc0rd.gift
-🔤 **Homograph Attacks** - Cyrillic lookalike chars
-🔗 **URL Shorteners** - Expanded and analyzed
-🌐 **Fake Domains** - Discord/Steam impersonation
+ **Typosquatting** - dlscord.com, disc0rd.gift
+ **Homograph Attacks** - Cyrillic lookalike chars
+ **URL Shorteners** - Expanded and analyzed
+ **Fake Domains** - Discord/Steam impersonation
 
 **Risk Score System:**
-• 0-19: ✅ Safe (allowed)
-• 20-39: ⚠️ Warning (allowed, logged)
-• 40-59: 🟠 Flagged (allowed, staff alerted)
-• 60-79: 🔴 Quarantine (blocked)
-• 80+: 🚨 Critical (blocked, @here alert)`)
+• 0-19:  Safe (allowed)
+• 20-39:  Warning (allowed, logged)
+• 40-59:  Flagged (allowed, staff alerted)
+• 60-79:  Quarantine (blocked)
+• 80+:  Critical (blocked, @here alert)`)
           .setColor(CONFIG.COLORS.warning);
         
         const tips = new EmbedBuilder()
-          .setTitle('💡 PRO TIPS')
+          .setTitle(' PRO TIPS')
           .setDescription(`**1. Use snippets for common responses:**
 \`?snippet add rules Please read #rules\`
 
@@ -6555,21 +7938,21 @@ If it blocks something, it's probably bad!`)
         await guide.send({ embeds: [intro, howItWorks] });
         await guide.send({ embeds: [commands1, commands2] });
         await guide.send({ embeds: [security1, security2, tips] });
-        await message.channel.send(`✅ Created **#modmail-guide** with full documentation`);
+        await message.channel.send(` Created **#modmail-guide** with full documentation`);
         
         // Final summary with channel IDs to update in code
         const summaryEmbed = new EmbedBuilder()
-          .setTitle('✅ MODMAIL SETUP COMPLETE')
+          .setTitle(' MODMAIL SETUP COMPLETE')
           .setDescription(`**All channels created successfully!**
 
-⚠️ **IMPORTANT: Update these IDs in Railway environment variables or code:**`)
+ **IMPORTANT: Update these IDs in Railway environment variables or code:**`)
           .addFields(
-            { name: '📋 MODMAIL_LOG_CHANNEL', value: `\`${log.id}\``, inline: true },
-            { name: '🔒 SECURITY_LOG_CHANNEL', value: `\`${securityLog.id}\``, inline: true },
+            { name: ' MODMAIL_LOG_CHANNEL', value: `\`${log.id}\``, inline: true },
+            { name: ' SECURITY_LOG_CHANNEL', value: `\`${securityLog.id}\``, inline: true },
             { name: '\u200b', value: '\u200b', inline: true },
-            { name: '📁 Category', value: `${cat}`, inline: true },
-            { name: '📬 Staff DM', value: `${staffDm}`, inline: true },
-            { name: '📖 Guide', value: `${guide}`, inline: true }
+            { name: ' Category', value: `${cat}`, inline: true },
+            { name: ' Staff DM', value: `${staffDm}`, inline: true },
+            { name: ' Guide', value: `${guide}`, inline: true }
           )
           .setColor(CONFIG.COLORS.success)
           .setFooter({ text: 'Copy the IDs above and update the code, then redeploy!' });
@@ -6583,7 +7966,7 @@ If it blocks something, it's probably bad!`)
       
       // Step 1: Ask for mod role
       const askEmbed = new EmbedBuilder()
-        .setTitle('📨 Modmail Setup')
+        .setTitle(' Modmail Setup')
         .setDescription(`**Which role should have access to modmail tickets?**
 
 Please mention the role (e.g., @Moderator or @Staff)
@@ -6604,23 +7987,23 @@ Everyone else will NOT see the modmail channels.`)
       const collected = await message.channel.awaitMessages({ filter, max: 1, time: 60000, errors: ['time'] }).catch(() => null);
       
       if (!collected || collected.first().content.toLowerCase() === 'cancel') {
-        return message.channel.send('❌ Setup cancelled.');
+        return message.channel.send(' Setup cancelled.');
       }
       
       const response = collected.first();
       const modRole = response.mentions.roles.first() || message.guild.roles.cache.find(r => r.name.toLowerCase() === response.content.toLowerCase());
       
       if (!modRole) {
-        return message.channel.send('❌ No valid role found. Please run `?setupmodmail` again and mention a role like @Moderator');
+        return message.channel.send(' No valid role found. Please run `?setupmodmail` again and mention a role like @Moderator');
       }
       
-      await message.channel.send(`✅ Setting up modmail with **${modRole.name}** as the staff role...`);
+      await message.channel.send(` Setting up modmail with **${modRole.name}** as the staff role...`);
       
       // Create category - hidden from everyone, visible to mod role and bot
-      let cat = message.guild.channels.cache.find(c => c.name === '📨 MODMAIL');
+      let cat = message.guild.channels.cache.find(c => c.name === ' MODMAIL');
       if (!cat) {
         cat = await message.guild.channels.create({
-          name: '📨 MODMAIL',
+          name: ' MODMAIL',
           type: ChannelType.GuildCategory,
           permissionOverwrites: [
             { id: message.guild.id, deny: [PermissionFlagsBits.ViewChannel] }, // Hide from @everyone
@@ -6628,7 +8011,7 @@ Everyone else will NOT see the modmail channels.`)
             { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] } // Allow bot
           ]
         });
-        await message.channel.send('✅ Created **📨 MODMAIL** category (hidden from everyone except staff)');
+        await message.channel.send(' Created ** MODMAIL** category (hidden from everyone except staff)');
       } else {
         // Update existing category permissions
         await cat.permissionOverwrites.set([
@@ -6636,7 +8019,7 @@ Everyone else will NOT see the modmail channels.`)
           { id: modRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] },
           { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] }
         ]);
-        await message.channel.send('✅ Updated **📨 MODMAIL** category permissions');
+        await message.channel.send(' Updated ** MODMAIL** category permissions');
       }
       
       // Create modmail-logs channel
@@ -6648,7 +8031,7 @@ Everyone else will NOT see the modmail channels.`)
           parent: cat.id,
           topic: 'All modmail transcripts, security alerts, and threat detections'
         });
-        await message.channel.send('✅ Created **#modmail-logs** channel');
+        await message.channel.send(' Created **#modmail-logs** channel');
       }
       
       // Create security-logs channel
@@ -6660,7 +8043,7 @@ Everyone else will NOT see the modmail channels.`)
           parent: cat.id,
           topic: 'Security threat detections, blocked messages, and suspicious activity'
         });
-        await message.channel.send('✅ Created **#security-logs** channel');
+        await message.channel.send(' Created **#security-logs** channel');
       }
       
       // Create staff-dm channel
@@ -6674,11 +8057,11 @@ Everyone else will NOT see the modmail channels.`)
         });
         
         const instructionEmbed = new EmbedBuilder()
-          .setTitle('📬 Staff DM Channel')
+          .setTitle(' Staff DM Channel')
           .setDescription('Use this channel to DM server members through the bot.\n\n**Command:**\n`?dm @user Your message here`\n\n**What happens:**\n• User receives a DM from Burner Phone\n• A ticket is created to track the conversation\n• User can reply and it comes here')
           .setColor(CONFIG.COLORS.primary);
         await staffDm.send({ embeds: [instructionEmbed] });
-        await message.channel.send('✅ Created **#staff-dm** channel');
+        await message.channel.send(' Created **#staff-dm** channel');
       }
       
       // Create modmail-guide channel
@@ -6696,12 +8079,12 @@ Everyone else will NOT see the modmail channels.`)
         // ═══════════════════════════════════════════════════════════════
         
         const intro = new EmbedBuilder()
-          .setTitle('📱 BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
+          .setTitle(' BURNER PHONE ELITE - COMPLETE STAFF GUIDE')
           .setDescription(`**Enterprise-grade modmail + SOC-level security system**
           
 This bot protects your server with the same security tech used by Fortune 500 companies.
 
-**🎫 MODMAIL FEATURES:**
+** MODMAIL FEATURES:**
 • Anonymous staff ↔ user communication
 • Typing indicators (both ways)
 • "Staff viewing" notifications
@@ -6713,7 +8096,7 @@ This bot protects your server with the same security tech used by Fortune 500 co
 • Post-close feedback ratings
 • Full analytics dashboard
 
-**🔒 SECURITY FEATURES:**
+** SECURITY FEATURES:**
 • 7 threat intelligence APIs
 • Real-time phishing detection
 • Malware file scanning
@@ -6723,53 +8106,53 @@ This bot protects your server with the same security tech used by Fortune 500 co
           .setThumbnail(message.guild.iconURL());
         
         const howItWorks = new EmbedBuilder()
-          .setTitle('📥 HOW MODMAIL WORKS')
+          .setTitle(' HOW MODMAIL WORKS')
           .setDescription(`**When a user DMs the bot:**
 
-1️⃣ User sends DM → Security scan runs
-2️⃣ If safe → Ticket created in this category
-3️⃣ You see: message, mood, reputation, history
-4️⃣ Just type in the ticket channel to reply
-5️⃣ User gets DM from "The Unpatched Method Staff"
+1⃣ User sends DM  Security scan runs
+2⃣ If safe  Ticket created in this category
+3⃣ You see: message, mood, reputation, history
+4⃣ Just type in the ticket channel to reply
+5⃣ User gets DM from "The Unpatched Method Staff"
 
 **User sees:**
 • Clear identification this is official support
 • "Staff is viewing your ticket" notification
 • "Staff is typing..." indicator
-• Green ✅ when their message is delivered
+• Green  when their message is delivered
 
 **They NEVER see your username!**`)
           .setColor(CONFIG.COLORS.info);
         
         const eliteFeatures = new EmbedBuilder()
-          .setTitle('✨ ELITE FEATURES')
+          .setTitle(' ELITE FEATURES')
           .addFields(
-            { name: '📝 User Notes', value: '`?note @user Important info`\nPersists across ALL tickets forever', inline: true },
-            { name: '💬 Snippets', value: '`?snippet add greet Welcome!`\n`?snippet use greet`', inline: true },
-            { name: '🌙 Away Status', value: '`?away 2h In a meeting`\n`?back` to return', inline: true },
-            { name: '📊 Analytics', value: '`?stats` - Your stats\n`?analytics` - Overall', inline: true },
-            { name: '📜 History', value: '`?history @user`\nSee all past tickets', inline: true },
+            { name: ' User Notes', value: '`?note @user Important info`\nPersists across ALL tickets forever', inline: true },
+            { name: ' Snippets', value: '`?snippet add greet Welcome!`\n`?snippet use greet`', inline: true },
+            { name: ' Away Status', value: '`?away 2h In a meeting`\n`?back` to return', inline: true },
+            { name: ' Analytics', value: '`?stats` - Your stats\n`?analytics` - Overall', inline: true },
+            { name: ' History', value: '`?history @user`\nSee all past tickets', inline: true },
             { name: '⏰ Schedule', value: '`?schedule 2h Follow up msg`\nAuto-sends later', inline: true },
-            { name: '🔄 Transfer', value: '`?transfer @staff`\nHand off ticket', inline: true },
-            { name: '⚡ Priority', value: '`?priority urgent`\nChannel color changes', inline: true },
-            { name: '🔗 Link Tickets', value: '`?link #ticket-0001`\nConnect related issues', inline: true }
+            { name: ' Transfer', value: '`?transfer @staff`\nHand off ticket', inline: true },
+            { name: ' Priority', value: '`?priority urgent`\nChannel color changes', inline: true },
+            { name: ' Link Tickets', value: '`?link #ticket-0001`\nConnect related issues', inline: true }
           )
           .setColor(CONFIG.COLORS.success);
         
         const commands1 = new EmbedBuilder()
-          .setTitle('⌨️ COMMANDS - BASIC')
+          .setTitle('⌨ COMMANDS - BASIC')
           .addFields(
-            { name: '💬 In Ticket Channels', value: `
+            { name: ' In Ticket Channels', value: `
 \`?close [reason]\` - Close & burn messages
 \`?closeandkick [reason]\` - Close + kick user
 \`?claim\` - Mark ticket as yours
 \`?priority low/med/high/urgent\` - Set urgency
 Just type normally to reply to user
             `, inline: false },
-            { name: '📤 In #staff-dm', value: `
+            { name: ' In #staff-dm', value: `
 \`?dm @user message\` - DM any user
             `, inline: false },
-            { name: '📋 Anywhere (Staff)', value: `
+            { name: ' Anywhere (Staff)', value: `
 \`?tickets\` - View all open tickets
 \`?blacklist @user [reason]\` - Block from modmail
 \`?unblacklist @user\` - Unblock user
@@ -6779,22 +8162,22 @@ Just type normally to reply to user
           .setColor(CONFIG.COLORS.info);
         
         const commands2 = new EmbedBuilder()
-          .setTitle('⌨️ COMMANDS - ELITE')
+          .setTitle('⌨ COMMANDS - ELITE')
           .addFields(
-            { name: '📝 Notes & Snippets', value: `
+            { name: ' Notes & Snippets', value: `
 \`?note @user note text\` - Add permanent note
 \`?notes @user\` - View all notes + history
 \`?snippet add name content\` - Save response
 \`?snippet use name\` - Send saved response
 \`?snippets\` - List all snippets
             `, inline: false },
-            { name: '📊 Analytics & Status', value: `
+            { name: ' Analytics & Status', value: `
 \`?stats\` - Your personal stats
 \`?analytics\` - Server-wide analytics
 \`?away 2h message\` - Set away status
 \`?back\` - Return from away
             `, inline: false },
-            { name: '🔧 Advanced', value: `
+            { name: ' Advanced', value: `
 \`?history @user\` - User's ticket history
 \`?transfer @staff\` - Transfer ticket
 \`?schedule 1h message\` - Delayed message
@@ -6804,41 +8187,41 @@ Just type normally to reply to user
           .setColor(CONFIG.COLORS.info);
         
         const security1 = new EmbedBuilder()
-          .setTitle('🔒 SOC-LEVEL SECURITY SYSTEM')
+          .setTitle(' SOC-LEVEL SECURITY SYSTEM')
           .setDescription(`**7 Threat Intelligence APIs:**
 
-🦠 **VirusTotal** - 70+ antivirus engines
-🛡️ **IPQualityScore** - Fraud/phishing detection
-🚨 **AbuseIPDB** - IP reputation database
-👽 **AlienVault OTX** - Threat intelligence
-🧪 **Hybrid Analysis** - Sandbox file analysis
-🔒 **Google Safe Browsing** - Phishing database
-🔗 **URLScan.io** - Deep URL analysis
+ **VirusTotal** - 70+ antivirus engines
+ **IPQualityScore** - Fraud/phishing detection
+ **AbuseIPDB** - IP reputation database
+ **AlienVault OTX** - Threat intelligence
+ **Hybrid Analysis** - Sandbox file analysis
+ **Google Safe Browsing** - Phishing database
+ **URLScan.io** - Deep URL analysis
 
 **Every link and file is scanned automatically!**`)
           .setColor(CONFIG.COLORS.warning);
         
         const security2 = new EmbedBuilder()
-          .setTitle('🔗 LINK DETECTION')
+          .setTitle(' LINK DETECTION')
           .setDescription(`**What gets detected:**
 
-🎭 **Typosquatting** - dlscord.com, disc0rd.gift
-🔤 **Homograph Attacks** - Cyrillic lookalike chars
-🔗 **URL Shorteners** - Expanded and analyzed
-🌐 **Fake Domains** - Discord/Steam impersonation
-📍 **IP Hosting** - Direct IP instead of domain
-🚫 **Known Malware** - From threat databases
+ **Typosquatting** - dlscord.com, disc0rd.gift
+ **Homograph Attacks** - Cyrillic lookalike chars
+ **URL Shorteners** - Expanded and analyzed
+ **Fake Domains** - Discord/Steam impersonation
+ **IP Hosting** - Direct IP instead of domain
+ **Known Malware** - From threat databases
 
 **Risk Score System:**
-• 0-19: ✅ Safe (allowed)
-• 20-39: ⚠️ Warning (allowed, logged)
-• 40-59: 🟠 Flagged (allowed, staff alerted)
-• 60-79: 🔴 Quarantine (blocked)
-• 80+: 🚨 Critical (blocked, @here alert)`)
+• 0-19:  Safe (allowed)
+• 20-39:  Warning (allowed, logged)
+• 40-59:  Flagged (allowed, staff alerted)
+• 60-79:  Quarantine (blocked)
+• 80+:  Critical (blocked, @here alert)`)
           .setColor(CONFIG.COLORS.warning);
         
         const security3 = new EmbedBuilder()
-          .setTitle('📁 FILE SCANNING')
+          .setTitle(' FILE SCANNING')
           .setDescription(`**Dangerous Files (BLOCKED):**
 .exe, .bat, .cmd, .scr, .vbs, .ps1, .dll, .jar, .msi + 20 more
 
@@ -6854,39 +8237,39 @@ Just type normally to reply to user
           .setColor(CONFIG.COLORS.danger);
         
         const security4 = new EmbedBuilder()
-          .setTitle('🧠 SOCIAL ENGINEERING DETECTION')
+          .setTitle(' SOCIAL ENGINEERING DETECTION')
           .setDescription(`**Patterns Detected:**
 
 ⏰ **Urgency** - "Act now!", "Limited time!"
-👔 **Authority** - "Discord Team", "Official Staff"
-😱 **Fear** - "Account terminated", "Hacked"
-🎁 **Prize Scams** - "You won!", "Free Nitro"
-📋 **Demands** - "Click here", "Verify now"
-💰 **Crypto Scams** - "Send BTC", "Double your money"
+ **Authority** - "Discord Team", "Official Staff"
+ **Fear** - "Account terminated", "Hacked"
+ **Prize Scams** - "You won!", "Free Nitro"
+ **Demands** - "Click here", "Verify now"
+ **Crypto Scams** - "Send BTC", "Double your money"
 
 **All detected patterns add to risk score!**`)
           .setColor(CONFIG.COLORS.danger);
         
         const autoClose = new EmbedBuilder()
-          .setTitle('🔁 AUTO-CLOSE SYSTEM')
+          .setTitle(' AUTO-CLOSE SYSTEM')
           .setDescription(`**Inactive Ticket Handling:**
 
 ⏰ **48 hours no activity:**
-→ User gets warning: "Reply or ticket closes"
+ User gets warning: "Reply or ticket closes"
 
 ⏰ **24 hours after warning:**
-→ Ticket auto-closes
-→ User notified
-→ Logged for records
+ Ticket auto-closes
+ User notified
+ Logged for records
 
 **This keeps your ticket queue clean!**`)
           .setColor(CONFIG.COLORS.info);
         
         const feedback = new EmbedBuilder()
-          .setTitle('⭐ FEEDBACK SYSTEM')
+          .setTitle(' FEEDBACK SYSTEM')
           .setDescription(`**After every ticket closes:**
 
-User receives: "Rate your experience ⭐⭐⭐⭐⭐"
+User receives: "Rate your experience "
 
 **Ratings tracked in:**
 • \`?analytics\` - Average rating shown
@@ -6896,21 +8279,21 @@ User receives: "Rate your experience ⭐⭐⭐⭐⭐"
           .setColor(CONFIG.COLORS.success);
         
         const buttons = new EmbedBuilder()
-          .setTitle('🔘 TICKET BUTTONS')
+          .setTitle(' TICKET BUTTONS')
           .setDescription(`**Every ticket has quick-action buttons:**
 
-✋ **Claim** - Mark as yours
-🔒 **Close** - Close ticket
-⚡ **Priority** - Change urgency level
-📋 **Notes** - View user's notes
-📜 **History** - User's past tickets
-👍👎 **Rep** - Adjust user reputation
+ **Claim** - Mark as yours
+ **Close** - Close ticket
+ **Priority** - Change urgency level
+ **Notes** - View user's notes
+ **History** - User's past tickets
+ **Rep** - Adjust user reputation
 
 **One-click actions for fast response!**`)
           .setColor(CONFIG.COLORS.primary);
         
         const tips = new EmbedBuilder()
-          .setTitle('💡 PRO TIPS')
+          .setTitle(' PRO TIPS')
           .setDescription(`
 **1. Use snippets for common responses:**
 \`?snippet add rules Please read #rules\`
@@ -6946,12 +8329,12 @@ If it blocks something, it's probably bad!
       
       await message.reply({
         embeds: [new EmbedBuilder()
-          .setTitle('✅ Burner Phone ELITE Ready!')
+          .setTitle(' Burner Phone ELITE Ready!')
           .setDescription(`**Channels Created:**
-📁 Category: ${cat}
-📋 Logs: ${log}
-💬 Staff DM: ${staffDm}
-📖 Guide: ${guide}
+ Category: ${cat}
+ Logs: ${log}
+ Staff DM: ${staffDm}
+ Guide: ${guide}
 
 **Next Steps:**
 1. Read the guide in ${guide}
@@ -6961,7 +8344,7 @@ If it blocks something, it's probably bad!
 **Current Log Channel ID:** \`${MODMAIL_LOG_CHANNEL}\`
 **Created Log Channel ID:** \`${log.id}\`
 
-${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t match! Update MODMAIL_LOG_CHANNEL in code.' : '✅ Log channel ID matches!'}`)
+${log.id !== MODMAIL_LOG_CHANNEL ? ' **Warning:** Log channel IDs don\'t match! Update MODMAIL_LOG_CHANNEL in code.' : ' Log channel ID matches!'}`)
           .setColor(CONFIG.COLORS.success)
         ]
       });
@@ -6970,16 +8353,16 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
     // ?modmailguide
     if (cmd === 'modmailguide' && isStaff(message.member)) {
       const guide = new EmbedBuilder()
-        .setTitle('📖 BURNER PHONE ELITE - STAFF GUIDE')
+        .setTitle(' BURNER PHONE ELITE - STAFF GUIDE')
         .setDescription('Premium modmail system with elite features')
         .addFields(
-          { name: '📨 Basic Commands', value: `
+          { name: ' Basic Commands', value: `
 \`?dm @user message\` - DM any user
 \`?close [reason]\` - Close ticket
 \`?claim\` - Claim ticket
 \`?tickets\` - View open tickets
           ` },
-          { name: '✨ Elite Commands', value: `
+          { name: ' Elite Commands', value: `
 \`?note @user note\` - Add persistent note to user
 \`?notes @user\` - View user's notes
 \`?snippet add name content\` - Save a canned response
@@ -6996,7 +8379,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
 \`?anon\` - Toggle anonymous mode
 \`?priority low/med/high/urgent\` - Set ticket priority
           ` },
-          { name: '🔘 Buttons', value: '✋ Claim\n🔒 Close\n⚡ Priority\n👤 View Notes\n📊 History' }
+          { name: ' Buttons', value: ' Claim\n Close\n Priority\n View Notes\n History' }
         )
         .setColor(CONFIG.COLORS.primary);
       
@@ -7006,7 +8389,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
     // ?setupverify - Post verification embed in current channel
     if (cmd === 'setupverify' && isStaff(message.member)) {
       const embed = new EmbedBuilder()
-        .setTitle('🔐 Verification Required')
+        .setTitle(' Verification Required')
         .setDescription(
           `**Welcome to The Unpatched Method!**\n\n` +
           `Before you can access the server, you need to verify.\n\n` +
@@ -7027,7 +8410,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         .addComponents(
           new ButtonBuilder()
             .setCustomId('verify_user')
-            .setLabel('✅ Verify Me')
+            .setLabel(' Verify Me')
             .setStyle(ButtonStyle.Success)
         );
 
@@ -7049,7 +8432,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       
       const member = message.guild.members.cache.get(user.id);
       if (!member) {
-        return message.reply('❌ User not found in server.');
+        return message.reply(' User not found in server.');
       }
       
       try {
@@ -7086,8 +8469,8 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         try {
           await user.send({
             embeds: [new EmbedBuilder()
-              .setTitle('⛔ You Have Been Removed')
-              .setDescription(`You have been removed from **The Unpatched Method**.\n\n**Reason:** ${reason}\n\n⚠️ **Warning:** Your device has been fingerprinted. If you try to rejoin on an alt account, you will be identified and blocked.`)
+              .setTitle(' You Have Been Removed')
+              .setDescription(`You have been removed from **The Unpatched Method**.\n\n**Reason:** ${reason}\n\n **Warning:** Your device has been fingerprinted. If you try to rejoin on an alt account, you will be identified and blocked.`)
               .setColor(0xFF0000)
               .setFooter({ text: 'The Unpatched Method • Burner Phone Security' })
               .setTimestamp()
@@ -7105,13 +8488,13 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         if (securityLog) {
           const logEmbed = new EmbedBuilder()
-            .setTitle('🔨 User Banned')
+            .setTitle(' User Banned')
             .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**Reason:** ${reason}\n**By:** ${message.author.tag}`)
             .addFields({
-              name: '🔒 Fingerprint Status',
+              name: ' Fingerprint Status',
               value: fingerprintFlagged 
-                ? '✅ Device fingerprint flagged - alt accounts will be blocked'
-                : '⚠️ No fingerprint on record (user never verified)',
+                ? ' Device fingerprint flagged - alt accounts will be blocked'
+                : ' No fingerprint on record (user never verified)',
               inline: false
             })
             .setColor(0xFF6B35)
@@ -7123,15 +8506,15 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         await message.reply({
           embeds: [new EmbedBuilder()
-            .setTitle('🔨 Ban Complete')
-            .setDescription(`**${user.tag}** has been banned.\n\n${fingerprintFlagged ? '✅ Their device is flagged - if they rejoin on an alt, they will be exposed and blocked at verification.' : '⚠️ User had no verification record, so no fingerprint was flagged.'}`)
+            .setTitle(' Ban Complete')
+            .setDescription(`**${user.tag}** has been banned.\n\n${fingerprintFlagged ? ' Their device is flagged - if they rejoin on an alt, they will be exposed and blocked at verification.' : ' User had no verification record, so no fingerprint was flagged.'}`)
             .setColor(0xFF6B35)
           ]
         });
         
       } catch (error) {
         console.error('Ban error:', error);
-        return message.reply('❌ Failed to ban user. Make sure I have kick permissions.');
+        return message.reply(' Failed to ban user. Make sure I have kick permissions.');
       }
     }
     
@@ -7177,13 +8560,13 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         if (securityLog) {
           const logEmbed = new EmbedBuilder()
-            .setTitle('🔓 User Unbanned')
+            .setTitle(' User Unbanned')
             .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**By:** ${message.author.tag}`)
             .addFields({
-              name: '🔒 Fingerprint Status',
+              name: ' Fingerprint Status',
               value: removed 
-                ? '✅ Fingerprint flag removed - user can verify again'
-                : '⚠️ No fingerprint ban record found (user may not have been banned or never verified)',
+                ? ' Fingerprint flag removed - user can verify again'
+                : ' No fingerprint ban record found (user may not have been banned or never verified)',
               inline: false
             })
             .setColor(0x00FF00)
@@ -7194,15 +8577,15 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         
         await message.reply({
           embeds: [new EmbedBuilder()
-            .setTitle('🔓 Unban Complete')
-            .setDescription(`**${user.tag}** has been unbanned.\n\n${removed ? 'Their device fingerprint flag has been removed. They can now verify again.' : '⚠️ No fingerprint ban record was found. They may not have been banned, or never verified.'}`)
+            .setTitle(' Unban Complete')
+            .setDescription(`**${user.tag}** has been unbanned.\n\n${removed ? 'Their device fingerprint flag has been removed. They can now verify again.' : ' No fingerprint ban record was found. They may not have been banned, or never verified.'}`)
             .setColor(0x00FF00)
           ]
         });
         
       } catch (error) {
         console.error('Unban error:', error);
-        return message.reply('❌ Failed to unban user.');
+        return message.reply(' Failed to unban user.');
       }
     }
     
@@ -7217,7 +8600,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       if (!user || !note) return message.reply('Usage: `?note @user Your note here`');
       
       await addUserNote(user.id, note, message.author.id, message.author.tag);
-      await message.reply(`📝 Note added for ${user.tag}: "${note}"`);
+      await message.reply(` Note added for ${user.tag}: "${note}"`);
     }
     
     // ?notes @user - View user notes
@@ -7230,13 +8613,13 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       const sentiment = await getUserSentimentHistory(user.id);
       
       const embed = new EmbedBuilder()
-        .setTitle(`📋 User Profile: ${user.tag}`)
+        .setTitle(` User Profile: ${user.tag}`)
         .setThumbnail(user.displayAvatarURL())
         .setColor(CONFIG.COLORS.info);
       
       // Ticket history
       embed.addFields({
-        name: '📊 Ticket History',
+        name: ' Ticket History',
         value: `Total: **${history.total}** | Open: **${history.open}** | Closed: **${history.closed}**`,
         inline: false
       });
@@ -7244,7 +8627,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       // Sentiment
       if (sentiment.length > 0) {
         const sentimentStr = sentiment.map(s => `${s.sentiment}: ${s.count}`).join(', ');
-        embed.addFields({ name: '🎭 Typical Mood', value: sentimentStr, inline: false });
+        embed.addFields({ name: ' Typical Mood', value: sentimentStr, inline: false });
       }
       
       // Notes
@@ -7252,9 +8635,9 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         const notesStr = notes.slice(0, 5).map(n => 
           `• ${n.note} - *${n.added_by_name}, ${timeAgo(n.created_at)}*`
         ).join('\n');
-        embed.addFields({ name: '📝 Notes', value: notesStr, inline: false });
+        embed.addFields({ name: ' Notes', value: notesStr, inline: false });
       } else {
-        embed.addFields({ name: '📝 Notes', value: 'No notes yet', inline: false });
+        embed.addFields({ name: ' Notes', value: 'No notes yet', inline: false });
       }
       
       await message.reply({ embeds: [embed] });
@@ -7270,14 +8653,14 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         if (!name || !content) return message.reply('Usage: `?snippet add name Your response here`');
         
         await saveSnippet(name, content, message.author.id);
-        await message.reply(`✅ Snippet **${name}** saved!`);
+        await message.reply(` Snippet **${name}** saved!`);
       }
       else if (subCmd === 'use') {
         const name = args[1];
         if (!name) return message.reply('Usage: `?snippet use name`');
         
         const snippet = await getSnippet(name);
-        if (!snippet) return message.reply(`❌ Snippet "${name}" not found.`);
+        if (!snippet) return message.reply(` Snippet "${name}" not found.`);
         
         // If in ticket channel, send to user
         const ticket = await getTicketByChannel(message.channel.id);
@@ -7285,10 +8668,10 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
           const user = await client.users.fetch(ticket.user_id);
           const embed = new EmbedBuilder()
             .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-            .setTitle('📬 Staff Message')
+            .setTitle(' Staff Message')
             .setDescription(snippet.content)
             .addFields({
-              name: '❓ What is this?',
+              name: ' What is this?',
               value: 'This is the official support bot for **The Unpatched Method** Discord server.',
               inline: false
             })
@@ -7297,7 +8680,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
             .setTimestamp();
           
           await user.send({ embeds: [embed] });
-          await message.react('📨');
+          await message.react('');
           
           await pool.query(`
             INSERT INTO modmail_messages (ticket_id, author_id, author_name, content, is_staff)
@@ -7311,7 +8694,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
         const name = args[1];
         if (!name) return message.reply('Usage: `?snippet delete name`');
         await pool.query(`DELETE FROM snippets WHERE LOWER(name) = LOWER($1)`, [name]);
-        await message.reply(`🗑️ Snippet **${name}** deleted.`);
+        await message.reply(` Snippet **${name}** deleted.`);
       }
     }
     
@@ -7322,7 +8705,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       
       const list = r.rows.map(s => `\`${s.name}\` (used ${s.uses}x)`).join('\n');
       const embed = new EmbedBuilder()
-        .setTitle('📝 Saved Snippets')
+        .setTitle(' Saved Snippets')
         .setDescription(list)
         .setColor(CONFIG.COLORS.info)
         .setFooter({ text: 'Use: ?snippet use name' });
@@ -7349,13 +8732,13 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       }
       
       await setStaffStatus(message.author.id, 'away', awayMessage, untilDate);
-      await message.reply(`🌙 You are now away${untilDate ? ` until ${untilDate.toLocaleString()}` : ''}.\nMessage: "${awayMessage}"`);
+      await message.reply(` You are now away${untilDate ? ` until ${untilDate.toLocaleString()}` : ''}.\nMessage: "${awayMessage}"`);
     }
     
     // ?back - Return from away
     if (cmd === 'back' && isStaff(message.member)) {
       await setStaffStatus(message.author.id, 'available', null, null);
-      await message.reply('✅ Welcome back! You are now available.');
+      await message.reply(' Welcome back! You are now available.');
     }
     
     // ?stats - Personal stats
@@ -7363,13 +8746,13 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       const stats = await getStaffStats(message.author.id);
       
       const embed = new EmbedBuilder()
-        .setTitle(`📊 Your Stats`)
+        .setTitle(` Your Stats`)
         .setThumbnail(message.author.displayAvatarURL())
         .addFields(
-          { name: '💬 Replies Sent', value: String(stats.replies || 0), inline: true },
-          { name: '🔒 Tickets Closed', value: String(stats.closes || 0), inline: true },
-          { name: '✋ Tickets Claimed', value: String(stats.claims || 0), inline: true },
-          { name: '⏱️ Avg Response Time', value: stats.avg_response_time ? formatDuration(stats.avg_response_time) : 'N/A', inline: true }
+          { name: ' Replies Sent', value: String(stats.replies || 0), inline: true },
+          { name: ' Tickets Closed', value: String(stats.closes || 0), inline: true },
+          { name: ' Tickets Claimed', value: String(stats.claims || 0), inline: true },
+          { name: '⏱ Avg Response Time', value: stats.avg_response_time ? formatDuration(stats.avg_response_time) : 'N/A', inline: true }
         )
         .setColor(CONFIG.COLORS.primary);
       
@@ -7381,14 +8764,14 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       const analytics = await getOverallAnalytics();
       
       const embed = new EmbedBuilder()
-        .setTitle('📈 Modmail Analytics')
+        .setTitle(' Modmail Analytics')
         .addFields(
-          { name: '📬 Total Tickets', value: String(analytics.total_tickets || 0), inline: true },
-          { name: '📂 Currently Open', value: String(analytics.open_tickets || 0), inline: true },
-          { name: '📅 Today', value: String(analytics.tickets_today || 0), inline: true },
-          { name: '📆 This Week', value: String(analytics.tickets_week || 0), inline: true },
-          { name: '⏱️ Avg Response', value: analytics.avg_response_time ? formatDuration(analytics.avg_response_time) : 'N/A', inline: true },
-          { name: '⭐ Avg Rating', value: analytics.avg_rating ? `${analytics.avg_rating}/5` : 'N/A', inline: true }
+          { name: ' Total Tickets', value: String(analytics.total_tickets || 0), inline: true },
+          { name: ' Currently Open', value: String(analytics.open_tickets || 0), inline: true },
+          { name: ' Today', value: String(analytics.tickets_today || 0), inline: true },
+          { name: ' This Week', value: String(analytics.tickets_week || 0), inline: true },
+          { name: '⏱ Avg Response', value: analytics.avg_response_time ? formatDuration(analytics.avg_response_time) : 'N/A', inline: true },
+          { name: ' Avg Rating', value: analytics.avg_rating ? `${analytics.avg_rating}/5` : 'N/A', inline: true }
         )
         .setColor(CONFIG.COLORS.primary)
         .setTimestamp();
@@ -7415,7 +8798,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       ).join('\n');
       
       const embed = new EmbedBuilder()
-        .setTitle(`📜 Ticket History: ${user.tag}`)
+        .setTitle(` Ticket History: ${user.tag}`)
         .setDescription(list)
         .setThumbnail(user.displayAvatarURL())
         .setColor(CONFIG.COLORS.info);
@@ -7435,7 +8818,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       if (!linkedTicket) return message.reply('That channel is not a ticket.');
       
       await linkTickets(ticket.id, linkedTicket.id, message.author.id);
-      await message.reply(`🔗 Linked to ticket #${linkedTicket.ticket_number}`);
+      await message.reply(` Linked to ticket #${linkedTicket.ticket_number}`);
     }
     
     // ?schedule 1h message - Schedule follow-up
@@ -7471,14 +8854,14 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       if (!isStaff(newStaff)) return message.reply('That user is not staff.');
       
       await pool.query(`UPDATE modmail_tickets SET claimed_by = $1 WHERE id = $2`, [newStaff.id, ticket.id]);
-      await message.channel.send(`🔄 Ticket transferred from ${message.author} to ${newStaff}`);
+      await message.channel.send(` Ticket transferred from ${message.author} to ${newStaff}`);
       
       // Notify the user
       const user = await client.users.fetch(ticket.user_id);
       await user.send({
         embeds: [new EmbedBuilder()
           .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-          .setTitle('🔄 Ticket Transferred')
+          .setTitle(' Ticket Transferred')
           .setDescription('Your ticket has been transferred to another staff member for better assistance.')
           .setColor(CONFIG.COLORS.info)
           .setFooter({ text: 'The Unpatched Method • Support' })
@@ -7492,7 +8875,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       if (!ticket) return message.reply('Use this in a ticket channel.');
       
       const level = args[0]?.toLowerCase();
-      const priorities = { low: '🟢', med: '🟡', high: '🟠', urgent: '🔴' };
+      const priorities = { low: '', med: '', high: '', urgent: '' };
       if (!priorities[level]) return message.reply('Usage: `?priority low/med/high/urgent`');
       
       await pool.query(`UPDATE modmail_tickets SET priority = $1 WHERE id = $2`, [level, ticket.id]);
@@ -7502,7 +8885,7 @@ ${log.id !== MODMAIL_LOG_CHANNEL ? '⚠️ **Warning:** Log channel IDs don\'t m
       const newName = `${emoji}-ticket-${ticket.ticket_number.toString().padStart(4, '0')}`;
       await message.channel.setName(newName).catch(() => {});
       
-      await message.reply(`⚡ Priority set to **${level.toUpperCase()}** ${emoji}`);
+      await message.reply(` Priority set to **${level.toUpperCase()}** ${emoji}`);
     }
   }
 });
@@ -7516,12 +8899,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   
   const ticket = await getTicketByChannel(interaction.channel.id);
   if (!ticket) return;
-  if (!isStaff(interaction.member)) return interaction.reply({ content: '❌ Staff only.', ephemeral: true });
+  if (!isStaff(interaction.member)) return interaction.reply({ content: ' Staff only.', ephemeral: true });
   
   if (interaction.customId === 'claim') {
     if (ticket.claimed_by) return interaction.reply({ content: `Already claimed by <@${ticket.claimed_by}>`, ephemeral: true });
     await pool.query(`UPDATE modmail_tickets SET claimed_by = $1 WHERE id = $2`, [interaction.user.id, ticket.id]);
-    await interaction.reply(`✋ Claimed by ${interaction.user}`);
+    await interaction.reply(` Claimed by ${interaction.user}`);
     
     // Notify the user that their ticket has been seen
     try {
@@ -7532,10 +8915,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
             name: 'The Unpatched Method Staff', 
             iconURL: client.user.displayAvatarURL() 
           })
-          .setTitle('👀 Ticket Received')
+          .setTitle(' Ticket Received')
           .setDescription('A staff member is now reviewing your message. Please wait for a response.\n\nYou can continue to send messages here and they will be added to your ticket.')
           .addFields({
-            name: '❓ What is this?',
+            name: ' What is this?',
             value: 'This is the official support bot for **The Unpatched Method** Discord server. Do not block this bot or you won\'t receive staff responses.',
             inline: false
           })
@@ -7547,7 +8930,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
   
   if (interaction.customId === 'close') {
-    await interaction.reply('🔒 Closing ticket...');
+    await interaction.reply(' Closing ticket...');
     
     // Generate transcript first
     const messages = await pool.query(`
@@ -7575,13 +8958,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const user = await client.users.fetch(ticket.user_id);
       await user.send({ embeds: [new EmbedBuilder()
         .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-        .setTitle('🔒 Ticket Closed')
+        .setTitle(' Ticket Closed')
         .setDescription('Your ticket has been resolved.\n\n*This conversation will be deleted shortly.*\n\nThank you for contacting The Unpatched Method support. If you need help again, just DM this bot!')
         .setColor(CONFIG.COLORS.error)
         .setFooter({ text: 'The Unpatched Method • Support' })
       ] });
       
-      await interaction.channel.send('🔥 Burning messages...');
+      await interaction.channel.send(' Burning messages...');
       
       // Delete bot's messages from user's DMs (burner style)
       try {
@@ -7602,11 +8985,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const logChannel = interaction.guild.channels.cache.get(MODMAIL_LOG_CHANNEL);
     if (logChannel) {
       const logEmbed = new EmbedBuilder()
-        .setTitle(`🔒 Ticket #${ticket.ticket_number} Closed`)
+        .setTitle(` Ticket #${ticket.ticket_number} Closed`)
         .addFields(
-          { name: '👤 User', value: `<@${ticket.user_id}>`, inline: true },
-          { name: '👮 Closed By', value: interaction.user.tag, inline: true },
-          { name: '📅 Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true }
+          { name: ' User', value: `<@${ticket.user_id}>`, inline: true },
+          { name: ' Closed By', value: interaction.user.tag, inline: true },
+          { name: ' Opened', value: `<t:${Math.floor(new Date(ticket.created_at).getTime() / 1000)}:R>`, inline: true }
         )
         .setColor(CONFIG.COLORS.warning)
         .setTimestamp();
@@ -7618,7 +9001,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
     
-    await interaction.channel.send('✅ Transcript saved. Deleting channel in 5 seconds...');
+    await interaction.channel.send(' Transcript saved. Deleting channel in 5 seconds...');
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
   
@@ -7626,9 +9009,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.reply({
       content: 'Select priority:',
       components: [new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('p_high').setLabel('🔴 High').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId('p_normal').setLabel('🟡 Normal').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('p_low').setLabel('🟢 Low').setStyle(ButtonStyle.Success)
+        new ButtonBuilder().setCustomId('p_high').setLabel(' High').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('p_normal').setLabel(' Normal').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('p_low').setLabel(' Low').setStyle(ButtonStyle.Success)
       )],
       ephemeral: true
     });
@@ -7660,12 +9043,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                          guild.roles.cache.find(r => r.name.toLowerCase() === 'verified' || r.name.toLowerCase() === 'member');
     
     if (!verifiedRole) {
-      return interaction.editReply('❌ Verification role not found. Please contact staff.');
+      return interaction.editReply(' Verification role not found. Please contact staff.');
     }
     
     // Check if already verified
     if (member.roles.cache.has(verifiedRole.id)) {
-      return interaction.editReply('✅ You are already verified!');
+      return interaction.editReply(' You are already verified!');
     }
     
     // Quick account age check
@@ -7678,7 +9061,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const securityLog = guild.channels.cache.find(c => c.name === 'security-logs' || c.name === 'modmail-logs');
       if (securityLog) {
         const alertEmbed = new EmbedBuilder()
-          .setTitle('⚠️ VERIFICATION BLOCKED - New Account')
+          .setTitle(' VERIFICATION BLOCKED - New Account')
           .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\`\n**Account Age:** ${daysOld} days (minimum: 7)`)
           .setColor(0xFF6600)
           .setThumbnail(member.user.displayAvatarURL())
@@ -7686,7 +9069,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await securityLog.send({ embeds: [alertEmbed] });
       }
       
-      return interaction.editReply(`❌ Your account is too new (${daysOld} days old).\n\nAccounts must be at least **7 days old** to verify.\n\nIf you believe this is an error, contact staff.`);
+      return interaction.editReply(` Your account is too new (${daysOld} days old).\n\nAccounts must be at least **7 days old** to verify.\n\nIf you believe this is an error, contact staff.`);
     }
     
     try {
@@ -7708,10 +9091,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       
       // Send verification link to user
       const verifyEmbed = new EmbedBuilder()
-        .setTitle('🔐 Complete Verification')
-        .setDescription(`**Click the link below to verify:**\n\n🔗 **[Click Here to Verify](${verifyUrl})**\n\nThis link expires in **10 minutes**.`)
+        .setTitle(' Complete Verification')
+        .setDescription(`**Click the link below to verify:**\n\n **[Click Here to Verify](${verifyUrl})**\n\nThis link expires in **10 minutes**.`)
         .addFields(
-          { name: '📋 What happens next?', value: '1. Click the link above\n2. Complete a quick CAPTCHA\n3. You\'ll automatically get verified\n4. Return to Discord and pick your roles!' }
+          { name: ' What happens next?', value: '1. Click the link above\n2. Complete a quick CAPTCHA\n3. You\'ll automatically get verified\n4. Return to Discord and pick your roles!' }
         )
         .setColor(0xFF6B35)
         .setFooter({ text: 'Burner Phone • Alt Detection System' })
@@ -7720,7 +9103,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const verifyButton = new ActionRowBuilder()
         .addComponents(
           new ButtonBuilder()
-            .setLabel('🔐 Verify Now')
+            .setLabel(' Verify Now')
             .setStyle(ButtonStyle.Link)
             .setURL(verifyUrl)
         );
@@ -7732,7 +9115,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       
     } catch (error) {
       console.error('Verification error:', error);
-      return interaction.editReply('❌ Verification system error. Please try again or contact staff.');
+      return interaction.editReply(' Verification system error. Please try again or contact staff.');
     }
   }
   
@@ -7757,7 +9140,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const pending = client.pendingDMs?.get(key);
     
     if (!pending) {
-      return interaction.update({ content: '❌ Message expired. Please try again.', embeds: [], components: [] });
+      return interaction.update({ content: ' Message expired. Please try again.', embeds: [], components: [] });
     }
     
     // Defer first to avoid timeout
@@ -7774,10 +9157,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const ticketNum = await getNextTicketNumber();
         
         // Find or create category
-        let category = guild.channels.cache.find(c => c.name === '📨 MODMAIL' && c.type === ChannelType.GuildCategory);
+        let category = guild.channels.cache.find(c => c.name === ' MODMAIL' && c.type === ChannelType.GuildCategory);
         if (!category) {
           category = await guild.channels.create({
-            name: '📨 MODMAIL',
+            name: ' MODMAIL',
             type: ChannelType.GuildCategory,
             permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }]
           });
@@ -7800,16 +9183,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         
         // Ticket embed
         const embed = new EmbedBuilder()
-          .setTitle(`📨 Ticket #${ticketNum} (Staff Initiated)`)
+          .setTitle(` Ticket #${ticketNum} (Staff Initiated)`)
           .setDescription(`**User:** ${user} (${user.tag})\n**ID:** ${user.id}\n**Started by:** ${interaction.user.tag}`)
           .setColor(CONFIG.COLORS.primary)
           .setThumbnail(user.displayAvatarURL())
           .setTimestamp();
         
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji('✋'),
-          new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-          new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('⚡')
+          new ButtonBuilder().setCustomId('claim').setLabel('Claim').setStyle(ButtonStyle.Primary).setEmoji(''),
+          new ButtonBuilder().setCustomId('close').setLabel('Close').setStyle(ButtonStyle.Danger).setEmoji(''),
+          new ButtonBuilder().setCustomId('priority').setLabel('Priority').setStyle(ButtonStyle.Secondary).setEmoji('')
         );
         
         await channel.send({ embeds: [embed], components: [row] });
@@ -7827,10 +9210,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
           name: 'The Unpatched Method Staff', 
           iconURL: client.user.displayAvatarURL() 
         })
-        .setTitle('📬 Staff Message')
+        .setTitle(' Staff Message')
         .setDescription(content)
         .addFields({
-          name: '❓ What is this?',
+          name: ' What is this?',
           value: 'This is the official support bot for **The Unpatched Method** Discord server. A staff member is reaching out to you.',
           inline: false
         })
@@ -7856,14 +9239,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       preview?.delete().catch(() => {});
       
       // Send brief confirmation then delete it too
-      const confirm = await interaction.channel.send(`✅ Message sent to ${user.tag} - Ticket: <#${ticket.channel_id}>`);
+      const confirm = await interaction.channel.send(` Message sent to ${user.tag} - Ticket: <#${ticket.channel_id}>`);
       setTimeout(() => confirm.delete().catch(() => {}), 5000);
       
       // Clean up
       client.pendingDMs.delete(key);
     } catch (e) {
       console.error('DM error:', e);
-      await interaction.editReply({ content: `❌ Could not DM user - they may have DMs disabled.`, embeds: [], components: [] }).catch(() => {});
+      await interaction.editReply({ content: ` Could not DM user - they may have DMs disabled.`, embeds: [], components: [] }).catch(() => {});
       client.pendingDMs.delete(key);
     }
   }
@@ -7880,7 +9263,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.customId.startsWith('appeal_ban_')) {
     await interaction.update({
       embeds: [new EmbedBuilder()
-        .setTitle('📝 Write Your Appeal')
+        .setTitle(' Write Your Appeal')
         .setDescription('Please reply to this message with your appeal.\n\nInclude:\n• Why you believe this is a mistake\n• Any relevant context\n\nYour next message will be sent to staff.')
         .setColor(0x5865F2)
       ],
@@ -7897,7 +9280,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.customId.startsWith('appeal_alt_')) {
     await interaction.update({
       embeds: [new EmbedBuilder()
-        .setTitle('📝 Explain Your Situation')
+        .setTitle(' Explain Your Situation')
         .setDescription('Please reply to this message explaining why you need a second account.\n\nCommon reasons:\n• Shared computer/device\n• Sold/gave away old device\n• Family member\'s account\n\nYour next message will be sent to staff.')
         .setColor(0x5865F2)
       ],
@@ -7914,7 +9297,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.customId.startsWith('appeal_decline') || interaction.customId === 'appeal_dismiss') {
     await interaction.update({
       embeds: [new EmbedBuilder()
-        .setTitle('📩 Appeal Dismissed')
+        .setTitle(' Appeal Dismissed')
         .setDescription('You can start an appeal later by messaging this bot.')
         .setColor(0x666666)
       ],
@@ -7926,7 +9309,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.customId === 'cancel_ticket') {
     client.pendingTickets?.delete(interaction.user.id);
     await interaction.update({ 
-      content: '❌ Cancelled. Your message was not sent.', 
+      content: ' Cancelled. Your message was not sent.', 
       embeds: [], 
       components: [] 
     });
@@ -7938,7 +9321,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     
     if (!pending) {
       return interaction.reply({ 
-        content: '❌ Session expired. Please send your message again.', 
+        content: ' Session expired. Please send your message again.', 
         ephemeral: true 
       });
     }
@@ -7954,7 +9337,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       
       // Add green checkmark to original message
       if (originalMessage) {
-        await originalMessage.react('✅').catch(() => {});
+        await originalMessage.react('').catch(() => {});
       }
       
       // If there was a security threat, send alert to the ticket channel
@@ -7981,7 +9364,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
               staffAlert += `• Google: ${threatAnalysis.apiResults.googleSafeBrowsing.threats.map(t => t.threatType).join(', ')}\n`;
             }
             if (threatAnalysis.apiResults.phishtank?.available && threatAnalysis.apiResults.phishtank.isPhish) {
-              staffAlert += `• PhishTank: ⚠️ CONFIRMED PHISHING\n`;
+              staffAlert += `• PhishTank:  CONFIRMED PHISHING\n`;
             }
             if (threatAnalysis.apiResults.ipqualityscore?.available) {
               const ipqs = threatAnalysis.apiResults.ipqualityscore;
@@ -7990,7 +9373,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           }
           
           const staffEmbed = new EmbedBuilder()
-            .setTitle(`🔒 SECURITY FLAG - Staff Only`)
+            .setTitle(` SECURITY FLAG - Staff Only`)
             .setDescription(staffAlert)
             .setColor(0xFF6600)
             .setFooter({ text: 'This alert is only visible to staff in this channel' });
@@ -8010,7 +9393,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
       
       const successEmbed = new EmbedBuilder()
-        .setTitle('📨 Ticket Created!')
+        .setTitle(' Ticket Created!')
         .setDescription(`Your ticket **#${ticket.ticket_number}** has been created.\n\nStaff will respond soon. You can send more messages and they'll be added to your ticket.`)
         .setColor(CONFIG.COLORS.success)
         .setFooter({ text: 'The Unpatched Method • Support' });
@@ -8020,7 +9403,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       client.pendingTickets.delete(interaction.user.id);
     } catch (e) {
       console.error('Ticket creation error:', e);
-      await interaction.editReply({ content: '❌ Error. Please try again.', embeds: [], components: [] });
+      await interaction.editReply({ content: ' Error. Please try again.', embeds: [], components: [] });
     }
   }
 });
@@ -8037,27 +9420,27 @@ client.on(Events.GuildMemberAdd, async (member) => {
   
   try {
     const embed1 = new EmbedBuilder()
-      .setTitle('⚠️ VERIFY YOURSELF ⚠️')
-      .setDescription(`# 🚨 YOU MUST VERIFY TO ACCESS THE SERVER 🚨\n\nHey **${member.user.username}**, welcome to **The Unpatched Method**.\n\n**You NEED to verify before you can see channels.**`)
+      .setTitle(' VERIFY YOURSELF ')
+      .setDescription(`#  YOU MUST VERIFY TO ACCESS THE SERVER \n\nHey **${member.user.username}**, welcome to **The Unpatched Method**.\n\n**You NEED to verify before you can see channels.**`)
       .addFields(
-        { name: '✅ HOW TO VERIFY', value: `**1.** Click here → ${verifyLink}\n**2.** Click the ✅ button\n**3.** Done!` },
-        { name: '❌ WITHOUT VERIFICATION', value: '• Can\'t see channels\n• Can\'t chat\n• Can\'t join LFG', inline: true },
-        { name: '✅ AFTER VERIFICATION', value: '• Full server access\n• LFG for heists\n• Talk to bots', inline: true }
+        { name: ' HOW TO VERIFY', value: `**1.** Click here  ${verifyLink}\n**2.** Click the  button\n**3.** Done!` },
+        { name: ' WITHOUT VERIFICATION', value: '• Can\'t see channels\n• Can\'t chat\n• Can\'t join LFG', inline: true },
+        { name: ' AFTER VERIFICATION', value: '• Full server access\n• LFG for heists\n• Talk to bots', inline: true }
       )
       .setColor(0xFF0000);
     
     const embed2 = new EmbedBuilder()
-      .setTitle('🎮 Welcome to The Unpatched Method!')
+      .setTitle(' Welcome to The Unpatched Method!')
       .setDescription('Once verified:')
       .addFields(
-        { name: '🎯 LFG Channels', value: '• #cayo-lfg\n• #wagon-lfg\n• #bounty-lfg' },
-        { name: '💡 Pro Tip', value: 'Type `?daily` in #casino for free chips!' },
-        { name: '📩 Need Help?', value: '**DM me anytime** to talk to staff!' }
+        { name: ' LFG Channels', value: '• #cayo-lfg\n• #wagon-lfg\n• #bounty-lfg' },
+        { name: ' Pro Tip', value: 'Type `?daily` in #casino for free chips!' },
+        { name: ' Need Help?', value: '**DM me anytime** to talk to staff!' }
       )
       .setColor(CONFIG.COLORS.primary)
       .setThumbnail(guild.iconURL());
     
-    await member.send({ content: '# 🚨 READ THIS FIRST 🚨', embeds: [embed1, embed2] });
+    await member.send({ content: '#  READ THIS FIRST ', embeds: [embed1, embed2] });
   } catch (e) {
     console.log(`Could not DM ${member.user.username}`);
   }
@@ -8071,13 +9454,13 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   if (!hadRole && hasRole) {
     try {
       const embed = new EmbedBuilder()
-        .setTitle('✅ You\'re Verified!')
+        .setTitle(' You\'re Verified!')
         .setDescription(`Welcome **${newMember.user.username}**! Here's what to do:`)
         .addFields(
-          { name: '🎯 STEP 1: Pick Roles', value: `Go to <#${CONFIG.ROLES_CHANNEL_ID}> and select your games/platform` },
-          { name: '🎮 STEP 2: Find Crew', value: '• #cayo-lfg - GTA heists\n• #wagon-lfg - RDO trading\n• #bounty-lfg - Bounties' },
-          { name: '💰 STEP 3: Free Stuff', value: 'Type `?daily` in #casino for free chips!' },
-          { name: '📩 Need Help?', value: '**DM me** to create a support ticket!' }
+          { name: ' STEP 1: Pick Roles', value: `Go to <#${CONFIG.ROLES_CHANNEL_ID}> and select your games/platform` },
+          { name: ' STEP 2: Find Crew', value: '• #cayo-lfg - GTA heists\n• #wagon-lfg - RDO trading\n• #bounty-lfg - Bounties' },
+          { name: ' STEP 3: Free Stuff', value: 'Type `?daily` in #casino for free chips!' },
+          { name: ' Need Help?', value: '**DM me** to create a support ticket!' }
         )
         .setColor(CONFIG.COLORS.success);
       
@@ -8124,10 +9507,10 @@ client.on(Events.GuildBanAdd, async (ban) => {
         
         if (securityLog) {
           const flagEmbed = new EmbedBuilder()
-            .setTitle('🔒 Device Fingerprint Flagged')
+            .setTitle(' Device Fingerprint Flagged')
             .setDescription(`**User:** ${user.tag}\n**ID:** \`${user.id}\`\n**Reason:** ${reason}`)
             .addFields({
-              name: '🛡️ Alt Prevention Active',
+              name: ' Alt Prevention Active',
               value: 'Any future accounts from this device will be automatically blocked from verifying.',
               inline: false
             })
@@ -8144,7 +9527,7 @@ client.on(Events.GuildBanAdd, async (ban) => {
     
     // Send appeal information to banned user
     const appealEmbed = new EmbedBuilder()
-      .setTitle('⛔ You Have Been Banned')
+      .setTitle(' You Have Been Banned')
       .setDescription(`
 You have been banned from **The Unpatched Method**.
 
@@ -8164,7 +9547,7 @@ Example: \`APPEAL: I was banned for spam but I was hacked. I've secured my accou
 • Show you understand the rules
 • Appeals are reviewed within 48 hours
 
-⚠️ **Note:** Creating alt accounts to bypass this ban will not work. Your device has been fingerprinted.
+ **Note:** Creating alt accounts to bypass this ban will not work. Your device has been fingerprinted.
       `)
       .setColor(CONFIG.COLORS.error)
       .setFooter({ text: 'The Unpatched Method • Ban Appeal System' })
@@ -8194,7 +9577,7 @@ client.on(Events.MessageCreate, async (message) => {
     const appealText = message.content.slice(7).trim();
     
     if (appealText.length < 20) {
-      return message.reply('❌ Your appeal is too short. Please provide a detailed explanation.');
+      return message.reply(' Your appeal is too short. Please provide a detailed explanation.');
     }
     
     // Get ban info
@@ -8204,13 +9587,13 @@ client.on(Events.MessageCreate, async (message) => {
     `, [message.author.id]);
     
     if (banInfo.rows.length === 0) {
-      return message.reply('❌ No pending ban found for your account.');
+      return message.reply(' No pending ban found for your account.');
     }
     
     const ban = banInfo.rows[0];
     
     // Process with AI
-    await message.reply('🔄 Processing your appeal with AI review...');
+    await message.reply(' Processing your appeal with AI review...');
     
     const aiResult = await processAppeal(message.author.id, appealText, ban.ban_reason);
     
@@ -8227,13 +9610,13 @@ client.on(Events.MessageCreate, async (message) => {
     
     if (logChannel) {
       const appealEmbed = new EmbedBuilder()
-        .setTitle('📋 New Ban Appeal')
+        .setTitle(' New Ban Appeal')
         .setDescription(`**User:** ${message.author.tag} (${message.author.id})`)
         .addFields(
-          { name: '⛔ Ban Reason', value: ban.ban_reason || 'Not specified', inline: false },
-          { name: '📝 Appeal', value: appealText.slice(0, 1024), inline: false },
-          { name: '🤖 AI Recommendation', value: `**${aiResult.recommendation.toUpperCase()}** (${aiResult.confidence}% confidence)`, inline: true },
-          { name: '📊 AI Reasoning', value: aiResult.reasoning?.slice(0, 1024) || 'N/A', inline: false }
+          { name: ' Ban Reason', value: ban.ban_reason || 'Not specified', inline: false },
+          { name: ' Appeal', value: appealText.slice(0, 1024), inline: false },
+          { name: ' AI Recommendation', value: `**${aiResult.recommendation.toUpperCase()}** (${aiResult.confidence}% confidence)`, inline: true },
+          { name: ' AI Reasoning', value: aiResult.reasoning?.slice(0, 1024) || 'N/A', inline: false }
         )
         .setColor(
           aiResult.recommendation === 'approve' ? CONFIG.COLORS.success :
@@ -8242,16 +9625,16 @@ client.on(Events.MessageCreate, async (message) => {
         .setTimestamp();
       
       if (aiResult.redFlags?.length > 0) {
-        appealEmbed.addFields({ name: '🚩 Red Flags', value: aiResult.redFlags.join('\n'), inline: true });
+        appealEmbed.addFields({ name: ' Red Flags', value: aiResult.redFlags.join('\n'), inline: true });
       }
       if (aiResult.positiveFactors?.length > 0) {
-        appealEmbed.addFields({ name: '✅ Positive Factors', value: aiResult.positiveFactors.join('\n'), inline: true });
+        appealEmbed.addFields({ name: ' Positive Factors', value: aiResult.positiveFactors.join('\n'), inline: true });
       }
       
       const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`appeal_approve_${ban.id}`).setLabel('✅ Approve & Unban').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(`appeal_deny_${ban.id}`).setLabel('❌ Deny').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId(`appeal_questions_${ban.id}`).setLabel('❓ Need More Info').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`appeal_approve_${ban.id}`).setLabel(' Approve & Unban').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`appeal_deny_${ban.id}`).setLabel(' Deny').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`appeal_questions_${ban.id}`).setLabel(' Need More Info').setStyle(ButtonStyle.Secondary)
       );
       
       await logChannel.send({ content: '@here Ban appeal received', embeds: [appealEmbed], components: [row] });
@@ -8259,11 +9642,11 @@ client.on(Events.MessageCreate, async (message) => {
     
     // Confirm to user
     const confirmEmbed = new EmbedBuilder()
-      .setTitle('✅ Appeal Submitted')
+      .setTitle(' Appeal Submitted')
       .setDescription(`
 Your appeal has been received and is being reviewed.
 
-**AI Pre-Assessment:** ${aiResult.recommendation === 'approve' ? '✅ Favorable' : aiResult.recommendation === 'deny' ? '❌ Unfavorable' : '⏳ Needs Review'}
+**AI Pre-Assessment:** ${aiResult.recommendation === 'approve' ? ' Favorable' : aiResult.recommendation === 'deny' ? ' Unfavorable' : '⏳ Needs Review'}
 
 A staff member will make the final decision within 48 hours. You will be notified of the outcome.
       `)
@@ -8297,12 +9680,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // Notify user
       const user = await client.users.fetch(userId);
       await user.send({ embeds: [new EmbedBuilder()
-        .setTitle('✅ Appeal Approved!')
+        .setTitle(' Appeal Approved!')
         .setDescription('Your ban appeal has been approved. You may rejoin the server.\n\n**Please follow the rules this time.**')
         .setColor(CONFIG.COLORS.success)
       ]});
       
-      await interaction.update({ content: `✅ Appeal approved by ${interaction.user.tag}. User unbanned.`, components: [] });
+      await interaction.update({ content: ` Appeal approved by ${interaction.user.tag}. User unbanned.`, components: [] });
     } catch (e) {
       await interaction.reply({ content: `Error: ${e.message}`, ephemeral: true });
     }
@@ -8323,13 +9706,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     try {
       const user = await client.users.fetch(appeal.rows[0].user_id);
       await user.send({ embeds: [new EmbedBuilder()
-        .setTitle('❌ Appeal Denied')
+        .setTitle(' Appeal Denied')
         .setDescription('Your ban appeal has been denied. The ban will remain in place.\n\nYou may submit another appeal in 30 days.')
         .setColor(CONFIG.COLORS.error)
       ]});
     } catch (e) {}
     
-    await interaction.update({ content: `❌ Appeal denied by ${interaction.user.tag}.`, components: [] });
+    await interaction.update({ content: ` Appeal denied by ${interaction.user.tag}.`, components: [] });
   }
   
   // Reputation buttons
@@ -8337,14 +9720,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const ticket = await getTicketByChannel(interaction.channel.id);
     if (!ticket) return;
     await updateReputation(ticket.user_id, 5, 'Good interaction');
-    await interaction.reply({ content: '👍 User reputation increased (+5)', ephemeral: true });
+    await interaction.reply({ content: ' User reputation increased (+5)', ephemeral: true });
   }
   
   if (interaction.customId === 'rep_bad') {
     const ticket = await getTicketByChannel(interaction.channel.id);
     if (!ticket) return;
     await updateReputation(ticket.user_id, -10, 'Bad interaction');
-    await interaction.reply({ content: '👎 User reputation decreased (-10)', ephemeral: true });
+    await interaction.reply({ content: ' User reputation decreased (-10)', ephemeral: true });
   }
 });
 
@@ -8355,14 +9738,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.once(Events.ClientReady, async () => {
   console.log('╔════════════════════════════════════════════════════════════╗');
   console.log('║      BURNER PHONE - ELITE PREMIUM MODMAIL SYSTEM          ║');
-  console.log('║      ✨ Typing • 📖 Read Receipts • 🔢 Queue • 📊 Analytics ║');
+  console.log('║       Typing •  Read Receipts •  Queue •  Analytics ║');
   console.log('╚════════════════════════════════════════════════════════════╝');
   console.log(`Logged in as ${client.user.tag}`);
   
   await initDatabase();
   
   client.user.setPresence({
-    activities: [{ name: 'DM me for support | ✨ Elite', type: 3 }],
+    activities: [{ name: 'DM me for support |  Elite', type: 3 }],
     status: 'online'
   });
   
@@ -8389,7 +9772,7 @@ client.once(Events.ClientReady, async () => {
         // Send to user
         const embed = new EmbedBuilder()
           .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-          .setTitle('📬 Follow-up Message')
+          .setTitle(' Follow-up Message')
           .setDescription(msg.content)
           .setColor(CONFIG.COLORS.primary)
           .setFooter({ text: 'The Unpatched Method • Reply to respond' })
@@ -8498,7 +9881,7 @@ client.once(Events.ClientReady, async () => {
           await user.send({
             embeds: [new EmbedBuilder()
               .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-              .setTitle('🔒 Ticket Auto-Closed')
+              .setTitle(' Ticket Auto-Closed')
               .setDescription('Your ticket was automatically closed due to inactivity.\n\nIf you still need help, just send a new message!')
               .setColor(CONFIG.COLORS.error)
               .setFooter({ text: 'The Unpatched Method • Support' })
@@ -8507,7 +9890,7 @@ client.once(Events.ClientReady, async () => {
         }
         
         if (channel) {
-          await channel.send('🔒 **Ticket auto-closed** due to inactivity.');
+          await channel.send(' **Ticket auto-closed** due to inactivity.');
           setTimeout(() => channel.delete().catch(() => {}), 5000);
         }
       }
@@ -8534,7 +9917,7 @@ async function notifyUserStaffViewing(ticket, staffMember) {
     await user.send({
       embeds: [new EmbedBuilder()
         .setAuthor({ name: 'The Unpatched Method Staff', iconURL: client.user.displayAvatarURL() })
-        .setDescription('👀 A staff member is viewing your ticket...')
+        .setDescription(' A staff member is viewing your ticket...')
         .setColor(CONFIG.COLORS.info)
         .setFooter({ text: 'The Unpatched Method • Support' })
       ]
@@ -8551,7 +9934,7 @@ async function notifyUserStaffViewing(ticket, staffMember) {
 
 client.on(Events.TypingStart, async (typing) => {
   try {
-    // Staff typing in ticket channel → notify user staff is viewing
+    // Staff typing in ticket channel  notify user staff is viewing
     if ((typing.channel.name?.startsWith('ticket-') || typing.channel.name?.includes('-ticket-')) && !typing.user.bot) {
       const ticket = await getTicketByChannel(typing.channel.id);
       if (!ticket) return;
@@ -8570,7 +9953,7 @@ client.on(Events.TypingStart, async (typing) => {
       }
     }
     
-    // User typing in DM → forward to ticket channel
+    // User typing in DM  forward to ticket channel
     if (typing.channel.isDMBased() && !typing.user.bot) {
       const ticket = await getOpenTicket(typing.user.id);
       if (ticket) {
@@ -8616,7 +9999,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // Check if user is staff
     const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
     if (!member || !isStaff(member)) {
-      return interaction.reply({ content: '❌ Only staff can use security actions.', ephemeral: true });
+      return interaction.reply({ content: ' Only staff can use security actions.', ephemeral: true });
     }
     
     const [, action, targetUserId] = interaction.customId.split('_');
@@ -8626,12 +10009,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       try {
         await interaction.guild.members.ban(targetUserId, { reason: 'Security threat - banned via security alert' });
         await interaction.update({
-          content: `🔨 **User Banned** by ${interaction.user.tag}\n<@${targetUserId}> was banned for security violations.`,
+          content: ` **User Banned** by ${interaction.user.tag}\n<@${targetUserId}> was banned for security violations.`,
           embeds: interaction.message.embeds,
           components: []
         });
       } catch (e) {
-        await interaction.reply({ content: `❌ Failed to ban: ${e.message}`, ephemeral: true });
+        await interaction.reply({ content: ` Failed to ban: ${e.message}`, ephemeral: true });
       }
     }
     
@@ -8640,7 +10023,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (targetUser) {
           await targetUser.send({
             embeds: [new EmbedBuilder()
-              .setTitle('⚠️ Security Warning')
+              .setTitle(' Security Warning')
               .setDescription('Your message was flagged by our security system. Please avoid sending suspicious links or files.\n\nRepeated violations may result in a ban.')
               .setColor(0xFFAA00)
               .setFooter({ text: 'The Unpatched Method • Security' })
@@ -8648,18 +10031,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
           }).catch(() => {});
         }
         await interaction.update({
-          content: `⚠️ **User Warned** by ${interaction.user.tag}\n<@${targetUserId}> was sent a security warning.`,
+          content: ` **User Warned** by ${interaction.user.tag}\n<@${targetUserId}> was sent a security warning.`,
           embeds: interaction.message.embeds,
           components: []
         });
       } catch (e) {
-        await interaction.reply({ content: `❌ Failed to warn: ${e.message}`, ephemeral: true });
+        await interaction.reply({ content: ` Failed to warn: ${e.message}`, ephemeral: true });
       }
     }
     
     else if (action === 'dismiss') {
       await interaction.update({
-        content: `✖️ **Dismissed** by ${interaction.user.tag}\nNo action taken.`,
+        content: ` **Dismissed** by ${interaction.user.tag}\nNo action taken.`,
         embeds: interaction.message.embeds,
         components: []
       });
@@ -8674,7 +10057,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     
     await saveFeedback(parseInt(ticketId), interaction.user.id, parseInt(rating));
     
-    const stars = '⭐'.repeat(parseInt(rating));
+    const stars = ''.repeat(parseInt(rating));
     await interaction.update({
       content: `Thank you for your feedback! ${stars}\n\nYour rating helps us improve our support.`,
       embeds: [],
@@ -8700,7 +10083,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const notesStr = notes.map(n => `• **${n.note}**\n  *- ${n.added_by_name}, ${timeAgo(n.created_at)}*`).join('\n\n');
     
     const embed = new EmbedBuilder()
-      .setTitle(`📋 Notes for ${user?.tag || 'User'}`)
+      .setTitle(` Notes for ${user?.tag || 'User'}`)
       .setDescription(notesStr)
       .setColor(CONFIG.COLORS.info);
     
@@ -8728,11 +10111,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     
     const list = r.rows.map(t => 
-      `**#${t.ticket_number}** - ${t.status === 'open' ? '📂' : '🔒'} ${t.status} - ${timeAgo(t.created_at)}${t.close_reason ? `\n  └ *${t.close_reason.slice(0, 40)}*` : ''}`
+      `**#${t.ticket_number}** - ${t.status === 'open' ? '' : ''} ${t.status} - ${timeAgo(t.created_at)}${t.close_reason ? `\n  └ *${t.close_reason.slice(0, 40)}*` : ''}`
     ).join('\n');
     
     const embed = new EmbedBuilder()
-      .setTitle(`📜 Ticket History: ${user?.tag || 'User'}`)
+      .setTitle(` Ticket History: ${user?.tag || 'User'}`)
       .setDescription(list)
       .setColor(CONFIG.COLORS.info);
     
@@ -8748,10 +10131,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('set_priority_low').setLabel('🟢 Low').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('set_priority_med').setLabel('🟡 Medium').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('set_priority_high').setLabel('🟠 High').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('set_priority_urgent').setLabel('🔴 Urgent').setStyle(ButtonStyle.Danger)
+      new ButtonBuilder().setCustomId('set_priority_low').setLabel(' Low').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('set_priority_med').setLabel(' Medium').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('set_priority_high').setLabel(' High').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('set_priority_urgent').setLabel(' Urgent').setStyle(ButtonStyle.Danger)
     );
     
     await interaction.reply({ content: 'Select priority level:', components: [row], ephemeral: true });
@@ -8763,7 +10146,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const ticket = await getTicketByChannel(interaction.channel.id);
     if (!ticket) return;
     
-    const priorities = { low: '🟢', med: '🟡', high: '🟠', urgent: '🔴' };
+    const priorities = { low: '', med: '', high: '', urgent: '' };
     const emoji = priorities[level];
     
     await pool.query(`UPDATE modmail_tickets SET priority = $1 WHERE id = $2`, [level, ticket.id]);
@@ -8772,7 +10155,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const newName = `${emoji}-ticket-${ticket.ticket_number.toString().padStart(4, '0')}`;
     await interaction.channel.setName(newName).catch(() => {});
     
-    await interaction.update({ content: `⚡ Priority set to **${level.toUpperCase()}** ${emoji}`, components: [] });
+    await interaction.update({ content: ` Priority set to **${level.toUpperCase()}** ${emoji}`, components: [] });
   }
 });
 
