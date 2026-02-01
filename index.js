@@ -336,6 +336,14 @@ app.post('/api/web-verify', async (req, res) => {
     
     if (!verifyCheck.allowed) {
       console.log(`[VERIFY] BLOCKED - Guild ${guild_id} exceeded free tier limit (${verifyCheck.used}/${verifyCheck.limit})`);
+      
+      // Log to activity feed
+      await logVerifyActivity(guild_id, 'verification_blocked', {
+        discord_id: discord_id,
+        details: { reason: 'free_tier_limit', used: verifyCheck.used, limit: verifyCheck.limit },
+        result: 'blocked_limit'
+      });
+      
       return res.json({ 
         success: false, 
         blocked: true, 
@@ -439,12 +447,24 @@ app.post('/api/web-verify', async (req, res) => {
   // Honeypot triggered = instant block
   if (clientThreats.honeypot) {
     console.log(`[VERIFY] BLOCKED - Honeypot triggered (BOT)`);
+    await logVerifyActivity(guild_id, 'verification_blocked', {
+      discord_id: discord_id,
+      details: { reason: 'honeypot', ip: userIP },
+      risk_score: 100,
+      result: 'blocked_bot'
+    });
     return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
   }
   
   // Bot indicators = block
   if (botData.webdriver || botData.selenium || botData.puppeteer || botData.phantom) {
     console.log(`[VERIFY] BLOCKED - Automation detected: webdriver=${botData.webdriver}`);
+    await logVerifyActivity(guild_id, 'verification_blocked', {
+      discord_id: discord_id,
+      details: { reason: 'automation', webdriver: botData.webdriver, selenium: botData.selenium, ip: userIP },
+      risk_score: 100,
+      result: 'blocked_bot'
+    });
     return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
   }
   
@@ -1395,6 +1415,21 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       
       // Log the duplicate attempt
       await logVerificationAttempt('duplicate', existingRecord.discord_id, existingRecord.discord_tag);
+      
+      // Log to activity feed
+      await logVerifyActivity(guild_id, 'verification_blocked', {
+        discord_id: discord_id,
+        discord_tag: 'Unknown',
+        details: {
+          reason: 'duplicate_device',
+          linked_to: existingRecord.discord_tag,
+          linked_to_id: existingRecord.discord_id,
+          attempt_count: attemptData.count,
+          fingerprint_hash: fingerprint?.slice(0, 16)
+        },
+        risk_score: 100,
+        result: 'blocked'
+      });
       
       return res.json({ 
         success: false, 
