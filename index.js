@@ -234,6 +234,52 @@ app.post('/api/web-verify', async (req, res) => {
   console.log(`[VERIFY] User IP: ${userIP}, Port: ${userPort}`);
   
   // ═══════════════════════════════════════════════════════════════
+  // HTTP/TLS HEADER FINGERPRINTING - VPN CANNOT CHANGE THIS
+  // Fingerprints HOW the browser makes requests, not just what it sends
+  // ═══════════════════════════════════════════════════════════════
+  const httpFingerprint = {};
+  
+  // 1. Header order fingerprint - Browsers send headers in specific order
+  const headerOrder = Object.keys(req.headers).join(',');
+  httpFingerprint.headerOrder = require('crypto').createHash('md5').update(headerOrder).digest('hex').slice(0, 16);
+  
+  // 2. Accept headers fingerprint
+  httpFingerprint.accept = req.headers['accept'] || null;
+  httpFingerprint.acceptLanguage = req.headers['accept-language'] || null;
+  httpFingerprint.acceptEncoding = req.headers['accept-encoding'] || null;
+  
+  // 3. Connection behavior
+  httpFingerprint.connection = req.headers['connection'] || null;
+  httpFingerprint.cacheControl = req.headers['cache-control'] || null;
+  httpFingerprint.pragma = req.headers['pragma'] || null;
+  
+  // 4. Security headers present
+  httpFingerprint.secFetchDest = req.headers['sec-fetch-dest'] || null;
+  httpFingerprint.secFetchMode = req.headers['sec-fetch-mode'] || null;
+  httpFingerprint.secFetchSite = req.headers['sec-fetch-site'] || null;
+  httpFingerprint.secChUa = req.headers['sec-ch-ua'] || null;
+  httpFingerprint.secChUaPlatform = req.headers['sec-ch-ua-platform'] || null;
+  httpFingerprint.secChUaMobile = req.headers['sec-ch-ua-mobile'] || null;
+  
+  // 5. TLS fingerprint (if Cloudflare is in front)
+  httpFingerprint.cfConnectingIP = req.headers['cf-connecting-ip'] || null;
+  httpFingerprint.cfIPCountry = req.headers['cf-ipcountry'] || null;
+  httpFingerprint.cfRay = req.headers['cf-ray'] || null;
+  httpFingerprint.ja3 = req.headers['cf-visitor']?.ja3 || req.headers['x-ja3-fingerprint'] || null;
+  
+  // 6. Generate HTTP fingerprint hash
+  const httpFpString = [
+    httpFingerprint.headerOrder,
+    httpFingerprint.accept,
+    httpFingerprint.acceptLanguage,
+    httpFingerprint.acceptEncoding,
+    httpFingerprint.secChUa
+  ].join('|');
+  httpFingerprint.hash = require('crypto').createHash('sha256').update(httpFpString).digest('hex').slice(0, 24);
+  
+  console.log(`[VERIFY] HTTP Fingerprint: ${httpFingerprint.hash}`);
+  
+  // ═══════════════════════════════════════════════════════════════
   // WEBRTC REAL IP DETECTION - Catches VPN users' real IPs
   // ═══════════════════════════════════════════════════════════════
   const webrtcData = fingerprint_data?.webrtc || {};
@@ -437,7 +483,7 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.ip_isp = ipqs.ISP || null;
         threatData.ip_timezone = ipqs.timezone || null;
         threatData.ip_org = ipqs.organization || null;
-        threatData.ip_asn ? parseInt(String(threatData.ip_asn).replace(/\D/g, '')) || null : null,
+        threatData.ip_asn = ipqs.ASN || null;
         threatData.ip_host = ipqs.host || null;
         threatData.ip_mobile = ipqs.mobile || false;
         threatData.ip_is_crawler = ipqs.is_crawler || false;
