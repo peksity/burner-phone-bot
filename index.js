@@ -304,6 +304,9 @@ app.post('/api/web-verify', async (req, res) => {
   // EARLY REJECTION - Honeypot & Bot Detection
   // ═══════════════════════════════════════════════════════════════
   const clientThreats = fingerprint_data?.threats || {};
+  const vmData = fingerprint_data?.vm || {};
+  const botData = fingerprint_data?.bot || {};
+  const incognitoData = fingerprint_data?.incognito || {};
   
   // Honeypot triggered = instant block
   if (clientThreats.honeypot) {
@@ -311,9 +314,9 @@ app.post('/api/web-verify', async (req, res) => {
     return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
   }
   
-  // High bot score = block
-  if (clientThreats.botScore >= 80) {
-    console.log(`[VERIFY] BLOCKED - Bot score too high: ${clientThreats.botScore}`);
+  // Bot indicators = block
+  if (botData.webdriver || botData.selenium || botData.puppeteer || botData.phantom) {
+    console.log(`[VERIFY] BLOCKED - Automation detected: webdriver=${botData.webdriver}`);
     return res.json({ success: false, blocked: true, error: 'Automated access detected.' });
   }
   
@@ -327,19 +330,20 @@ app.post('/api/web-verify', async (req, res) => {
     riskReasons.push(`WebRTC leak (Real IP: ${webrtc_real_ip})`);
   }
   
-  // Client-side threat signals
-  if (clientThreats.vmScore >= 50) { riskScore += 20; riskReasons.push('VM detected'); }
-  if (clientThreats.botScore >= 30) { riskScore += clientThreats.botScore / 2; riskReasons.push('Bot signals'); }
-  if (clientThreats.incognito) { riskScore += 10; riskReasons.push('Incognito mode'); }
+  // Client-side threat signals - using actual field names from verify.html
+  if (vmData.detected || vmData.indicators?.length > 0) { riskScore += 20; riskReasons.push('VM detected'); }
+  if (botData.headlessChrome || botData.phantomJS) { riskScore += 30; riskReasons.push('Headless browser'); }
+  if (botData.noPlugins && botData.noLanguages) { riskScore += 20; riskReasons.push('Bot signals'); }
+  if (incognitoData.detected || incognitoData.indicators?.length > 0) { riskScore += 10; riskReasons.push('Incognito mode'); }
   if (clientThreats.devTools) { riskScore += 5; riskReasons.push('DevTools open'); }
-  if (clientThreats.tabSwitches > 5) { riskScore += 10; riskReasons.push('Excessive tab switches'); }
-  if (clientThreats.copyPaste) { riskScore += 5; riskReasons.push('Copy-paste detected'); }
-  if (clientThreats.sessionDuration < 3000) { riskScore += 15; riskReasons.push('Too fast'); }
+  if (clientThreats.tabs > 5) { riskScore += 10; riskReasons.push('Excessive tab switches'); }
+  if (clientThreats.paste > 0) { riskScore += 5; riskReasons.push('Copy-paste detected'); }
   
   // Behavioral analysis
   const behavior = fingerprint_data?.behavior || {};
-  if (behavior.mouseCount < 5 && behavior.duration > 5000) { riskScore += 20; riskReasons.push('No mouse movement'); }
-  if (behavior.duration < 2000) { riskScore += 15; riskReasons.push('Completed too quickly'); }
+  const mouseCount = behavior.mouseMovements || behavior.mouseCount || 0;
+  const clickCount = behavior.clickCount || 0;
+  if (mouseCount < 5 && clickCount < 2) { riskScore += 20; riskReasons.push('No mouse movement'); }
   
   console.log(`[VERIFY] Client risk score: ${riskScore}, Reasons: ${riskReasons.join(', ') || 'none'}`);
   
@@ -445,12 +449,12 @@ app.post('/api/web-verify', async (req, res) => {
     ip_longitude: null,
     ip_abuse_reports: 0,
     timezone_mismatch: false,
-    browser_timezone: fingerprint_data?.tz || fingerprint_data?.timezone,
+    browser_timezone: fingerprint_data?.timing?.timezone || fingerprint_data?.tz,
     ip_timezone: null,
-    is_bot: clientThreats.botScore >= 50,
-    is_headless: clientThreats.botReasons?.includes('Headless browser UA'),
-    is_vm: clientThreats.vmScore >= 50,
-    is_incognito: clientThreats.incognito || false,
+    is_bot: botData.webdriver || botData.selenium || botData.puppeteer || botData.headlessChrome || false,
+    is_headless: botData.headlessChrome || botData.phantomJS || false,
+    is_vm: vmData.detected || vmData.indicators?.length > 0 || false,
+    is_incognito: incognitoData.detected || incognitoData.indicators?.length > 0 || false,
     client_risk_score: riskScore,
     client_risk_reasons: riskReasons,
     user_agent: req.headers['user-agent']
@@ -835,18 +839,23 @@ app.post('/api/web-verify', async (req, res) => {
   
   // Bot/Automation detection from fingerprint_data
   if (fingerprint_data) {
-    // Check for headless browser indicators
     const ua = req.headers['user-agent'] || '';
-    threatData.is_headless = ua.includes('HeadlessChrome') || ua.includes('PhantomJS') || 
-                              !fingerprint_data.webglRenderer || fingerprint_data.webglRenderer === 'err';
+    const webglRenderer = fingerprint_data.webgl?.renderer || '';
     
-    // Check for automation frameworks
-    threatData.is_bot = threatData.is_headless || 
-                         (fingerprint_data.behavior && fingerprint_data.behavior.moves < 5) ||
-                         (fingerprint_data.behavior && fingerprint_data.behavior.duration < 2000);
+    // Only flag headless if UA explicitly says so
+    threatData.is_headless = ua.includes('HeadlessChrome') || ua.includes('PhantomJS');
     
-    if (threatData.is_bot) {
-      console.log(`[VERIFY] Bot detection triggered: headless=${threatData.is_headless}`);
+    // Check for automation frameworks from bot detection
+    const botIndicators = fingerprint_data.bot || {};
+    threatData.is_automation = botIndicators.webdriver || botIndicators.selenium || 
+                               botIndicators.puppeteer || botIndicators.playwright || 
+                               botIndicators.phantom || false;
+    
+    const mouseMovements = fingerprint_data.behavior?.mouseMovements || 0;
+    threatData.is_bot = threatData.is_headless || threatData.is_automation;
+    
+    if (threatData.is_bot || mouseMovements < 3) {
+      console.log(`[VERIFY] Bot detection: headless=${threatData.is_headless}, automation=${threatData.is_automation}, mouseMovements=${mouseMovements}`);
     }
   }
   
