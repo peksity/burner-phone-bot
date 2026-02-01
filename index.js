@@ -1611,6 +1611,23 @@ app.post('/api/subscription/upgrade', async (req, res) => {
   }
 });
 
+// Set verification count (for testing)
+app.post('/api/subscription/set-count', async (req, res) => {
+  const { guild_id, count } = req.body;
+  
+  try {
+    await pool.query(`
+      UPDATE guild_subscriptions 
+      SET verifications_used = $1, updated_at = NOW()
+      WHERE guild_id = $2
+    `, [count, guild_id]);
+    
+    res.json({ success: true, message: `Set verification count to ${count}` });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TRACKABLE LINKS API - Create, track, and manage links
 // ═══════════════════════════════════════════════════════════════════════════════
