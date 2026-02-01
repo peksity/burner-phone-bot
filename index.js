@@ -437,7 +437,7 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.ip_isp = ipqs.ISP || null;
         threatData.ip_timezone = ipqs.timezone || null;
         threatData.ip_org = ipqs.organization || null;
-        threatData.ip_asn = ipqs.ASN || null;
+        threatData.ip_asn ? parseInt(String(threatData.ip_asn).replace(/\D/g, '')) || null : null,
         threatData.ip_host = ipqs.host || null;
         threatData.ip_mobile = ipqs.mobile || false;
         threatData.ip_is_crawler = ipqs.is_crawler || false;
