@@ -352,14 +352,22 @@ app.post('/api/web-verify', async (req, res) => {
     user_agent: req.headers['user-agent']
   };
   
-  // IPQualityScore check
+  // ═══════════════════════════════════════════════════════════════
+  // IP INTELLIGENCE - IPQualityScore with ProxyCheck.io fallback
+  // ═══════════════════════════════════════════════════════════════
   const IPQS_KEY = process.env.IPQUALITYSCORE_API_KEY;
+  const PROXYCHECK_KEY = process.env.PROXYCHECK_API_KEY;
+  let ipIntelSuccess = false;
+  
+  // Try IPQualityScore first
   if (IPQS_KEY && userIP && userIP !== 'unknown') {
     try {
       const ipqsResponse = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${userIP}?strictness=1&allow_public_access_points=true`);
       const ipqs = await ipqsResponse.json();
       
       if (ipqs.success) {
+        ipIntelSuccess = true;
+        threatData.ip_intel_source = 'ipqualityscore';
         threatData.ip_risk_score = ipqs.fraud_score || 0;
         threatData.ip_vpn = ipqs.vpn || false;
         threatData.ip_proxy = ipqs.proxy || false;
@@ -379,48 +387,120 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.ip_latitude = ipqs.latitude || null;
         threatData.ip_longitude = ipqs.longitude || null;
         
-        // Check timezone mismatch
-        if (threatData.browser_timezone && threatData.ip_timezone) {
-          threatData.timezone_mismatch = threatData.browser_timezone !== threatData.ip_timezone;
-          if (threatData.timezone_mismatch) {
-            riskScore += 15;
-            riskReasons.push('Timezone mismatch');
-          }
-        }
-        
-        // Add IP risk to overall score
-        riskScore += Math.floor(threatData.ip_risk_score / 2);
-        if (threatData.ip_vpn) { riskScore += 10; riskReasons.push('VPN'); }
-        if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
-        if (threatData.ip_tor) { riskScore += 25; riskReasons.push('Tor'); }
-        
         console.log(`[VERIFY] IPQualityScore: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Country=${threatData.ip_country}, Region=${threatData.ip_region}, City=${threatData.ip_city}`);
+      } else {
+        console.log(`[VERIFY] IPQualityScore failed:`, ipqs.message || 'Unknown error');
       }
     } catch (e) {
       console.log(`[VERIFY] IPQualityScore error:`, e.message);
     }
   }
   
+  // Fallback to ProxyCheck.io if IPQS failed
+  if (!ipIntelSuccess && PROXYCHECK_KEY && userIP && userIP !== 'unknown') {
+    try {
+      console.log(`[VERIFY] Falling back to ProxyCheck.io...`);
+      const proxyCheckResponse = await fetch(`https://proxycheck.io/v2/${userIP}?key=${PROXYCHECK_KEY}&vpn=1&asn=1&risk=1&port=1`);
+      const proxyCheck = await proxyCheckResponse.json();
+      
+      if (proxyCheck.status === 'ok' && proxyCheck[userIP]) {
+        ipIntelSuccess = true;
+        const ipData = proxyCheck[userIP];
+        threatData.ip_intel_source = 'proxycheck';
+        threatData.ip_risk_score = ipData.risk || 0;
+        threatData.ip_vpn = ipData.proxy === 'yes' || ipData.type === 'VPN';
+        threatData.ip_proxy = ipData.proxy === 'yes';
+        threatData.ip_tor = ipData.type === 'TOR';
+        threatData.ip_country = ipData.isocode || null;
+        threatData.ip_region = ipData.region || null;
+        threatData.ip_city = ipData.city || null;
+        threatData.ip_isp = ipData.provider || null;
+        threatData.ip_timezone = ipData.timezone || null;
+        threatData.ip_org = ipData.organisation || null;
+        threatData.ip_asn = ipData.asn || null;
+        threatData.ip_host = ipData.hostname || null;
+        threatData.ip_latitude = ipData.latitude || null;
+        threatData.ip_longitude = ipData.longitude || null;
+        threatData.ip_connection_type = ipData.type || null;
+        
+        console.log(`[VERIFY] ProxyCheck.io: Risk=${threatData.ip_risk_score}, VPN=${threatData.ip_vpn}, Country=${threatData.ip_country}, Region=${threatData.ip_region}, City=${threatData.ip_city}`);
+      }
+    } catch (e) {
+      console.log(`[VERIFY] ProxyCheck.io error:`, e.message);
+    }
+  }
+  
+  // Process IP intelligence results (works for either provider)
+  if (ipIntelSuccess) {
+    // Check timezone mismatch
+    if (threatData.browser_timezone && threatData.ip_timezone) {
+      threatData.timezone_mismatch = threatData.browser_timezone !== threatData.ip_timezone;
+      if (threatData.timezone_mismatch) {
+        riskScore += 15;
+        riskReasons.push('Timezone mismatch');
+      }
+    }
+    
+    // Add IP risk to overall score
+    riskScore += Math.floor(threatData.ip_risk_score / 2);
+    if (threatData.ip_vpn) { riskScore += 10; riskReasons.push('VPN'); }
+    if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
+    if (threatData.ip_tor) { riskScore += 25; riskReasons.push('Tor'); }
+  } else {
+    console.log(`[VERIFY] WARNING: No IP intelligence available - both IPQS and ProxyCheck failed`);
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // WEBRTC REAL IP LOOKUP - Get TRUE location of VPN users!
   // ═══════════════════════════════════════════════════════════════
-  if (IPQS_KEY && webrtc_real_ip && webrtc_real_ip !== userIP) {
-    try {
-      console.log(`[VERIFY] Looking up WebRTC real IP: ${webrtc_real_ip}`);
-      const realIpResponse = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${webrtc_real_ip}?strictness=1`);
-      const realIp = await realIpResponse.json();
-      
-      if (realIp.success) {
-        threatData.webrtc_real_country = realIp.country_code || null;
-        threatData.webrtc_real_region = realIp.region || null;
-        threatData.webrtc_real_city = realIp.city || null;
-        threatData.webrtc_real_isp = realIp.ISP || null;
+  if (webrtc_real_ip && webrtc_real_ip !== userIP) {
+    let webrtcLookupSuccess = false;
+    
+    // Try IPQS first for WebRTC IP
+    if (IPQS_KEY && !webrtcLookupSuccess) {
+      try {
+        console.log(`[VERIFY] Looking up WebRTC real IP via IPQS: ${webrtc_real_ip}`);
+        const realIpResponse = await fetch(`https://www.ipqualityscore.com/api/json/ip/${IPQS_KEY}/${webrtc_real_ip}?strictness=1`);
+        const realIp = await realIpResponse.json();
         
-        console.log(`[VERIFY]  REAL LOCATION: ${realIp.country_code}, ${realIp.region}, ${realIp.city} (ISP: ${realIp.ISP})`);
-        console.log(`[VERIFY]  VPN LOCATION: ${threatData.ip_country}, ${threatData.ip_region}, ${threatData.ip_city} (ISP: ${threatData.ip_isp})`);
+        if (realIp.success) {
+          webrtcLookupSuccess = true;
+          threatData.webrtc_real_country = realIp.country_code || null;
+          threatData.webrtc_real_region = realIp.region || null;
+          threatData.webrtc_real_city = realIp.city || null;
+          threatData.webrtc_real_isp = realIp.ISP || null;
+          
+          console.log(`[VERIFY] 🔓 REAL LOCATION (IPQS): ${realIp.country_code}, ${realIp.region}, ${realIp.city} (ISP: ${realIp.ISP})`);
+        }
+      } catch (e) {
+        console.log(`[VERIFY] WebRTC IPQS lookup error:`, e.message);
       }
-    } catch (e) {
-      console.log(`[VERIFY] WebRTC real IP lookup error:`, e.message);
+    }
+    
+    // Fallback to ProxyCheck for WebRTC IP
+    if (PROXYCHECK_KEY && !webrtcLookupSuccess) {
+      try {
+        console.log(`[VERIFY] Looking up WebRTC real IP via ProxyCheck: ${webrtc_real_ip}`);
+        const realIpResponse = await fetch(`https://proxycheck.io/v2/${webrtc_real_ip}?key=${PROXYCHECK_KEY}&vpn=1&asn=1`);
+        const realIp = await realIpResponse.json();
+        
+        if (realIp.status === 'ok' && realIp[webrtc_real_ip]) {
+          webrtcLookupSuccess = true;
+          const ipData = realIp[webrtc_real_ip];
+          threatData.webrtc_real_country = ipData.isocode || null;
+          threatData.webrtc_real_region = ipData.region || null;
+          threatData.webrtc_real_city = ipData.city || null;
+          threatData.webrtc_real_isp = ipData.provider || null;
+          
+          console.log(`[VERIFY] 🔓 REAL LOCATION (ProxyCheck): ${ipData.isocode}, ${ipData.region}, ${ipData.city} (ISP: ${ipData.provider})`);
+        }
+      } catch (e) {
+        console.log(`[VERIFY] WebRTC ProxyCheck lookup error:`, e.message);
+      }
+    }
+    
+    if (webrtcLookupSuccess) {
+      console.log(`[VERIFY] 🎭 VPN LOCATION: ${threatData.ip_country}, ${threatData.ip_region}, ${threatData.ip_city} (ISP: ${threatData.ip_isp})`);
     }
   }
   
