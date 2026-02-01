@@ -147,6 +147,64 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 90-DAY DATA RETENTION - Auto-purge old verification data daily
+// ═══════════════════════════════════════════════════════════════════════════════
+const RETENTION_DAYS = parseInt(process.env.DATA_RETENTION_DAYS) || 90;
+
+async function purgeOldData() {
+  try {
+    console.log(`[PURGE] Running ${RETENTION_DAYS}-day data retention cleanup...`);
+    
+    // Delete old verification logs
+    const logsResult = await pool.query(`
+      DELETE FROM verification_logs 
+      WHERE created_at < NOW() - INTERVAL '${RETENTION_DAYS} days'
+      RETURNING id
+    `).catch(() => ({ rowCount: 0 }));
+    
+    // Delete old device fingerprints (but keep active/recent verifications)
+    const fpResult = await pool.query(`
+      DELETE FROM device_fingerprints 
+      WHERE verified_at < NOW() - INTERVAL '${RETENTION_DAYS} days'
+      AND discord_id NOT IN (
+        SELECT DISTINCT discord_id FROM verification_logs 
+        WHERE created_at > NOW() - INTERVAL '${RETENTION_DAYS} days'
+      )
+      RETURNING id
+    `).catch(() => ({ rowCount: 0 }));
+    
+    // Delete old login fingerprints
+    const loginFpResult = await pool.query(`
+      DELETE FROM login_fingerprints 
+      WHERE created_at < NOW() - INTERVAL '${RETENTION_DAYS} days'
+      RETURNING id
+    `).catch(() => ({ rowCount: 0 }));
+    
+    // Delete old login logs
+    const loginLogsResult = await pool.query(`
+      DELETE FROM login_logs 
+      WHERE created_at < NOW() - INTERVAL '${RETENTION_DAYS} days'
+      RETURNING id
+    `).catch(() => ({ rowCount: 0 }));
+    
+    console.log(`[PURGE] Cleanup complete:`);
+    console.log(`  - Verification logs: ${logsResult.rowCount || 0} deleted`);
+    console.log(`  - Device fingerprints: ${fpResult.rowCount || 0} deleted`);
+    console.log(`  - Login fingerprints: ${loginFpResult.rowCount || 0} deleted`);
+    console.log(`  - Login logs: ${loginLogsResult.rowCount || 0} deleted`);
+    
+  } catch (e) {
+    console.error(`[PURGE] Error during cleanup:`, e.message);
+  }
+}
+
+// Run purge daily (every 24 hours)
+setInterval(purgeOldData, 24 * 60 * 60 * 1000);
+
+// Run purge once on startup (after 1 minute to let DB connect)
+setTimeout(purgeOldData, 60 * 1000);
+
 // Generate secure token
 function generateToken() {
   return require('crypto').randomBytes(32).toString('hex');
@@ -510,10 +568,40 @@ app.post('/api/web-verify', async (req, res) => {
   
   console.log(`[VERIFY] TOTAL RISK SCORE: ${riskScore}`);
   
-  // High risk = block (but allow them to appeal)
-  if (riskScore >= 80) {
-    console.log(`[VERIFY] HIGH RISK - Score ${riskScore} exceeds threshold`);
-    // Don't block, but flag for review
+  // Auto-block for very high risk scores (configurable via env var)
+  const AUTO_BLOCK_THRESHOLD = parseInt(process.env.AUTO_BLOCK_THRESHOLD) || 75;
+  if (riskScore >= AUTO_BLOCK_THRESHOLD) {
+    console.log(`[VERIFY] AUTO-BLOCKED - Risk score ${riskScore} exceeds threshold ${AUTO_BLOCK_THRESHOLD}`);
+    
+    // Send alert to security channel
+    try {
+      const guild = client.guilds.cache.get(guild_id);
+      const securityLog = guild?.channels.cache.find(c => c.name === 'security-logs' || c.name === 'mod-logs');
+      if (securityLog) {
+        const blockEmbed = new EmbedBuilder()
+          .setTitle('🚫 AUTO-BLOCKED: High Risk Score')
+          .setColor(0xFF0000)
+          .addFields(
+            { name: 'User', value: `<@${discord_id}> (${discord_id})`, inline: true },
+            { name: 'Risk Score', value: `**${riskScore}**/100`, inline: true },
+            { name: 'Threshold', value: `${AUTO_BLOCK_THRESHOLD}`, inline: true },
+            { name: 'IP', value: `\`${userIP}\``, inline: true },
+            { name: 'Location', value: `${threatData.ip_country || '?'}, ${threatData.ip_city || '?'}`, inline: true },
+            { name: 'VPN', value: threatData.ip_vpn ? 'Yes' : 'No', inline: true },
+            { name: 'Risk Factors', value: riskReasons.join(', ') || 'Multiple factors', inline: false }
+          )
+          .setTimestamp();
+        await securityLog.send({ embeds: [blockEmbed] });
+      }
+    } catch (e) {
+      console.log(`[VERIFY] Alert error:`, e.message);
+    }
+    
+    return res.json({ 
+      success: false, 
+      blocked: true, 
+      error: 'Verification blocked due to security concerns. Please contact a moderator if you believe this is a mistake.' 
+    });
   }
   
   // AbuseIPDB check
@@ -730,7 +818,7 @@ app.post('/api/web-verify', async (req, res) => {
          account_age_days, is_new_account, discord_created_at, has_avatar, has_banner, is_nitro, badges, badge_count, suspicious_username,
          honeypot_triggered, impossible_travel, velocity_blocked, language_mismatch, unusual_time,
          behavior_data, gpu_data, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53)
       `, [
         discord_id,
         member?.user?.tag || 'Unknown',
