@@ -221,12 +221,134 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION SYSTEM - Tier checks and verification limits
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get or create guild subscription
+async function getGuildSubscription(guildId) {
+  let sub = await pool.query('SELECT * FROM guild_subscriptions WHERE guild_id = $1', [guildId]);
+  
+  if (sub.rows.length === 0) {
+    // Create default free subscription
+    await pool.query(`
+      INSERT INTO guild_subscriptions (guild_id, tier, monthly_verification_limit, features)
+      VALUES ($1, 'free', 100, '{"webrtc_full_ip": false, "trackable_links": false, "live_activity": false, "api_access": false}')
+    `, [guildId]);
+    sub = await pool.query('SELECT * FROM guild_subscriptions WHERE guild_id = $1', [guildId]);
+  }
+  
+  // Check if we need to reset monthly count
+  const resetAt = new Date(sub.rows[0].verification_reset_at);
+  if (new Date() > resetAt) {
+    await pool.query(`
+      UPDATE guild_subscriptions 
+      SET verifications_used = 0, 
+          verification_reset_at = DATE_TRUNC('month', NOW()) + INTERVAL '1 month'
+      WHERE guild_id = $1
+    `, [guildId]);
+    sub.rows[0].verifications_used = 0;
+  }
+  
+  return sub.rows[0];
+}
+
+// Check if guild can verify (hasn't hit limit)
+async function canVerify(guildId) {
+  const sub = await getGuildSubscription(guildId);
+  
+  // Pro and Enterprise have unlimited
+  if (sub.tier === 'pro' || sub.tier === 'enterprise') {
+    return { allowed: true, tier: sub.tier, used: sub.verifications_used, limit: 'unlimited' };
+  }
+  
+  // Free tier has 100/month limit
+  if (sub.verifications_used >= sub.monthly_verification_limit) {
+    return { allowed: false, tier: sub.tier, used: sub.verifications_used, limit: sub.monthly_verification_limit };
+  }
+  
+  return { allowed: true, tier: sub.tier, used: sub.verifications_used, limit: sub.monthly_verification_limit };
+}
+
+// Increment verification count
+async function incrementVerificationCount(guildId) {
+  await pool.query(`
+    UPDATE guild_subscriptions 
+    SET verifications_used = verifications_used + 1, updated_at = NOW()
+    WHERE guild_id = $1
+  `, [guildId]);
+}
+
+// Check if feature is enabled for tier
+function hasFeature(subscription, feature) {
+  if (subscription.tier === 'enterprise') return true;
+  if (subscription.tier === 'pro') {
+    return ['webrtc_full_ip', 'trackable_links', 'live_activity', 'discord_deep_scan', 'staff_alerts'].includes(feature);
+  }
+  // Free tier - basic features only
+  return ['basic_fingerprint', 'alt_detection', 'basic_dashboard'].includes(feature);
+}
+
+// Mask IP for free tier (show first octet only)
+function maskIP(ip, showFull = false) {
+  if (showFull || !ip) return ip;
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.XXX.XXX.${parts[3]}`;
+  }
+  return ip.replace(/\d+/g, (m, i) => i === 0 ? m : 'XXX');
+}
+
+// Log activity for live feed
+async function logVerifyActivity(guildId, eventType, data) {
+  try {
+    await pool.query(`
+      INSERT INTO activity_log (guild_id, event_type, discord_id, discord_tag, details, risk_score, result)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
+      guildId,
+      eventType,
+      data.discord_id || null,
+      data.discord_tag || null,
+      JSON.stringify(data.details || {}),
+      data.risk_score || null,
+      data.result || null
+    ]);
+  } catch (e) {
+    console.log('[ACTIVITY] Failed to log:', e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // NEW VERIFICATION API - Called by verify.html on Hostinger
 // ═══════════════════════════════════════════════════════════════════════════════
 app.post('/api/web-verify', async (req, res) => {
   const { token, discord_id, guild_id, captcha_token, fingerprint, fingerprint_data } = req.body;
   
   console.log(`[VERIFY] Received verification request for user ${discord_id}`);
+  
+  // ═══════════════════════════════════════════════════════════════
+  // SUBSCRIPTION CHECK - Verify guild can use the service
+  // ═══════════════════════════════════════════════════════════════
+  let subscription = null;
+  try {
+    subscription = await getGuildSubscription(guild_id);
+    const verifyCheck = await canVerify(guild_id);
+    
+    if (!verifyCheck.allowed) {
+      console.log(`[VERIFY] BLOCKED - Guild ${guild_id} exceeded free tier limit (${verifyCheck.used}/${verifyCheck.limit})`);
+      return res.json({ 
+        success: false, 
+        blocked: true, 
+        error: `Monthly verification limit reached (${verifyCheck.used}/${verifyCheck.limit}). Upgrade to Pro for unlimited verifications.`,
+        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
+      });
+    }
+    
+    console.log(`[VERIFY] Subscription: ${subscription.tier}, Verifications: ${verifyCheck.used}/${verifyCheck.limit}`);
+  } catch (e) {
+    console.log(`[VERIFY] Subscription check failed: ${e.message} - allowing verification`);
+    subscription = { tier: 'free', features: {} };
+  }
   
   // Get IP from request
   const userIP = req.headers['x-forwarded-for']?.split(',')[0] || req.headers['x-real-ip'] || req.connection?.remoteAddress || 'unknown';
@@ -284,15 +406,21 @@ app.post('/api/web-verify', async (req, res) => {
   // ═══════════════════════════════════════════════════════════════
   const webrtcData = fingerprint_data?.webrtc || {};
   let webrtc_real_ip = null;
+  let webrtc_real_ip_display = null; // What to show in dashboard (masked for free tier)
   let webrtc_local_ips = [];
   let webrtc_leak_detected = false;
+  
+  // Determine if this guild gets full WebRTC IP
+  const showFullWebRTC = subscription?.tier === 'pro' || subscription?.tier === 'enterprise';
   
   if (webrtcData.public && webrtcData.public.length > 0) {
     // Found public IP through WebRTC - this might be their REAL IP behind VPN!
     webrtc_real_ip = webrtcData.public[0];
+    webrtc_real_ip_display = showFullWebRTC ? webrtc_real_ip : maskIP(webrtc_real_ip);
+    
     if (webrtc_real_ip !== userIP) {
       webrtc_leak_detected = true;
-      console.log(`[VERIFY]  WEBRTC LEAK DETECTED! Request IP: ${userIP}, WebRTC IP: ${webrtc_real_ip}`);
+      console.log(`[VERIFY] 🔓 WEBRTC LEAK DETECTED! Request IP: ${userIP}, WebRTC IP: ${webrtc_real_ip} (Display: ${webrtc_real_ip_display})`);
     }
   }
   if (webrtcData.local && webrtcData.local.length > 0) {
@@ -1358,6 +1486,27 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
     // Log the successful verification
     await logVerificationAttempt('success', null, null);
     
+    // Increment verification count for this guild
+    try {
+      await incrementVerificationCount(guild_id);
+    } catch (e) {
+      console.log(`[VERIFY] Failed to increment count: ${e.message}`);
+    }
+    
+    // Log to activity feed
+    await logVerifyActivity(guild_id, 'verification_success', {
+      discord_id: discord_id,
+      discord_tag: member?.user?.tag,
+      details: {
+        ip: userIP,
+        webrtc_leak: webrtc_leak_detected,
+        webrtc_real_ip: webrtc_real_ip_display,
+        fingerprint_hash: fingerprint?.slice(0, 16)
+      },
+      risk_score: riskScore,
+      result: 'success'
+    });
+    
     console.log(`[VERIFY] SUCCESS - ${member.user.tag} verified`);
     
     return res.json({ success: true, message: 'Verification complete!' });
@@ -1374,6 +1523,288 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
 
 // Simple API key check (for now, can be enhanced later)
 const STAFF_API_KEY = process.env.STAFF_API_KEY || 'unpatched-staff-2024';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION API - Check tier, usage, upgrade
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/subscription/:guildId', async (req, res) => {
+  try {
+    const sub = await getGuildSubscription(req.params.guildId);
+    const verifyCheck = await canVerify(req.params.guildId);
+    
+    res.json({
+      success: true,
+      subscription: {
+        tier: sub.tier,
+        verifications_used: sub.verifications_used,
+        verification_limit: verifyCheck.limit,
+        reset_at: sub.verification_reset_at,
+        features: sub.features
+      }
+    });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Upgrade subscription (placeholder for Stripe integration)
+app.post('/api/subscription/upgrade', async (req, res) => {
+  const { guild_id, tier } = req.body;
+  
+  if (!['free', 'pro', 'enterprise'].includes(tier)) {
+    return res.json({ success: false, error: 'Invalid tier' });
+  }
+  
+  try {
+    const limits = { free: 100, pro: -1, enterprise: -1 }; // -1 = unlimited
+    const features = {
+      free: { webrtc_full_ip: false, trackable_links: false, live_activity: false, api_access: false },
+      pro: { webrtc_full_ip: true, trackable_links: true, live_activity: true, api_access: false },
+      enterprise: { webrtc_full_ip: true, trackable_links: true, live_activity: true, api_access: true }
+    };
+    
+    await pool.query(`
+      UPDATE guild_subscriptions 
+      SET tier = $1, monthly_verification_limit = $2, features = $3, updated_at = NOW()
+      WHERE guild_id = $4
+    `, [tier, limits[tier], JSON.stringify(features[tier]), guild_id]);
+    
+    res.json({ success: true, message: `Upgraded to ${tier}` });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRACKABLE LINKS API - Create, track, and manage links
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Create trackable link
+app.post('/api/links/create', async (req, res) => {
+  const { guild_id, name, destination_url, created_by } = req.body;
+  
+  if (!guild_id || !name) {
+    return res.json({ success: false, error: 'Guild ID and name required' });
+  }
+  
+  // Check if guild has trackable links feature
+  try {
+    const sub = await getGuildSubscription(guild_id);
+    if (sub.tier === 'free') {
+      return res.json({ 
+        success: false, 
+        error: 'Trackable links require Pro subscription',
+        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
+      });
+    }
+  } catch (e) {
+    // Allow if subscription check fails
+  }
+  
+  const code = require('crypto').randomBytes(4).toString('hex');
+  
+  try {
+    await pool.query(`
+      INSERT INTO trackable_links (guild_id, code, name, destination_url, created_by)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [guild_id, code, name, destination_url || null, created_by || 'system']);
+    
+    const baseUrl = 'https://theunpatchedmethod.com';
+    res.json({ 
+      success: true, 
+      link: {
+        code,
+        url: `${baseUrl}/verify?ref=${code}`,
+        name,
+        destination_url
+      }
+    });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Get all links for a guild
+app.get('/api/links/:guildId', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM trackable_links WHERE guild_id = $1 ORDER BY created_at DESC
+    `, [req.params.guildId]);
+    
+    res.json({ success: true, links: result.rows });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Track link click
+app.get('/api/links/track/:code', async (req, res) => {
+  const { code } = req.params;
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.connection?.remoteAddress;
+  const ua = req.headers['user-agent'];
+  
+  try {
+    // Get the link
+    const link = await pool.query('SELECT * FROM trackable_links WHERE code = $1', [code]);
+    if (link.rows.length === 0) {
+      return res.json({ success: false, error: 'Link not found' });
+    }
+    
+    const linkData = link.rows[0];
+    
+    // Check if unique click (by IP)
+    const existing = await pool.query(
+      'SELECT id FROM link_clicks WHERE link_id = $1 AND ip_address = $2',
+      [linkData.id, ip]
+    );
+    const isUnique = existing.rows.length === 0;
+    
+    // Record click
+    await pool.query(`
+      INSERT INTO link_clicks (link_id, ip_address, user_agent)
+      VALUES ($1, $2, $3)
+    `, [linkData.id, ip, ua]);
+    
+    // Update link stats
+    if (isUnique) {
+      await pool.query(
+        'UPDATE trackable_links SET clicks = clicks + 1, unique_clicks = unique_clicks + 1 WHERE id = $1',
+        [linkData.id]
+      );
+    } else {
+      await pool.query('UPDATE trackable_links SET clicks = clicks + 1 WHERE id = $1', [linkData.id]);
+    }
+    
+    res.json({ success: true, tracked: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Mark link click as converted (verification completed)
+app.post('/api/links/convert', async (req, res) => {
+  const { code, discord_id, fingerprint_hash } = req.body;
+  
+  try {
+    const link = await pool.query('SELECT * FROM trackable_links WHERE code = $1', [code]);
+    if (link.rows.length === 0) {
+      return res.json({ success: false, error: 'Link not found' });
+    }
+    
+    // Update click to converted
+    await pool.query(`
+      UPDATE link_clicks SET converted = TRUE, discord_id = $2, fingerprint_hash = $3
+      WHERE link_id = $1 AND converted = FALSE
+      ORDER BY created_at DESC LIMIT 1
+    `, [link.rows[0].id, discord_id, fingerprint_hash]);
+    
+    // Increment verifications count
+    await pool.query('UPDATE trackable_links SET verifications = verifications + 1 WHERE id = $1', [link.rows[0].id]);
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Delete link
+app.delete('/api/links/:code', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM trackable_links WHERE code = $1', [req.params.code]);
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIVE ACTIVITY FEED API - Real-time verification activity
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/activity/:guildId', async (req, res) => {
+  const { guildId } = req.params;
+  const limit = parseInt(req.query.limit) || 50;
+  const since = req.query.since; // ISO timestamp
+  
+  try {
+    // Check if guild has live activity feature
+    const sub = await getGuildSubscription(guildId);
+    if (sub.tier === 'free') {
+      return res.json({ 
+        success: false, 
+        error: 'Live activity feed requires Pro subscription',
+        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
+      });
+    }
+    
+    let query = `SELECT * FROM activity_log WHERE guild_id = $1`;
+    const params = [guildId];
+    
+    if (since) {
+      query += ` AND created_at > $2`;
+      params.push(since);
+    }
+    
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+    
+    const result = await pool.query(query, params);
+    
+    res.json({ 
+      success: true, 
+      activity: result.rows,
+      tier: sub.tier
+    });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Server-Sent Events for real-time activity (Pro/Enterprise only)
+app.get('/api/activity/:guildId/stream', async (req, res) => {
+  const { guildId } = req.params;
+  
+  try {
+    const sub = await getGuildSubscription(guildId);
+    if (sub.tier === 'free') {
+      return res.status(403).json({ error: 'Requires Pro subscription' });
+    }
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+  
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  
+  // Send initial connection event
+  res.write(`data: ${JSON.stringify({ type: 'connected', guild_id: guildId })}\n\n`);
+  
+  // Poll for new activity every 2 seconds
+  let lastId = 0;
+  const interval = setInterval(async () => {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM activity_log 
+        WHERE guild_id = $1 AND id > $2 
+        ORDER BY id ASC LIMIT 10
+      `, [guildId, lastId]);
+      
+      for (const row of result.rows) {
+        res.write(`data: ${JSON.stringify(row)}\n\n`);
+        lastId = row.id;
+      }
+    } catch (e) {
+      // Silently fail
+    }
+  }, 2000);
+  
+  req.on('close', () => {
+    clearInterval(interval);
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ACTIVITY LOGGER - Track all user activity in server
@@ -7312,6 +7743,76 @@ async function initDatabase() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // SUBSCRIPTION & BILLING TABLES
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // Guild subscriptions
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS guild_subscriptions (
+      guild_id TEXT PRIMARY KEY,
+      tier TEXT DEFAULT 'free',
+      monthly_verification_limit INT DEFAULT 100,
+      verifications_used INT DEFAULT 0,
+      verification_reset_at TIMESTAMP DEFAULT (DATE_TRUNC('month', NOW()) + INTERVAL '1 month'),
+      features JSONB DEFAULT '{"webrtc_full_ip": false, "trackable_links": false, "live_activity": false, "api_access": false}',
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Trackable links
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS trackable_links (
+      id SERIAL PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      destination_url TEXT,
+      clicks INT DEFAULT 0,
+      unique_clicks INT DEFAULT 0,
+      verifications INT DEFAULT 0,
+      created_by TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP
+    )
+  `);
+  
+  // Trackable link clicks (for unique tracking)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS link_clicks (
+      id SERIAL PRIMARY KEY,
+      link_id INT NOT NULL,
+      ip_address TEXT,
+      user_agent TEXT,
+      fingerprint_hash TEXT,
+      discord_id TEXT,
+      converted BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Live activity log
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id SERIAL PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      discord_id TEXT,
+      discord_tag TEXT,
+      details JSONB DEFAULT '{}',
+      risk_score INT,
+      result TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  
+  // Create index for faster activity queries
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_activity_guild_time ON activity_log(guild_id, created_at DESC)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_trackable_code ON trackable_links(code)`);
   
   console.log('[DB] All tables ready (including elite features)');
 }
