@@ -839,7 +839,7 @@ app.post('/api/web-verify', async (req, res) => {
         threatData.ip_city,
         threatData.ip_isp,
         threatData.ip_org,
-        threatData.ip_asn,
+        threatData.ip_asn ? parseInt(String(threatData.ip_asn).replace(/\D/g, '')) || null : null,
         threatData.ip_host,
         threatData.ip_mobile,
         threatData.ip_connection_type,
