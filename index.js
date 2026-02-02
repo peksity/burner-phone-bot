@@ -327,31 +327,13 @@ app.post('/api/web-verify', async (req, res) => {
   console.log(`[VERIFY] Received verification request for user ${discord_id}`);
   
   // ═══════════════════════════════════════════════════════════════
-  // SUBSCRIPTION CHECK - Verify guild can use the service
+  // SUBSCRIPTION CHECK - Get tier info (don't block yet - check alts first)
   // ═══════════════════════════════════════════════════════════════
   let subscription = null;
+  let verifyCheck = { allowed: true, tier: 'free', used: 0, limit: 100 };
   try {
     subscription = await getGuildSubscription(guild_id);
-    const verifyCheck = await canVerify(guild_id);
-    
-    if (!verifyCheck.allowed) {
-      console.log(`[VERIFY] BLOCKED - Guild ${guild_id} exceeded free tier limit (${verifyCheck.used}/${verifyCheck.limit})`);
-      
-      // Log to activity feed
-      await logVerifyActivity(guild_id, 'verification_blocked', {
-        discord_id: discord_id,
-        details: { reason: 'free_tier_limit', used: verifyCheck.used, limit: verifyCheck.limit },
-        result: 'blocked_limit'
-      });
-      
-      return res.json({ 
-        success: false, 
-        blocked: true, 
-        error: `Monthly verification limit reached (${verifyCheck.used}/${verifyCheck.limit}). Upgrade to Pro for unlimited verifications.`,
-        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
-      });
-    }
-    
+    verifyCheck = await canVerify(guild_id);
     console.log(`[VERIFY] Subscription: ${subscription.tier}, Verifications: ${verifyCheck.used}/${verifyCheck.limit}`);
   } catch (e) {
     console.log(`[VERIFY] Subscription check failed: ${e.message} - allowing verification`);
@@ -1440,7 +1422,26 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       });
     }
     
-    // 5. All checks passed - Store fingerprint and assign role
+    // 5. Check subscription limit (AFTER duplicate check so alts still get DM)
+    if (!verifyCheck.allowed) {
+      console.log(`[VERIFY] BLOCKED - Guild ${guild_id} exceeded free tier limit (${verifyCheck.used}/${verifyCheck.limit})`);
+      
+      // Log to activity feed
+      await logVerifyActivity(guild_id, 'verification_blocked', {
+        discord_id: discord_id,
+        details: { reason: 'free_tier_limit', used: verifyCheck.used, limit: verifyCheck.limit },
+        result: 'blocked_limit'
+      });
+      
+      return res.json({ 
+        success: false, 
+        blocked: true, 
+        error: `Monthly verification limit reached (${verifyCheck.used}/${verifyCheck.limit}). Upgrade to Pro for unlimited verifications.`,
+        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
+      });
+    }
+    
+    // 6. All checks passed - Store fingerprint and assign role
     const guild = client.guilds.cache.get(guild_id);
     if (!guild) {
       return res.status(400).json({ success: false, error: 'Guild not found' });
