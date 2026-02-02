@@ -122,8 +122,189 @@ const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: proces
 
 const app = express();
 const cors = require('cors');
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SESSION MANAGEMENT FOR STAFF AUTH
+// ═══════════════════════════════════════════════════════════════════════════════
+const sessions = new Map(); // sessionId -> { discordId, discordTag, avatar, roles, expiresAt }
+
+function generateSessionId() {
+  return require('crypto').randomBytes(32).toString('hex');
+}
+
+function getSession(req) {
+  const sessionId = req.headers.cookie?.split(';')
+    .find(c => c.trim().startsWith('staff_session='))
+    ?.split('=')[1];
+  
+  if (!sessionId) return null;
+  
+  const session = sessions.get(sessionId);
+  if (!session || session.expiresAt < Date.now()) {
+    sessions.delete(sessionId);
+    return null;
+  }
+  return session;
+}
+
+// Clean expired sessions every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of sessions) {
+    if (session.expiresAt < now) sessions.delete(id);
+  }
+}, 30 * 60 * 1000);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DISCORD OAUTH CONFIG
+// ═══════════════════════════════════════════════════════════════════════════════
+const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID;
+const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET;
+const OAUTH_REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'https://burner-phone-bot-production.up.railway.app/auth/callback';
+const STAFF_GUILD_ID = '1446317951757062256';
+const STAFF_ROLE_IDS = [
+  '1453304665046257819', // Senior Admin
+  '1453304662156644445', // Admin
+  '1453304660134727764'  // Mod
+];
+
+// OAuth: Start login flow
+app.get('/auth/discord', (req, res) => {
+  const state = require('crypto').randomBytes(16).toString('hex');
+  const params = new URLSearchParams({
+    client_id: OAUTH_CLIENT_ID,
+    redirect_uri: OAUTH_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'identify guilds.members.read',
+    state: state
+  });
+  res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+});
+
+// OAuth: Callback handler
+app.get('/auth/callback', async (req, res) => {
+  const { code, error } = req.query;
+  
+  if (error || !code) {
+    return res.redirect('https://theunpatchedmethod.com/login.html?error=oauth_denied');
+  }
+  
+  try {
+    // Exchange code for token
+    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: OAUTH_CLIENT_ID,
+        client_secret: OAUTH_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: OAUTH_REDIRECT_URI
+      })
+    });
+    
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      console.log('[AUTH] Token exchange failed:', tokenData);
+      return res.redirect('/login.html?error=token_failed');
+    }
+    
+    // Get user info
+    const userResponse = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const user = await userResponse.json();
+    
+    // Get user's guild member info to check roles
+    const memberResponse = await fetch(`https://discord.com/api/users/@me/guilds/${STAFF_GUILD_ID}/member`, {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    
+    if (!memberResponse.ok) {
+      console.log('[AUTH] User not in guild or cannot access');
+      return res.redirect('/login.html?error=not_in_server');
+    }
+    
+    const member = await memberResponse.json();
+    const userRoles = member.roles || [];
+    
+    // Check if user has any staff role
+    const hasStaffRole = userRoles.some(roleId => STAFF_ROLE_IDS.includes(roleId));
+    
+    if (!hasStaffRole) {
+      console.log(`[AUTH] User ${user.username} denied - no staff role`);
+      return res.redirect('/login.html?error=no_permission');
+    }
+    
+    // Create session
+    const sessionId = generateSessionId();
+    sessions.set(sessionId, {
+      discordId: user.id,
+      discordTag: user.username,
+      avatar: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : null,
+      roles: userRoles.filter(r => STAFF_ROLE_IDS.includes(r)),
+      expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    console.log(`[AUTH] ✅ Staff login: ${user.username} (${user.id})`);
+    
+    // Set cookie and redirect to dashboard
+    res.setHeader('Set-Cookie', `staff_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`);
+    res.redirect('/staff.html');
+    
+  } catch (e) {
+    console.log('[AUTH] OAuth error:', e.message);
+    res.redirect('/login.html?error=oauth_error');
+  }
+});
+
+// Get current user info
+app.get('/api/me', (req, res) => {
+  const session = getSession(req);
+  
+  if (!session) {
+    return res.json({ loggedIn: false });
+  }
+  
+  // Determine role level
+  let roleLevel = 'mod';
+  if (session.roles.includes('1453304665046257819')) roleLevel = 'senior_admin';
+  else if (session.roles.includes('1453304662156644445')) roleLevel = 'admin';
+  
+  res.json({
+    loggedIn: true,
+    user: {
+      id: session.discordId,
+      username: session.discordTag,
+      avatar: session.avatar,
+      roleLevel: roleLevel
+    }
+  });
+});
+
+// Logout
+app.get('/logout', (req, res) => {
+  const sessionId = req.headers.cookie?.split(';')
+    .find(c => c.trim().startsWith('staff_session='))
+    ?.split('=')[1];
+  
+  if (sessionId) sessions.delete(sessionId);
+  
+  res.setHeader('Set-Cookie', 'staff_session=; Path=/; HttpOnly; Max-Age=0');
+  res.redirect('/login.html');
+});
+
+// Middleware to protect staff endpoints
+function requireStaff(req, res, next) {
+  const session = getSession(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Not authenticated', redirect: '/login.html' });
+  }
+  req.staffUser = session;
+  next();
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VERIFICATION TOKEN STORAGE (In-Memory)
@@ -2245,7 +2426,7 @@ app.delete('/api/staff/links/:code', checkStaffAuth, (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const staffTokens = new Map(); // token -> { user, expires }
-const STAFF_ROLE_IDS = ['1453304665046257819', '1453304662156644445', '1453304660134727764']; // Senior Admin, Admin, Moderator
+// STAFF_ROLE_IDS defined at top of file with OAuth config
 const ALLOWED_STAFF_IDS = ['513386668042698755']; // Owner ID - always allowed
 
 function checkStaffAuth(req, res, next) {
