@@ -1474,21 +1474,77 @@ Use *italics* for dramatic effect. Be creative and menacing. Include their banne
       console.log(`[VERIFY] Verified role assigned to ${member.user.tag}`);
     }
     
-    // Log to security channel
+    // Log to security channel with enhanced VPN detection
     const securityLog = guild.channels.cache.find(c => 
       c.name === 'security-logs' || c.name === 'modmail-logs'
     );
     
     if (securityLog) {
-      const logEmbed = new EmbedBuilder()
-        .setTitle(' User Verified')
-        .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
-        .addFields({ name: ' Device Fingerprint', value: 'Stored successfully', inline: true })
-        .setColor(0x00FF00)
-        .setThumbnail(member.user.displayAvatarURL())
-        .setTimestamp();
+      let logEmbed;
       
-      await securityLog.send({ embeds: [logEmbed] });
+      // Check if VPN or WebRTC leak detected
+      if (threatData.ip_vpn || threatData.webrtc_leak) {
+        // Enhanced VPN/WebRTC Alert Embed
+        logEmbed = new EmbedBuilder()
+          .setTitle('🚨 VPN USER DETECTED' + (threatData.webrtc_leak ? ' - REAL IP EXPOSED' : ''))
+          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .setColor(0xFF6600);
+        
+        // VPN IP info
+        let vpnInfo = `**IP:** \`${threatData.ip_address}\`\n`;
+        vpnInfo += `**Location:** ${threatData.ip_city || 'Unknown'}, ${threatData.ip_country || 'Unknown'}\n`;
+        vpnInfo += `**ISP:** ${threatData.ip_isp || 'Unknown'}`;
+        logEmbed.addFields({ name: '🎭 VPN/Proxy IP', value: vpnInfo, inline: true });
+        
+        // Real IP if WebRTC leaked
+        if (threatData.webrtc_leak && threatData.webrtc_real_ip) {
+          let realInfo = `**IP:** \`${threatData.webrtc_real_ip}\`\n`;
+          realInfo += `**Location:** ${threatData.webrtc_real_city || 'Unknown'}, ${threatData.webrtc_real_country || 'Unknown'}\n`;
+          realInfo += `**ISP:** ${threatData.webrtc_real_isp || 'Unknown'}`;
+          logEmbed.addFields({ name: '🔓 REAL IP EXPOSED', value: realInfo, inline: true });
+        }
+        
+        // Risk info
+        let riskInfo = `**Score:** ${riskScore}/100\n`;
+        riskInfo += `**VPN:** ${threatData.ip_vpn ? '✅ Yes' : '❌ No'}\n`;
+        riskInfo += `**Proxy:** ${threatData.ip_proxy ? '✅ Yes' : '❌ No'}\n`;
+        riskInfo += `**Tor:** ${threatData.ip_tor ? '✅ Yes' : '❌ No'}\n`;
+        riskInfo += `**WebRTC Leak:** ${threatData.webrtc_leak ? '🔓 EXPOSED' : '🔒 Blocked'}`;
+        logEmbed.addFields({ name: '⚠️ Risk Assessment', value: riskInfo, inline: false });
+        
+        // Account info
+        let accountInfo = `**Age:** ${threatData.account_age_days || 'Unknown'} days\n`;
+        accountInfo += `**Avatar:** ${threatData.has_avatar ? '✅' : '❌'}\n`;
+        accountInfo += `**Nitro:** ${threatData.is_nitro ? '✅' : '❌'}\n`;
+        accountInfo += `**Badges:** ${threatData.badge_count || 0}`;
+        logEmbed.addFields({ name: '👤 Discord Account', value: accountInfo, inline: true });
+        
+        logEmbed.setThumbnail(member.user.displayAvatarURL());
+        logEmbed.setFooter({ text: '🔍 The Unpatched Method • VPN Detection' });
+        logEmbed.setTimestamp();
+        
+        // Send with @here if WebRTC leaked
+        await securityLog.send({ 
+          content: threatData.webrtc_leak ? '⚠️ **WebRTC Leak - Real IP Captured!**' : null, 
+          embeds: [logEmbed] 
+        });
+      } else {
+        // Normal verification log
+        logEmbed = new EmbedBuilder()
+          .setTitle('✅ User Verified')
+          .setDescription(`**User:** ${member.user.tag}\n**ID:** \`${member.id}\``)
+          .addFields(
+            { name: '🌐 IP Address', value: `\`${threatData.ip_address}\`\n${threatData.ip_city || 'Unknown'}, ${threatData.ip_country || 'Unknown'}`, inline: true },
+            { name: '⚠️ Risk Score', value: `${riskScore}/100`, inline: true },
+            { name: '👤 Account Age', value: `${threatData.account_age_days || 'Unknown'} days`, inline: true }
+          )
+          .setColor(0x00FF00)
+          .setThumbnail(member.user.displayAvatarURL())
+          .setFooter({ text: '🔍 The Unpatched Method' })
+          .setTimestamp();
+        
+        await securityLog.send({ embeds: [logEmbed] });
+      }
     }
     
     // Welcome in general chat
@@ -1857,6 +1913,126 @@ app.get('/api/activity/:guildId/stream', async (req, res) => {
   req.on('close', () => {
     clearInterval(interval);
   });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VPN DETECTIONS API - Get all VPN users and WebRTC leaks
+// ═══════════════════════════════════════════════════════════════════════════════
+
+app.get('/api/vpn-detections/:guildId', async (req, res) => {
+  const { guildId } = req.params;
+  const limit = parseInt(req.query.limit) || 50;
+  const leaksOnly = req.query.leaks_only === 'true';
+  
+  try {
+    // Check subscription - Pro/Enterprise only
+    const sub = await getGuildSubscription(guildId);
+    if (sub.tier === 'free') {
+      return res.json({ 
+        success: false, 
+        error: 'VPN detection data requires Pro subscription',
+        upgrade_url: 'https://theunpatchedmethod.com/#pricing'
+      });
+    }
+    
+    let query = `
+      SELECT 
+        discord_id,
+        discord_tag,
+        ip_address AS vpn_ip,
+        ip_country AS vpn_country,
+        ip_city AS vpn_city,
+        ip_isp AS vpn_isp,
+        ip_vpn,
+        ip_proxy,
+        ip_tor,
+        ip_risk_score,
+        webrtc_leak,
+        webrtc_real_ip,
+        webrtc_real_country,
+        webrtc_real_city,
+        webrtc_real_isp,
+        created_at AS detected_at
+      FROM verification_logs 
+      WHERE guild_id = $1 
+        AND (ip_vpn = true OR ip_proxy = true OR ip_tor = true OR webrtc_leak = true)
+    `;
+    
+    if (leaksOnly) {
+      query += ` AND webrtc_leak = true AND webrtc_real_ip IS NOT NULL`;
+    }
+    
+    query += ` ORDER BY created_at DESC LIMIT $2`;
+    
+    const result = await pool.query(query, [guildId, limit]);
+    
+    // Format response
+    const vpnUsers = result.rows.map(row => ({
+      discord_id: row.discord_id,
+      discord_tag: row.discord_tag,
+      vpn_detected: row.ip_vpn || row.ip_proxy || row.ip_tor,
+      vpn_type: row.ip_tor ? 'Tor' : row.ip_proxy ? 'Proxy' : row.ip_vpn ? 'VPN' : 'Unknown',
+      vpn_ip: row.vpn_ip,
+      vpn_location: `${row.vpn_city || 'Unknown'}, ${row.vpn_country || 'Unknown'}`,
+      vpn_isp: row.vpn_isp,
+      risk_score: row.ip_risk_score,
+      webrtc_leak: row.webrtc_leak,
+      real_ip: row.webrtc_real_ip,
+      real_location: row.webrtc_real_ip ? `${row.webrtc_real_city || 'Unknown'}, ${row.webrtc_real_country || 'Unknown'}` : null,
+      real_isp: row.webrtc_real_isp,
+      detected_at: row.detected_at
+    }));
+    
+    // Stats
+    const totalVpn = vpnUsers.filter(u => u.vpn_detected).length;
+    const totalLeaks = vpnUsers.filter(u => u.webrtc_leak).length;
+    
+    res.json({ 
+      success: true,
+      stats: {
+        total_vpn_users: totalVpn,
+        total_webrtc_leaks: totalLeaks,
+        real_ips_captured: totalLeaks
+      },
+      vpn_users: vpnUsers,
+      tier: sub.tier
+    });
+  } catch (e) {
+    console.log('[VPN API] Error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// Get single user's VPN/leak history
+app.get('/api/vpn-detections/:guildId/user/:discordId', async (req, res) => {
+  const { guildId, discordId } = req.params;
+  
+  try {
+    const sub = await getGuildSubscription(guildId);
+    if (sub.tier === 'free') {
+      return res.json({ success: false, error: 'Requires Pro subscription' });
+    }
+    
+    const result = await pool.query(`
+      SELECT 
+        ip_address, ip_country, ip_city, ip_isp,
+        ip_vpn, ip_proxy, ip_tor, ip_risk_score,
+        webrtc_leak, webrtc_real_ip, webrtc_real_country, webrtc_real_city, webrtc_real_isp,
+        created_at
+      FROM verification_logs 
+      WHERE guild_id = $1 AND discord_id = $2
+      ORDER BY created_at DESC
+    `, [guildId, discordId]);
+    
+    res.json({
+      success: true,
+      discord_id: discordId,
+      verification_count: result.rows.length,
+      history: result.rows
+    });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
