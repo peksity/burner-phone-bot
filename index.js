@@ -135,9 +135,18 @@ function generateSessionId() {
 }
 
 function getSession(req) {
-  const sessionId = req.headers.cookie?.split(';')
-    .find(c => c.trim().startsWith('staff_session='))
-    ?.split('=')[1];
+  // Check Authorization header first
+  let sessionId = req.headers.authorization?.replace('Bearer ', '');
+  
+  // Then check query param
+  if (!sessionId) sessionId = req.query?.token;
+  
+  // Then check cookie
+  if (!sessionId) {
+    sessionId = req.headers.cookie?.split(';')
+      .find(c => c.trim().startsWith('staff_session='))
+      ?.split('=')[1];
+  }
   
   if (!sessionId) return null;
   
@@ -170,14 +179,32 @@ const STAFF_ROLE_IDS = [
   '1453304660134727764'  // Mod
 ];
 
-// OAuth: Start login flow
-app.get('/auth/discord', (req, res) => {
+// Store pending connect requests
+const pendingConnects = new Map(); // state -> { token, redirect }
+
+// OAuth: Start Discord connect flow (for signup)
+app.get('/auth/discord/connect', (req, res) => {
+  const { token, redirect } = req.query;
+  
+  if (!token) {
+    return res.redirect('https://theunpatchedmethod.com/signup.html?error=no_token');
+  }
+  
   const state = require('crypto').randomBytes(16).toString('hex');
+  pendingConnects.set(state, { 
+    token, 
+    redirect: redirect || 'https://theunpatchedmethod.com/signup.html?step=3',
+    type: 'connect'
+  });
+  
+  // Clean up old pending connects after 10 minutes
+  setTimeout(() => pendingConnects.delete(state), 10 * 60 * 1000);
+  
   const params = new URLSearchParams({
     client_id: OAUTH_CLIENT_ID,
     redirect_uri: OAUTH_REDIRECT_URI,
     response_type: 'code',
-    scope: 'identify guilds.members.read',
+    scope: 'identify',
     state: state
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
@@ -185,10 +212,10 @@ app.get('/auth/discord', (req, res) => {
 
 // OAuth: Callback handler
 app.get('/auth/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
   
   if (error || !code) {
-    return res.redirect('/login?error=oauth_denied');
+    return res.redirect('https://theunpatchedmethod.com/login.html?error=oauth_denied');
   }
   
   try {
@@ -208,55 +235,85 @@ app.get('/auth/callback', async (req, res) => {
     const tokenData = await tokenResponse.json();
     if (!tokenData.access_token) {
       console.log('[AUTH] Token exchange failed:', tokenData);
-      return res.redirect('/login?error=token_failed');
+      return res.redirect('https://theunpatchedmethod.com/login.html?error=token_failed');
     }
     
-    // Get user info
+    // Get Discord user info
     const userResponse = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
-    const user = await userResponse.json();
+    const discordUser = await userResponse.json();
     
-    // Get user's guild member info to check roles
-    const memberResponse = await fetch(`https://discord.com/api/users/@me/guilds/${STAFF_GUILD_ID}/member`, {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` }
-    });
-    
-    if (!memberResponse.ok) {
-      console.log('[AUTH] User not in guild or cannot access');
-      return res.redirect('/login?error=not_in_server');
+    // Check if this is a connect flow (from signup)
+    const pending = pendingConnects.get(state);
+    if (pending && pending.type === 'connect') {
+      pendingConnects.delete(state);
+      
+      // Connect Discord to existing account
+      try {
+        // Verify the auth token
+        const decoded = JSON.parse(Buffer.from(pending.token.split('.')[1], 'base64').toString());
+        const userId = decoded.userId;
+        
+        // Update user with Discord info
+        await pool.query(`
+          UPDATE users SET 
+            discord_id = $1, 
+            username = $2, 
+            avatar = $3,
+            discord_access_token = $4,
+            discord_refresh_token = $5
+          WHERE id = $6
+        `, [
+          discordUser.id,
+          discordUser.username,
+          discordUser.avatar ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` : null,
+          tokenData.access_token,
+          tokenData.refresh_token || null,
+          userId
+        ]);
+        
+        console.log(`[AUTH] Discord connected: ${discordUser.username} to user ${userId}`);
+        return res.redirect(pending.redirect);
+        
+      } catch (e) {
+        console.log('[AUTH] Connect error:', e.message);
+        return res.redirect('https://theunpatchedmethod.com/signup.html?error=connect_failed');
+      }
     }
     
-    const member = await memberResponse.json();
-    const userRoles = member.roles || [];
+    // Regular login flow - redirect to home with token
+    // Check if user exists in database
+    const userResult = await pool.query('SELECT * FROM users WHERE discord_id = $1', [discordUser.id]);
     
-    // Check if user has any staff role
-    const hasStaffRole = userRoles.some(roleId => STAFF_ROLE_IDS.includes(roleId));
-    
-    if (!hasStaffRole) {
-      console.log(`[AUTH] User ${user.username} denied - no staff role`);
-      return res.redirect('/login?error=no_permission');
+    if (userResult.rows.length === 0) {
+      // No account - need to signup first
+      return res.redirect('https://theunpatchedmethod.com/signup.html?error=no_account');
     }
     
-    // Create session
-    const sessionId = generateSessionId();
-    sessions.set(sessionId, {
-      discordId: user.id,
-      discordTag: user.username,
-      avatar: user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : null,
-      roles: userRoles.filter(r => STAFF_ROLE_IDS.includes(r)),
-      expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 days
-    });
+    const user = userResult.rows[0];
     
-    console.log(`[AUTH] ✅ Staff login: ${user.username} (${user.id})`);
+    // Update username if changed on Discord
+    if (user.username !== discordUser.username) {
+      await pool.query('UPDATE users SET username = $1 WHERE id = $2', [discordUser.username, user.id]);
+      console.log(`[AUTH] Username updated: ${user.username} -> ${discordUser.username}`);
+    }
     
-    // Set cookie and redirect to dashboard
-    res.setHeader('Set-Cookie', `staff_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`);
-    res.redirect('/staff');
+    // Create auth token
+    const authToken = require('jsonwebtoken').sign(
+      { userId: user.id, discordId: discordUser.id },
+      process.env.JWT_SECRET || 'unpatched_jwt_secret_2025',
+      { expiresIn: '7d' }
+    );
+    
+    console.log(`[AUTH] Login: ${discordUser.username} (${discordUser.id})`);
+    
+    // Redirect to home page with token
+    res.redirect(`https://theunpatchedmethod.com/?token=${authToken}`);
     
   } catch (e) {
     console.log('[AUTH] OAuth error:', e.message);
-    res.redirect('/login?error=oauth_error');
+    res.redirect('https://theunpatchedmethod.com/login.html?error=oauth_error');
   }
 });
 
@@ -269,9 +326,10 @@ app.get('/api/me', (req, res) => {
   }
   
   // Determine role level
-  let roleLevel = 'mod';
+  let roleLevel = 'member';
   if (session.roles.includes('1453304665046257819')) roleLevel = 'senior_admin';
   else if (session.roles.includes('1453304662156644445')) roleLevel = 'admin';
+  else if (session.roles.includes('1453304660134727764')) roleLevel = 'mod';
   
   res.json({
     loggedIn: true,
@@ -279,7 +337,9 @@ app.get('/api/me', (req, res) => {
       id: session.discordId,
       username: session.discordTag,
       avatar: session.avatar,
-      roleLevel: roleLevel
+      roleLevel: roleLevel,
+      isStaff: session.isStaff || false,
+      isInServer: session.isInServer || false
     }
   });
 });
@@ -296,246 +356,21 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// SERVE LOGIN & STAFF PAGES FROM RAILWAY (No Hostinger needed)
-// ═══════════════════════════════════════════════════════════════════════════════
 
-app.get('/login', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff Login - The Unpatched Method</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #ffffff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
-    .login-container { width: 100%; max-width: 420px; text-align: center; }
-    .logo { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
-    .logo span { color: #ff6b35; }
-    .subtitle { color: #8b8b9e; margin-bottom: 2rem; font-size: 0.9rem; }
-    .card { background: #12121a; border: 1px solid #2a2a3e; border-radius: 16px; padding: 2.5rem; }
-    .card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-    .card p { color: #8b8b9e; font-size: 0.9rem; margin-bottom: 2rem; }
-    .discord-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 1rem 1.5rem; background: #5865f2; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
-    .discord-btn:hover { background: #4752c4; transform: translateY(-2px); }
-    .discord-btn svg { width: 24px; height: 24px; }
-    .error-msg { background: rgba(255, 71, 87, 0.1); border: 1px solid rgba(255, 71, 87, 0.3); color: #ff4757; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; }
-    .info-box { margin-top: 2rem; padding: 1rem; background: rgba(255, 107, 53, 0.1); border: 1px solid rgba(255, 107, 53, 0.2); border-radius: 8px; }
-    .info-box h4 { font-size: 0.8rem; color: #ff6b35; margin-bottom: 0.5rem; }
-    .info-box p { font-size: 0.8rem; color: #8b8b9e; margin: 0; }
-    .back-link { display: inline-block; margin-top: 1.5rem; color: #8b8b9e; text-decoration: none; font-size: 0.9rem; }
-    .back-link:hover { color: #ff6b35; }
-    .shield-icon { font-size: 3rem; margin-bottom: 1rem; }
-  </style>
-</head>
-<body>
-  <div class="login-container">
-    <div class="logo">Unpatched<span>Verify</span></div>
-    <div class="subtitle">Staff Dashboard</div>
-    <div class="card">
-      <div class="shield-icon">🛡️</div>
-      <h2>Staff Authentication</h2>
-      <p>Login with your Discord account to access the staff dashboard. You must have a Staff role in the server.</p>
-      <div id="error-container"></div>
-      <a href="/auth/discord" class="discord-btn">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-        Login with Discord
-      </a>
-      <div class="info-box">
-        <h4>🔒 Authorized Roles Only</h4>
-        <p>Senior Admin, Admin, and Mod roles can access the dashboard.</p>
-      </div>
-    </div>
-    <a href="https://theunpatchedmethod.com" class="back-link">← Back to Home</a>
-  </div>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const error = params.get('error');
-    const msgs = { 'oauth_denied': 'You cancelled the Discord login.', 'token_failed': 'Discord authentication failed.', 'not_in_server': 'You must be a member of the server.', 'no_permission': 'You don\\'t have a staff role.', 'oauth_error': 'An error occurred. Try again.' };
-    if (error && msgs[error]) document.getElementById('error-container').innerHTML = '<div class="error-msg">❌ ' + msgs[error] + '</div>';
-    fetch('/api/me', { credentials: 'include' }).then(r => r.json()).then(d => { if (d.loggedIn) window.location.href = '/staff'; });
-  </script>
-</body>
-</html>`);
-});
+// Redirect to Hostinger pages
+app.get('/login', (req, res) => res.redirect('https://theunpatchedmethod.com/login.html'));
+app.get('/staff', (req, res) => res.redirect('https://theunpatchedmethod.com/staff.html'));
+app.get('/dashboard', (req, res) => res.redirect('https://theunpatchedmethod.com/dashboard.html'));
 
-app.get('/staff', (req, res) => {
-  const session = getSession(req);
-  if (!session) return res.redirect('/login');
-  
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Staff Dashboard - Unpatched Verify</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root { --bg-dark: #0a0a0f; --bg-card: #12121a; --bg-card-hover: #1a1a25; --primary: #ff6b35; --secondary: #5865f2; --success: #00d26a; --danger: #ff4757; --warning: #ffa502; --text: #ffffff; --text-muted: #8b8b9e; --border: #2a2a3e; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; }
-    .layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 1.5rem; position: fixed; height: 100vh; overflow-y: auto; }
-    .sidebar-logo { font-size: 1.25rem; font-weight: 800; margin-bottom: 0.5rem; }
-    .sidebar-logo span { color: var(--primary); }
-    .sidebar-subtitle { font-size: 0.75rem; color: var(--danger); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2rem; }
-    .sidebar-section { margin-bottom: 2rem; }
-    .sidebar-section-title { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.75rem; padding-left: 0.75rem; }
-    .sidebar-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s; font-weight: 500; font-size: 0.9rem; cursor: pointer; }
-    .sidebar-link:hover { background: var(--bg-card-hover); color: var(--text); }
-    .sidebar-link.active { background: var(--primary); color: white; }
-    .main { flex: 1; margin-left: 260px; padding: 2rem; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    .header h1 { font-size: 1.75rem; font-weight: 800; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
-    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-    .stat-card .label { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem; }
-    .stat-card .value { font-size: 2rem; font-weight: 800; }
-    .stat-card.success .value { color: var(--success); }
-    .stat-card.danger .value { color: var(--danger); }
-    .stat-card.warning .value { color: var(--warning); }
-    .stat-card.vpn .value { color: #9b59b6; }
-    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.5rem; }
-    .card-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
-    .card-header h2 { font-size: 1.125rem; font-weight: 700; }
-    .card-body { padding: 1.5rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
-    th { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); }
-    tr:hover { background: var(--bg-card-hover); }
-    .badge { display: inline-flex; padding: 0.25rem 0.75rem; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
-    .badge-success { background: rgba(0, 210, 106, 0.15); color: var(--success); }
-    .badge-danger { background: rgba(255, 71, 87, 0.15); color: var(--danger); }
-    .badge-vpn { background: rgba(155, 89, 182, 0.15); color: #9b59b6; }
-    .user-id { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); }
-    .section { display: none; }
-    .section.active { display: block; }
-    .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
-    .ip-box { background: var(--bg-dark); padding: 0.5rem 0.75rem; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
-    .ip-box.vpn { border-left: 3px solid #9b59b6; }
-    .ip-box.real { border-left: 3px solid var(--primary); }
-    .location-small { font-size: 0.7rem; color: var(--text-muted); display: block; }
-    .btn { padding: 0.75rem 1.25rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; font-size: 0.875rem; }
-    .btn-primary { background: var(--primary); color: white; }
-    .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-    .filter-btn { padding: 0.5rem 1rem; border-radius: 100px; background: var(--bg-dark); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem; cursor: pointer; }
-    .filter-btn:hover, .filter-btn.active { border-color: var(--primary); color: var(--primary); }
-    @media (max-width: 768px) { .sidebar { display: none; } .main { margin-left: 0; } .stats-grid { grid-template-columns: 1fr; } }
-  </style>
-</head>
-<body>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-logo">Unpatched<span>Verify</span></div>
-      <div class="sidebar-subtitle">🔒 Staff Dashboard</div>
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">Overview</div>
-        <div class="sidebar-link active" data-section="dashboard">📊 Dashboard</div>
-      </div>
-      <div class="sidebar-section">
-        <div class="sidebar-section-title">Security</div>
-        <div class="sidebar-link" data-section="vpn">🎭 VPN Detections</div>
-        <div class="sidebar-link" data-section="logs">📋 Verification Logs</div>
-      </div>
-      <div class="sidebar-section">
-        <a href="/logout" class="sidebar-link">🚪 Logout</a>
-      </div>
-    </aside>
-    <main class="main">
-      <section id="section-dashboard" class="section active">
-        <div class="header"><h1>Security Dashboard</h1><span id="user-info"></span></div>
-        <div class="stats-grid">
-          <div class="stat-card success"><div class="label">Verified Users</div><div class="value" id="stat-verified">-</div></div>
-          <div class="stat-card danger"><div class="label">Blocked Alts</div><div class="value" id="stat-blocked">-</div></div>
-          <div class="stat-card vpn"><div class="label">VPN Users</div><div class="value" id="stat-vpn">-</div></div>
-          <div class="stat-card warning"><div class="label">WebRTC Leaks</div><div class="value" id="stat-leaks">-</div></div>
-        </div>
-        <div class="card"><div class="card-header"><h2>Recent Activity</h2></div><div class="card-body"><table><thead><tr><th>User</th><th>Result</th><th>Time</th></tr></thead><tbody id="recent-logs"></tbody></table></div></div>
-      </section>
-      <section id="section-vpn" class="section">
-        <div class="header"><h1>🎭 VPN Detections</h1><button class="btn btn-primary" onclick="loadVpn()">🔄 Refresh</button></div>
-        <div class="stats-grid">
-          <div class="stat-card vpn"><div class="label">Total VPN Users</div><div class="value" id="vpn-total">-</div></div>
-          <div class="stat-card" style="--primary:#ff6b35"><div class="label">WebRTC Leaks</div><div class="value" id="vpn-leaks" style="color:#ff6b35">-</div></div>
-        </div>
-        <div class="card"><div class="card-header"><h2>VPN Detection Log</h2></div><div class="card-body">
-          <div class="filters"><button class="filter-btn active" data-vpn="all">All</button><button class="filter-btn" data-vpn="leaks">🔓 Leaks Only</button></div>
-          <table><thead><tr><th>User</th><th>VPN IP</th><th>Real IP</th><th>Type</th><th>Time</th></tr></thead><tbody id="vpn-list"></tbody></table>
-        </div></div>
-      </section>
-      <section id="section-logs" class="section">
-        <div class="header"><h1>Verification Logs</h1></div>
-        <div class="card"><div class="card-body"><table><thead><tr><th>User</th><th>Result</th><th>IP</th><th>Time</th></tr></thead><tbody id="logs-list"></tbody></table></div></div>
-      </section>
-    </main>
-  </div>
-  <script>
-    const API = '';
-    const GUILD = '1446317951757062256';
-    
-    document.querySelectorAll('.sidebar-link[data-section]').forEach(l => {
-      l.addEventListener('click', () => {
-        document.querySelectorAll('.sidebar-link').forEach(x => x.classList.remove('active'));
-        document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
-        l.classList.add('active');
-        document.getElementById('section-' + l.dataset.section).classList.add('active');
-        if (l.dataset.section === 'vpn') loadVpn();
-      });
-    });
-    
-    fetch(API + '/api/me', { credentials: 'include' }).then(r => r.json()).then(d => {
-      if (!d.loggedIn) return window.location.href = '/login';
-      document.getElementById('user-info').textContent = '👤 ' + d.user.username;
-    });
-    
-    fetch(API + '/api/staff/stats', { credentials: 'include' }).then(r => r.json()).then(d => {
-      document.getElementById('stat-verified').textContent = d.totalVerified || 0;
-      document.getElementById('stat-blocked').textContent = d.blockedAlts || 0;
-    }).catch(() => {});
-    
-    fetch(API + '/api/staff/logs?limit=10', { credentials: 'include' }).then(r => r.json()).then(d => {
-      document.getElementById('recent-logs').innerHTML = (d.logs || []).map(l => '<tr><td class="user-id">' + l.discord_id + '</td><td><span class="badge badge-' + (l.result === 'success' ? 'success' : 'danger') + '">' + l.result + '</span></td><td>' + new Date(l.created_at).toLocaleString() + '</td></tr>').join('') || '<tr><td colspan="3" class="empty">No activity</td></tr>';
-    }).catch(() => {});
-    
-    fetch(API + '/api/staff/logs?limit=50', { credentials: 'include' }).then(r => r.json()).then(d => {
-      document.getElementById('logs-list').innerHTML = (d.logs || []).map(l => '<tr><td class="user-id">' + l.discord_id + '</td><td><span class="badge badge-' + (l.result === 'success' ? 'success' : 'danger') + '">' + l.result + '</span></td><td>' + (l.ip_address || '-') + '</td><td>' + new Date(l.created_at).toLocaleString() + '</td></tr>').join('') || '<tr><td colspan="4" class="empty">No logs</td></tr>';
-    }).catch(() => {});
-    
-    let vpnFilter = 'all';
-    function loadVpn() {
-      const q = vpnFilter === 'leaks' ? '?leaks_only=true' : '';
-      fetch(API + '/api/vpn-detections/' + GUILD + q, { credentials: 'include' }).then(r => r.json()).then(d => {
-        if (!d.success) { document.getElementById('vpn-list').innerHTML = '<tr><td colspan="5" class="empty">' + (d.error || 'Error') + '</td></tr>'; return; }
-        document.getElementById('vpn-total').textContent = d.stats?.total_vpn_users || 0;
-        document.getElementById('vpn-leaks').textContent = d.stats?.total_webrtc_leaks || 0;
-        document.getElementById('stat-vpn').textContent = d.stats?.total_vpn_users || 0;
-        document.getElementById('stat-leaks').textContent = d.stats?.total_webrtc_leaks || 0;
-        document.getElementById('vpn-list').innerHTML = (d.vpn_users || []).map(u => '<tr><td><strong>' + (u.discord_tag || '?') + '</strong><br><span class="user-id">' + u.discord_id + '</span></td><td><div class="ip-box vpn">' + u.vpn_ip + '<span class="location-small">' + u.vpn_location + '</span></div></td><td>' + (u.webrtc_leak ? '<div class="ip-box real">🔓 ' + u.real_ip + '<span class="location-small">' + u.real_location + '</span></div>' : '-') + '</td><td><span class="badge badge-vpn">' + u.vpn_type + '</span></td><td>' + new Date(u.detected_at).toLocaleString() + '</td></tr>').join('') || '<tr><td colspan="5" class="empty">No VPN users</td></tr>';
-      }).catch(() => {});
-    }
-    
-    document.querySelectorAll('.filter-btn[data-vpn]').forEach(b => {
-      b.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn[data-vpn]').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        vpnFilter = b.dataset.vpn;
-        loadVpn();
-      });
-    });
-    
-    loadVpn();
-  </script>
-</body>
-</html>`);
-});
 
 // Middleware to protect staff endpoints
 function requireStaff(req, res, next) {
   const session = getSession(req);
   if (!session) {
     return res.status(401).json({ error: 'Not authenticated', redirect: '/login' });
+  }
+  if (!session.isStaff) {
+    return res.status(403).json({ error: 'Staff access required' });
   }
   req.staffUser = session;
   next();
