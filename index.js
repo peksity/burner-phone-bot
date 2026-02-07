@@ -8687,6 +8687,82 @@ async function createTicket(user, guild, message, extraData = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SERVER CONFIGURATION API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/config/:guildId - Get server configuration
+app.get('/api/config/:guildId', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    
+    let config = await pool.query('SELECT * FROM server_configs WHERE guild_id = $1', [guildId]);
+    
+    if (config.rows.length === 0) {
+      await pool.query('INSERT INTO server_configs (guild_id) VALUES ($1)', [guildId]);
+      config = await pool.query('SELECT * FROM server_configs WHERE guild_id = $1', [guildId]);
+    }
+    
+    res.json({ success: true, config: config.rows[0] });
+  } catch (error) {
+    console.error('[CONFIG] Get error:', error);
+    res.status(500).json({ error: 'Failed to get config' });
+  }
+});
+
+// POST /api/config/:guildId - Update server configuration  
+app.post('/api/config/:guildId', checkStaffAuth, async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const updates = req.body;
+    
+    const fields = Object.keys(updates).filter(k => 
+      ['verified_role_id', 'log_channel_id', 'alert_channel_id', 'welcome_channel_id',
+       'min_account_age', 'require_avatar', 'block_vpn', 'allow_vpn_with_real_ip',
+       'custom_captcha_message', 'custom_success_message', 'custom_block_message',
+       'webhook_url', 'primary_color'].includes(k)
+    );
+    
+    if (fields.length === 0) return res.json({ success: true });
+    
+    const setClause = fields.map((f, i) => `${f} = $${i + 2}`).join(', ');
+    const values = [guildId, ...fields.map(f => updates[f])];
+    
+    await pool.query('INSERT INTO server_configs (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING', [guildId]);
+    await pool.query(`UPDATE server_configs SET ${setClause}, updated_at = NOW() WHERE guild_id = $1`, values);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[CONFIG] Update error:', error);
+    res.status(500).json({ error: 'Failed to update config' });
+  }
+});
+
+// GET /api/analytics/:guildId - Get analytics
+app.get('/api/analytics/:guildId', checkStaffAuth, async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const days = parseInt(req.query.days) || 30;
+    
+    const [total, blocked, vpn, alts] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM verification_logs WHERE guild_id = $1 AND created_at > NOW() - INTERVAL '${days} days'`, [guildId]),
+      pool.query(`SELECT COUNT(*) FROM verification_logs WHERE guild_id = $1 AND result = 'blocked' AND created_at > NOW() - INTERVAL '${days} days'`, [guildId]),
+      pool.query(`SELECT COUNT(*) FROM vpn_detections WHERE guild_id = $1 AND created_at > NOW() - INTERVAL '${days} days'`, [guildId]),
+      pool.query(`SELECT COUNT(*) FROM verification_logs WHERE guild_id = $1 AND is_alt = true AND created_at > NOW() - INTERVAL '${days} days'`, [guildId])
+    ]);
+    
+    res.json({
+      success: true,
+      total_verifications: parseInt(total.rows[0].count) || 0,
+      threats_blocked: parseInt(blocked.rows[0].count) || 0,
+      vpn_detections: parseInt(vpn.rows[0].count) || 0,
+      alt_accounts: parseInt(alts.rows[0].count) || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get analytics' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // DM HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 
