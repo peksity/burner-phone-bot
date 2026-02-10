@@ -720,11 +720,27 @@ app.post('/api/web-verify', async (req, res) => {
   if (clientThreats.tabs > 5) { riskScore += 10; riskReasons.push('Excessive tab switches'); }
   if (clientThreats.paste > 0) { riskScore += 5; riskReasons.push('Copy-paste detected'); }
   
-  // Behavioral analysis
+  // Detect mobile from User-Agent
+  const userAgent = req.headers['user-agent'] || '';
+  const isMobileDevice = /Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  
+  // Behavioral analysis - SKIP mouse check for mobile users (they don't have mouse!)
   const behavior = fingerprint_data?.behavior || {};
   const mouseCount = behavior.mouseMovements || behavior.mouseCount || 0;
   const clickCount = behavior.clickCount || 0;
-  if (mouseCount < 5 && clickCount < 2) { riskScore += 20; riskReasons.push('No mouse movement'); }
+  const touchCount = behavior.touchCount || behavior.touchEvents || fingerprint_data?.behavior?.touch?.length || 0;
+  
+  if (!isMobileDevice && mouseCount < 5 && clickCount < 2) {
+    // Only penalize desktop users with no mouse movement
+    riskScore += 20;
+    riskReasons.push('No mouse movement (desktop)');
+  } else if (isMobileDevice && touchCount < 2) {
+    // For mobile, check touch events instead - but much lower penalty
+    riskScore += 5;
+    riskReasons.push('Low touch interaction');
+  }
+  
+  console.log(`[VERIFY] Device: ${isMobileDevice ? 'MOBILE' : 'DESKTOP'}, Mouse: ${mouseCount}, Touch: ${touchCount}`);
   
   console.log(`[VERIFY] Client risk score: ${riskScore}, Reasons: ${riskReasons.join(', ') || 'none'}`);
   
@@ -930,10 +946,29 @@ app.post('/api/web-verify', async (req, res) => {
       }
     }
     
-    // Add IP risk to overall score
-    riskScore += Math.floor(threatData.ip_risk_score / 2);
-    if (threatData.ip_vpn) { riskScore += 10; riskReasons.push('VPN'); }
-    if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
+    // Add IP risk to overall score - BUT reduce for mobile carriers
+    const isMobileCarrier = threatData.ip_mobile || 
+      /T-Mobile|Verizon|AT&T|Sprint|Vodafone|Orange|EE|O2|Telstra|Rogers|Bell|Cricket|Metro|Boost|Mint|Visible|US Cellular/i.test(threatData.ip_isp || '');
+    
+    if (isMobileCarrier || isMobileDevice) {
+      // Mobile carriers have high fraud scores due to CGNAT (shared IPs)
+      // Reduce the penalty significantly for legitimate mobile users
+      riskScore += Math.floor(threatData.ip_risk_score / 6);  // Much lower weight
+      console.log(`[VERIFY] Mobile carrier/device detected (${threatData.ip_isp}) - reducing IP risk weight`);
+      
+      // Don't penalize VPN/proxy flags for mobile carriers - CGNAT causes false positives
+      if (threatData.ip_vpn || threatData.ip_proxy) {
+        console.log(`[VERIFY] Ignoring VPN/Proxy flag for mobile carrier`);
+        // Don't add to risk score, just note it
+      }
+    } else {
+      // Regular desktop/wifi IP - full penalties apply
+      riskScore += Math.floor(threatData.ip_risk_score / 2);
+      if (threatData.ip_vpn) { riskScore += 10; riskReasons.push('VPN'); }
+      if (threatData.ip_proxy) { riskScore += 15; riskReasons.push('Proxy'); }
+    }
+    
+    // Tor is always suspicious regardless of device
     if (threatData.ip_tor) { riskScore += 25; riskReasons.push('Tor'); }
   } else {
     console.log(`[VERIFY] WARNING: No IP intelligence available - both IPQS and ProxyCheck failed`);
@@ -1001,8 +1036,14 @@ app.post('/api/web-verify', async (req, res) => {
   
   // Auto-block for very high risk scores (configurable via env var)
   const AUTO_BLOCK_THRESHOLD = parseInt(process.env.AUTO_BLOCK_THRESHOLD) || 75;
-  if (riskScore >= AUTO_BLOCK_THRESHOLD) {
-    console.log(`[VERIFY] AUTO-BLOCKED - Risk score ${riskScore} exceeds threshold ${AUTO_BLOCK_THRESHOLD}`);
+  
+  // Higher threshold for mobile users (they naturally score higher due to CGNAT, no mouse, etc)
+  const mobileThresholdBonus = isMobileDevice ? 20 : 0;
+  const effectiveThreshold = AUTO_BLOCK_THRESHOLD + mobileThresholdBonus;
+  console.log(`[VERIFY] Threshold: ${effectiveThreshold} (base: ${AUTO_BLOCK_THRESHOLD}, mobile bonus: ${mobileThresholdBonus})`);
+  
+  if (riskScore >= effectiveThreshold) {
+    console.log(`[VERIFY] AUTO-BLOCKED - Risk score ${riskScore} exceeds threshold ${effectiveThreshold}`);
     
     // Send alert to security channel
     try {
@@ -1015,7 +1056,7 @@ app.post('/api/web-verify', async (req, res) => {
           .addFields(
             { name: 'User', value: `<@${discord_id}> (${discord_id})`, inline: true },
             { name: 'Risk Score', value: `**${riskScore}**/100`, inline: true },
-            { name: 'Threshold', value: `${AUTO_BLOCK_THRESHOLD}`, inline: true },
+            { name: 'Threshold', value: `${effectiveThreshold}${isMobileDevice ? ' (mobile)' : ''}`, inline: true },
             { name: 'IP', value: `\`${userIP}\``, inline: true },
             { name: 'Location', value: `${threatData.ip_country || '?'}, ${threatData.ip_city || '?'}`, inline: true },
             { name: 'VPN', value: threatData.ip_vpn ? 'Yes' : 'No', inline: true },
