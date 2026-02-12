@@ -317,31 +317,74 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// Get current user info
-app.get('/api/me', (req, res) => {
+// Get current user info - supports both session and JWT auth
+app.get('/api/me', async (req, res) => {
+  // First try session auth (for staff)
   const session = getSession(req);
   
-  if (!session) {
-    return res.json({ loggedIn: false });
+  if (session) {
+    // Determine role level
+    let roleLevel = 'member';
+    if (session.roles.includes('1453304665046257819')) roleLevel = 'senior_admin';
+    else if (session.roles.includes('1453304662156644445')) roleLevel = 'admin';
+    else if (session.roles.includes('1453304660134727764')) roleLevel = 'mod';
+    
+    return res.json({
+      loggedIn: true,
+      user: {
+        id: session.discordId,
+        username: session.discordTag,
+        avatar: session.avatar,
+        roleLevel: roleLevel,
+        isStaff: session.isStaff || false,
+        isInServer: session.isInServer || false
+      }
+    });
   }
   
-  // Determine role level
-  let roleLevel = 'member';
-  if (session.roles.includes('1453304665046257819')) roleLevel = 'senior_admin';
-  else if (session.roles.includes('1453304662156644445')) roleLevel = 'admin';
-  else if (session.roles.includes('1453304660134727764')) roleLevel = 'mod';
-  
-  res.json({
-    loggedIn: true,
-    user: {
-      id: session.discordId,
-      username: session.discordTag,
-      avatar: session.avatar,
-      roleLevel: roleLevel,
-      isStaff: session.isStaff || false,
-      isInServer: session.isInServer || false
+  // Try JWT auth (for regular users)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = require('jsonwebtoken').verify(
+        token, 
+        process.env.JWT_SECRET || 'unpatched_jwt_secret_2025'
+      );
+      
+      // Get user from database
+      const userResult = await pool.query(
+        'SELECT * FROM users WHERE id = $1 OR discord_id = $2',
+        [decoded.userId, decoded.discordId]
+      );
+      
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        return res.json({
+          loggedIn: true,
+          user: {
+            id: user.discord_id,
+            username: user.username,
+            avatar: user.avatar,
+            email: user.email,
+            roleLevel: user.role || 'customer',
+            isStaff: user.is_staff || false
+          }
+        });
+      }
+    } catch (e) {
+      console.log('[AUTH] JWT verify failed:', e.message);
     }
-  });
+  }
+  
+  return res.json({ loggedIn: false });
+});
+
+// Also add /api/auth/me as alias for compatibility
+app.get('/api/auth/me', async (req, res) => {
+  // Redirect to /api/me handler
+  req.url = '/api/me';
+  app._router.handle(req, res);
 });
 
 // Logout
@@ -354,6 +397,12 @@ app.get('/logout', (req, res) => {
   
   res.setHeader('Set-Cookie', 'staff_session=; Path=/; HttpOnly; Max-Age=0');
   res.redirect('/login');
+});
+
+// API logout (for frontend)
+app.post('/api/auth/logout', (req, res) => {
+  // JWT tokens are stateless, just tell client to clear
+  res.json({ success: true, message: 'Logged out' });
 });
 
 
