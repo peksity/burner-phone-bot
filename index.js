@@ -182,6 +182,27 @@ const STAFF_ROLE_IDS = [
 // Store pending connect requests
 const pendingConnects = new Map(); // state -> { token, redirect }
 
+// OAuth: Start Discord LOGIN flow (for existing users)
+app.get('/auth/discord', (req, res) => {
+  const state = require('crypto').randomBytes(16).toString('hex');
+  pendingConnects.set(state, { 
+    type: 'login',
+    redirect: 'https://theunpatchedmethod.com/'
+  });
+  
+  // Clean up after 10 minutes
+  setTimeout(() => pendingConnects.delete(state), 10 * 60 * 1000);
+  
+  const params = new URLSearchParams({
+    client_id: OAUTH_CLIENT_ID,
+    redirect_uri: OAUTH_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'identify',
+    state: state
+  });
+  res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+});
+
 // OAuth: Start Discord connect flow (for signup)
 app.get('/auth/discord/connect', (req, res) => {
   const { token, redirect } = req.query;
@@ -281,6 +302,13 @@ app.get('/auth/callback', async (req, res) => {
         return res.redirect('https://theunpatchedmethod.com/signup.html?error=connect_failed');
       }
     }
+    
+    // Clean up login state if exists
+    if (pending && pending.type === 'login') {
+      pendingConnects.delete(state);
+    }
+    
+    console.log(`[AUTH] Login attempt for Discord user: ${discordUser.username} (${discordUser.id})`);
     
     // Regular login flow - redirect to home with token
     // Check if user exists in database
